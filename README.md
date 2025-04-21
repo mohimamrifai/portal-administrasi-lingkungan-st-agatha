@@ -80,7 +80,7 @@
     - Notifikasi pop-up untuk setiap tindakan
 
 ### 4. IKATA (2 tab)
-- **Tab 1: Kas IKATA**
+- **Tab 1: Kas IKATA** ( default)
   - Datacard (Saldo Awal, Pemasukan, Pengeluaran, Saldo Akhir)
   - Data transaksi dengan filter bulan dan tahun
   - Warna berbeda untuk transaksi debit dan kredit
