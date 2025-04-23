@@ -3,16 +3,8 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { 
-  LayoutDashboard,
-  FileText,
-  Users,
-  Settings,
-  LogOut,
-  ClipboardCheck,
-  History,
-  Home,
-  Banknote,
+import {
+  LayoutDashboard
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -27,7 +19,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { navMain } from "@/lib/nav-menu"
-import { cn } from "@/lib/utils"
 
 const data = {
   user: {
@@ -37,9 +28,9 @@ const data = {
   },
 }
 
-export function AppSidebar({ 
+export function AppSidebar({
   userRole = "SuperUser",
-  ...props 
+  ...props
 }: React.ComponentProps<typeof Sidebar> & { userRole?: string }) {
   const pathname = usePathname()
   const menuItems = navMain[userRole] || navMain.Umat

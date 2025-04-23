@@ -1,28 +1,14 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
+import "./globals.css"
+import { Inter } from "next/font/google"
 import { Toaster } from "@/components/ui/sonner"
 import { AuthProvider } from "@/contexts/auth-context"
-import { AppClientWrapper, HeaderClientWrapper } from "@/components/client-wrappers"
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+const inter = Inter({ subsets: ["latin"] })
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-export const metadata: Metadata = {
+export const metadata = {
   title: "Portal Administrasi Lingkungan St. Agatha",
-  description: "Portal Administrasi Lingkungan St. Agatha",
-};
+  description: "Portal administrasi untuk lingkungan St. Agatha",
+}
 
 export default function RootLayout({
   children,
@@ -31,26 +17,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id">
-      <body className={`${geistSans.variable} ${geistMono.variable} font-geist-sans`}>
+      <body className={inter.className}>
         <AuthProvider>
-          <SidebarProvider
-            style={
-              {
-                "--sidebar-width": "calc(var(--spacing) * 72)",
-                "--header-height": "calc(var(--spacing) * 12)",
-              } as React.CSSProperties
-            }
-          >
-            <AppClientWrapper />
-            <SidebarInset>
-              <HeaderClientWrapper />
-              <main className="flex flex-1 flex-col">
-                {children}
-              </main>
-            </SidebarInset>
-          </SidebarProvider>
+          {children}
+          <Toaster />
         </AuthProvider>
-        <Toaster />
       </body>
     </html>
   )

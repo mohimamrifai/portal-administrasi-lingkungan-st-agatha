@@ -16,6 +16,7 @@ import { useState } from "react"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
+import { RoleSelector } from "@/components/role-selector"
 
 export function LoginForm({
   className,
@@ -28,7 +29,7 @@ export function LoginForm({
   const [error, setError] = useState<string | null>(null)
   
   const router = useRouter()
-  const { login } = useAuth()
+  const { login, isDevelopmentMode } = useAuth()
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword)
@@ -133,6 +134,8 @@ export function LoginForm({
           </form>
         </CardContent>
       </Card>
+      
+      {isDevelopmentMode && <RoleSelector />}
     </div>
   )
 }

@@ -41,14 +41,7 @@ export const navMain: Record<string, MenuItem[]> = {
                 { label: 'Agenda', path: '/kesekretariatan/agenda' },
             ],
         },
-        {
-            label: 'Publikasi',
-            icon: FileText,
-            children: [
-                { label: 'Buat Publikasi', path: '/publikasi/buat' },
-                { label: 'Daftar Pengumuman', path: '/publikasi' },
-            ],
-        },
+        { label: 'Publikasi', path: '/publikasi', icon: FileText },
         { label: 'Approval', path: '/approval', icon: ClipboardCheck },
         { label: 'Histori Pembayaran', path: '/histori', icon: History },
         {
@@ -90,11 +83,7 @@ export const navMain: Record<string, MenuItem[]> = {
                 { label: 'Agenda', path: '/kesekretariatan/agenda' },
             ],
         },
-        {
-            label: 'Publikasi',
-            icon: FileText,
-            children: [{ label: 'Daftar Pengumuman', path: '/publikasi' }],
-        },
+        { label: 'Publikasi', path: '/publikasi', icon: FileText },
         { label: 'Histori Pembayaran', path: '/histori', icon: History },
         {
             label: 'Pengaturan',
@@ -131,11 +120,7 @@ export const navMain: Record<string, MenuItem[]> = {
                 { label: 'Agenda', path: '/kesekretariatan/agenda' },
             ],
         },
-        {
-            label: 'Publikasi',
-            icon: FileText,
-            children: [{ label: 'Daftar Pengumuman', path: '/publikasi' }],
-        },
+        { label: 'Publikasi', path: '/publikasi', icon: FileText },
         { label: 'Histori Pembayaran', path: '/histori', icon: History },
         {
             label: 'Pengaturan',
@@ -156,14 +141,7 @@ export const navMain: Record<string, MenuItem[]> = {
                 { label: 'Agenda', path: '/kesekretariatan/agenda' },
             ],
         },
-        {
-            label: 'Publikasi',
-            icon: FileText,
-            children: [
-                { label: 'Buat Publikasi', path: '/publikasi/buat' },
-                { label: 'Daftar Pengumuman', path: '/publikasi' },
-            ],
-        },
+        { label: 'Publikasi', path: '/publikasi', icon: FileText },
         { label: 'Histori Pembayaran', path: '/histori', icon: History },
         {
             label: 'Pengaturan',
@@ -187,10 +165,7 @@ export const navMain: Record<string, MenuItem[]> = {
         {
             label: 'Publikasi',
             icon: FileText,
-            children: [
-                { label: 'Buat Publikasi', path: '/publikasi/buat' },
-                { label: 'Daftar Pengumuman', path: '/publikasi' },
-            ],
+            path: '/publikasi',
         },
         { label: 'Histori Pembayaran', path: '/histori', icon: History },
         {
@@ -277,7 +252,7 @@ export const navMain: Record<string, MenuItem[]> = {
         {
             label: 'Publikasi',
             icon: FileText,
-            children: [{ label: 'Daftar Pengumuman', path: '/publikasi' }],
+            path: '/publikasi',
         },
         { label: 'Histori Pembayaran', path: '/histori', icon: History },
         {

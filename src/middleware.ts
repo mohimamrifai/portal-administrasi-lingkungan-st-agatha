@@ -40,11 +40,23 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // For development purposes, use the environment variable
+  // For development purposes, check for devUserRole cookie first
   // In production, this would come from a session or cookie
-  const userRole = process.env.NODE_ENV === 'development'
-    ? getDevUserRole()
-    : request.cookies.get("userRole")?.value || 'Umat';
+  let userRole = 'Umat'; // default role
+  
+  if (process.env.NODE_ENV === 'development') {
+    // Check for development role cookie first
+    const devRoleCookie = request.cookies.get("devUserRole")?.value;
+    if (devRoleCookie) {
+      userRole = devRoleCookie;
+    } else {
+      // Fall back to environment variable if no cookie
+      userRole = getDevUserRole();
+    }
+  } else {
+    // In production, use the regular userRole cookie
+    userRole = request.cookies.get("userRole")?.value || 'Umat';
+  }
 
   // Check if user is authenticated
   if (!userRole) {
