@@ -52,6 +52,7 @@ import {
   transactionSubtypes,
   familyHeads
 } from "../types"
+import { Textarea } from "@/components/ui/textarea"
 
 // Common form component shared between create and edit dialogs
 function TransactionForm({ 

@@ -129,7 +129,7 @@ export default function KasLingkunganContent() {
       setEditDialogOpen(false)
     } else {
       // Add mode
-      const newTransaction = createNewTransaction(values, description);
+      const newTransaction = createNewTransaction(values, description)
       setTransactions([...transactions, newTransaction])
       toast.success("Transaksi berhasil ditambahkan")
 
