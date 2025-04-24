@@ -3,10 +3,70 @@
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
+import { Bell } from "lucide-react"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
 interface SiteHeaderProps {
   userRole?: string
+}
+
+function NotificationList() {
+  const notifications = [
+    {
+      id: 1,
+      title: "Pengumuman Rapat",
+      message: "Rapat pengurus akan diadakan besok",
+      time: "5 menit yang lalu"
+    },
+    {
+      id: 2, 
+      title: "Laporan Baru",
+      message: "Ada laporan keuangan baru yang perlu direview",
+      time: "1 jam yang lalu"
+    }
+  ]
+
+  return (
+    <div className="w-[320px]">
+      <div className="flex flex-col">
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+          <h4 className="font-semibold">Notifikasi</h4>
+          <Button variant="ghost" size="sm" className="text-xs hover:bg-muted">
+            Tandai sudah dibaca
+          </Button>
+        </div>
+        
+        <div className="py-2">
+          {notifications.map((notification) => (
+            <div
+              key={notification.id}
+              className="px-4 py-2.5 hover:bg-muted/50 cursor-pointer transition-colors"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 space-y-1">
+                  <p className="font-medium text-sm leading-none">{notification.title}</p>
+                  <p className="text-sm text-muted-foreground line-clamp-2">{notification.message}</p>
+                </div>
+                <span className="text-[11px] text-muted-foreground whitespace-nowrap">{notification.time}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t px-4 py-2">
+          <Button variant="ghost" className="w-full justify-center text-sm hover:bg-muted">
+            Lihat semua notifikasi
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export function SiteHeader({ userRole = "Umat" }: SiteHeaderProps) {
@@ -25,10 +85,23 @@ export function SiteHeader({ userRole = "Umat" }: SiteHeaderProps) {
         </div>
         <div className="flex items-center gap-2">
           {isDevelopmentMode && (
-            <Badge variant="destructive" className="mr-2">
+            <Badge variant="destructive" className="mr-2 text-white">
               DEV MODE
             </Badge>
           )}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" className="relative">
+                <Bell className="w-5 h-5" />
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-destructive text-destructive-foreground text-xs font-medium rounded-full flex items-center justify-center px-1 text-white">
+                  2
+                </span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="p-0 w-auto">
+              <NotificationList />
+            </PopoverContent>
+          </Popover>
           <Badge variant="outline" className="text-muted-foreground">
             {userRole}
           </Badge>

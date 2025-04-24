@@ -46,21 +46,16 @@ import { Badge } from "@/components/ui/badge"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 import { toast } from "sonner"
+import { ROLES, KATEGORI_PUBLIKASI, TARGET_PENERIMA } from "../utils/constants"
 
 // Komponen pilihan target penerima
 const TargetRecipients = ({ onSelected }: { onSelected: (selected: string[]) => void }) => {
   const [selectedGroups, setSelectedGroups] = useState<string[]>([])
-  const groups = [
-    { id: "all", label: "Semua Umat" },
-    { id: "pengurus", label: "Pengurus" },
-    { id: "kepala_keluarga", label: "Kepala Keluarga" },
-    { id: "ikata", label: "Anggota IKATA" },
-    { id: "doling", label: "Peserta Doa Lingkungan" },
-  ]
+  const groups = TARGET_PENERIMA
 
   const toggleGroup = (id: string) => {
     setSelectedGroups(prev => {
-      // Jika "Semua Umat" dipilih, hilangkan semua pilihan lain
+      // Jika "Semua Pengguna" dipilih, hilangkan semua pilihan lain
       if (id === "all") {
         return prev.includes("all") ? [] : ["all"]
       }
@@ -216,30 +211,14 @@ export default function BuatPublikasi() {
                 <SelectValue placeholder="Pilih kategori" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Penting">
-                  <div className="flex items-center">
-                    <AlertTriangle className="h-4 w-4 mr-2 text-red-500" />
-                    Penting
-                  </div>
-                </SelectItem>
-                <SelectItem value="Umum">
-                  <div className="flex items-center">
-                    <Info className="h-4 w-4 mr-2 text-blue-500" />
-                    Umum
-                  </div>
-                </SelectItem>
-                <SelectItem value="Rahasia">
-                  <div className="flex items-center">
-                    <Lock className="h-4 w-4 mr-2 text-purple-500" />
-                    Rahasia
-                  </div>
-                </SelectItem>
-                <SelectItem value="Segera">
-                  <div className="flex items-center">
-                    <Clock className="h-4 w-4 mr-2 text-orange-500" />
-                    Segera
-                  </div>
-                </SelectItem>
+                {KATEGORI_PUBLIKASI.map((kategori) => (
+                  <SelectItem key={kategori.id} value={kategori.label}>
+                    <div className="flex items-center">
+                      {renderCategoryIcon(kategori.label)}
+                      {kategori.label}
+                    </div>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -252,7 +231,7 @@ export default function BuatPublikasi() {
                   {targetRecipients.length === 0 
                     ? "Pilih target penerima" 
                     : targetRecipients.includes("all") 
-                      ? "Semua Umat" 
+                      ? "Semua Pengguna" 
                       : `${targetRecipients.length} grup dipilih`}
                 </Button>
               </DialogTrigger>
@@ -420,7 +399,7 @@ export default function BuatPublikasi() {
               <Users className="h-4 w-4 mr-2 text-gray-500" />
               <span>
                 Target: {targetRecipients.includes("all") 
-                  ? "Semua Umat" 
+                  ? "Semua Pengguna" 
                   : targetRecipients.length > 0 
                     ? `${targetRecipients.length} grup` 
                     : "Belum dipilih"}

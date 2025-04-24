@@ -2,44 +2,85 @@
 
 import * as React from "react"
 import { useState } from "react"
+import { DateRange } from "react-day-picker"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { PlusCircle } from "lucide-react"
-import Pengumuman from "./pengumuman"
+import { Button } from "@/components/ui/button"
+import { Plus, PlusCircle } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import BuatPublikasi from "./buat-publikasi"
+import { dummyPublikasi } from "../utils/data"
+import { SummaryCards } from "./summary-cards"
+import { PublikasiTable } from "./publikasi-table"
+import { SearchInput } from "./search-input"
+import { StatusFilter } from "./status-filter"
+import { KategoriFilter } from "./kategori-filter"
+import { PeriodFilter } from "./period-filter"
+import { Badge } from "@/components/ui/badge"
+import { X } from "lucide-react"
+import BuatLaporanDialog from "./buat-laporan-dialog"
+import BuatPengumumanDialog from "./buat-pengumuman-dialog"
+import BuatPublikasiDialog from "./buat-publikasi-dialog"
 
 export default function PublikasiContent() {
   const [activeTab, setActiveTab] = useState("pengumuman")
+  const [data] = useState(dummyPublikasi)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  const [kategoriFilter, setKategoriFilter] = useState<string | null>(null)
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
+  
+  // Setup table
+  const filteredData = React.useMemo(() => {
+    let filtered = [...data]
+    
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(item => 
+        item.judul.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+    
+    // Filter by status
+    if (statusFilter) {
+      filtered = filtered.filter(item => item.status === statusFilter)
+    }
+    
+    // Filter by kategori
+    if (kategoriFilter) {
+      filtered = filtered.filter(item => item.kategori === kategoriFilter)
+    }
+    
+    // Filter by date range
+    if (dateRange?.from) {
+      const fromDate = new Date(dateRange.from)
+      fromDate.setHours(0, 0, 0, 0)
+      
+      filtered = filtered.filter(item => {
+        const itemDate = new Date(item.tanggal)
+        if (dateRange.to) {
+          const toDate = new Date(dateRange.to)
+          toDate.setHours(23, 59, 59, 999)
+          return itemDate >= fromDate && itemDate <= toDate
+        }
+        return itemDate >= fromDate
+      })
+    }
+    
+    return filtered
+  }, [data, searchTerm, statusFilter, kategoriFilter, dateRange])
+  
+  // Reset all filters
+  const resetAllFilters = () => {
+    setSearchTerm("")
+    setStatusFilter(null)
+    setKategoriFilter(null)
+    setDateRange(undefined)
+  }
 
   return (
     <div className="space-y-6 p-2">
-      {/* Info Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card className="gap-0">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Total Publikasi</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">12</div>
-                <p className="text-xs text-muted-foreground">Bulan ini</p>
-              </CardContent>
-            </Card>
-            <Card className="gap-0">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Publikasi Aktif</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">8</div>
-                <p className="text-xs text-muted-foreground">Belum melewati deadline</p>
-              </CardContent>
-            </Card>
-      </div>
+      {/* Summary Cards */}
+      <SummaryCards data={data} />
 
       {/* Tabs */}
       <Tabs 
@@ -59,11 +100,100 @@ export default function PublikasiContent() {
         </TabsList>
         
         <TabsContent value="pengumuman" className="space-y-4">
-          <Pengumuman />
+          <Card>
+            <CardHeader>
+              <CardTitle>Daftar Pengumuman</CardTitle>
+              <CardDescription>
+                Kelola semua pengumuman yang tersedia dalam sistem
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Filters Section - Ditata ulang agar benar-benar sejajar */}
+              <div className="flex flex-wrap gap-4 items-center mb-4">
+                <div className="inline-flex">
+                  <SearchInput 
+                    table={{
+                      getColumn: () => ({
+                        setFilterValue: () => {},
+                      }),
+                    } as any} 
+                    searchTerm={searchTerm} 
+                    setSearchTerm={setSearchTerm}
+                    placeholder="Cari pengumuman..."
+                  />
+                </div>
+                
+                <div className="inline-flex">
+                  <StatusFilter 
+                    table={{
+                      getColumn: () => ({
+                        setFilterValue: () => {},
+                      }),
+                    } as any} 
+                    statusFilter={statusFilter} 
+                    setStatusFilter={setStatusFilter} 
+                  />
+                </div>
+                
+                <div className="inline-flex">
+                  <KategoriFilter 
+                    table={{
+                      getColumn: () => ({
+                        setFilterValue: () => {},
+                      }),
+                    } as any} 
+                    kategoriFilter={kategoriFilter} 
+                    setKategoriFilter={setKategoriFilter} 
+                  />
+                </div>
+                
+                <div className="inline-flex">
+                  <PeriodFilter 
+                    dateRange={dateRange} 
+                    setDateRange={setDateRange} 
+                  />
+                </div>
+                
+                <div className="flex flex-col md:flex-row gap-2 md:justify-end w-full">
+                  <BuatLaporanDialog />
+                  <BuatPengumumanDialog />
+                </div>
+              </div>
+
+              {/* Active Filters Summary */}
+              {(searchTerm || statusFilter || kategoriFilter || dateRange) && (
+                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-4">
+                  <span>Filter aktif:</span>
+                  
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="ml-auto h-7 text-xs"
+                    onClick={resetAllFilters}
+                  >
+                    Reset Semua
+                  </Button>
+                </div>
+              )}
+
+              {/* Table Section */}
+              <PublikasiTable data={filteredData} />
+            </CardContent>
+          </Card>
         </TabsContent>
         
         <TabsContent value="buat-publikasi" className="space-y-4">
-          <BuatPublikasi />
+          <Card>
+            <CardHeader>
+              <CardTitle>Buat Publikasi Baru</CardTitle>
+              <CardDescription>
+                Buat publikasi baru untuk disebarkan kepada umat
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BuatPublikasiDialog />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

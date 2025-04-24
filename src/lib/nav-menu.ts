@@ -53,7 +53,6 @@ export const navMain: Record<string, MenuItem[]> = {
                 { label: 'Wipe Data', path: '/pengaturan/wipe', icon: Trash2 },
             ],
         },
-        { label: 'Log Out', path: '/logout', icon: LogOut },
     ],
 
     Ketua: [
@@ -90,7 +89,6 @@ export const navMain: Record<string, MenuItem[]> = {
             icon: Settings,
             children: [{ label: 'Ganti Password', path: '/pengaturan/password' }],
         },
-        { label: 'Log Out', path: '/logout', icon: LogOut },
     ],
 
     WakilKetua: [
@@ -127,7 +125,6 @@ export const navMain: Record<string, MenuItem[]> = {
             icon: Settings,
             children: [{ label: 'Ganti Password', path: '/pengaturan/password' }],
         },
-        { label: 'Log Out', path: '/logout', icon: LogOut },
     ],
 
     Sekretaris: [
@@ -148,7 +145,6 @@ export const navMain: Record<string, MenuItem[]> = {
             icon: Settings,
             children: [{ label: 'Ganti Password', path: '/pengaturan/password' }],
         },
-        { label: 'Log Out', path: '/logout', icon: LogOut },
     ],
 
     WakilSekretaris: [
@@ -173,7 +169,6 @@ export const navMain: Record<string, MenuItem[]> = {
             icon: Settings,
             children: [{ label: 'Ganti Password', path: '/pengaturan/password' }],
         },
-        { label: 'Log Out', path: '/logout', icon: LogOut },
     ],
 
     Bendahara: [
@@ -209,7 +204,6 @@ export const navMain: Record<string, MenuItem[]> = {
             icon: Settings,
             children: [{ label: 'Ganti Password', path: '/pengaturan/password' }],
         },
-        { label: 'Log Out', path: '/logout', icon: LogOut },
     ],
 
     WakilBendahara: [
@@ -244,7 +238,6 @@ export const navMain: Record<string, MenuItem[]> = {
             icon: Settings,
             children: [{ label: 'Ganti Password', path: '/pengaturan/password' }],
         },
-        { label: 'Log Out', path: '/logout', icon: LogOut },
     ],
 
     Umat: [
@@ -271,6 +264,5 @@ export const navMain: Record<string, MenuItem[]> = {
                 { label: 'Ganti Password', path: '/pengaturan/password' },
             ],
         },
-        { label: 'Log Out', path: '/logout', icon: LogOut },
     ],
 }
