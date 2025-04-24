@@ -150,6 +150,9 @@
   - Input password baru dan konfirmasi
   - Tidak terintegrasi dengan email
 
+-- **Submenu Ubah Password**
+  - **Fitur Wipe Data** untuk SuperUser
+
 ### 8. Approval
 - Integrasi data Detil Doling ke Kas Lingkungan
 - Tampilan data untuk persetujuan
@@ -166,7 +169,6 @@
 - **Tombol Log Out**
 - **Notifikasi** dengan fitur hapus otomatis
 - **Otorisasi** 8 jenis pengguna dengan batasan akses
-- **Fitur Wipe Data** untuk SuperUser
 - **Username dan Password Awal** untuk pengurus
 
 ## Template Dokumen
