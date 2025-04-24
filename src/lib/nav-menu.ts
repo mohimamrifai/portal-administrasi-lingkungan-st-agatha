@@ -43,7 +43,7 @@ export const navMain: Record<string, MenuItem[]> = {
         },
         { label: 'Publikasi', path: '/publikasi', icon: FileText },
         { label: 'Approval', path: '/approval', icon: ClipboardCheck },
-        { label: 'Histori Pembayaran', path: '/histori', icon: History },
+        { label: 'Histori Pembayaran', path: '/histori-pembayaran', icon: History },
         {
             label: 'Pengaturan',
             icon: Settings,
@@ -83,7 +83,6 @@ export const navMain: Record<string, MenuItem[]> = {
             ],
         },
         { label: 'Publikasi', path: '/publikasi', icon: FileText },
-        { label: 'Histori Pembayaran', path: '/histori', icon: History },
         {
             label: 'Pengaturan',
             icon: Settings,
@@ -119,7 +118,6 @@ export const navMain: Record<string, MenuItem[]> = {
             ],
         },
         { label: 'Publikasi', path: '/publikasi', icon: FileText },
-        { label: 'Histori Pembayaran', path: '/histori', icon: History },
         {
             label: 'Pengaturan',
             icon: Settings,
@@ -139,7 +137,6 @@ export const navMain: Record<string, MenuItem[]> = {
             ],
         },
         { label: 'Publikasi', path: '/publikasi', icon: FileText },
-        { label: 'Histori Pembayaran', path: '/histori', icon: History },
         {
             label: 'Pengaturan',
             icon: Settings,
@@ -163,7 +160,6 @@ export const navMain: Record<string, MenuItem[]> = {
             icon: FileText,
             path: '/publikasi',
         },
-        { label: 'Histori Pembayaran', path: '/histori', icon: History },
         {
             label: 'Pengaturan',
             icon: Settings,
@@ -198,7 +194,6 @@ export const navMain: Record<string, MenuItem[]> = {
                 { label: 'Agenda', path: '/kesekretariatan/agenda' },
             ],
         },
-        { label: 'Histori Pembayaran', path: '/histori', icon: History },
         {
             label: 'Pengaturan',
             icon: Settings,
@@ -232,7 +227,6 @@ export const navMain: Record<string, MenuItem[]> = {
                 { label: 'Agenda', path: '/kesekretariatan/agenda' },
             ],
         },
-        { label: 'Histori Pembayaran', path: '/histori', icon: History },
         {
             label: 'Pengaturan',
             icon: Settings,
@@ -247,7 +241,7 @@ export const navMain: Record<string, MenuItem[]> = {
             icon: FileText,
             path: '/publikasi',
         },
-        { label: 'Histori Pembayaran', path: '/histori', icon: History },
+        { label: 'Histori Pembayaran', path: '/histori-pembayaran', icon: History },
         {
             label: 'Kesekretariatan',
             icon: Users,

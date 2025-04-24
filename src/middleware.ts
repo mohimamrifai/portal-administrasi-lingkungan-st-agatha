@@ -24,6 +24,7 @@ const routeAccessMap: Record<string, string[]> = {
   '/approval': ['SuperUser', 'Bendahara'],
   
   '/histori': ['SuperUser', 'Ketua', 'WakilKetua', 'Sekretaris', 'WakilSekretaris', 'Bendahara', 'WakilBendahara', 'Umat'],
+  '/histori-pembayaran': ['SuperUser', 'Umat'],
   
   '/pengaturan/profil': ['SuperUser', 'Umat'],
   '/pengaturan/password': ['SuperUser', 'Ketua', 'WakilKetua', 'Sekretaris', 'WakilSekretaris', 'Bendahara', 'WakilBendahara', 'Umat'],

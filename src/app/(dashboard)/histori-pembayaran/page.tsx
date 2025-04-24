@@ -1,85 +1,20 @@
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Suspense } from "react"
+import HistoriPembayaranContent from "./components/histori-pembayaran-content"
+import LoadingSkeleton from "./components/loading-skeleton"
+
+// Halaman ini dibatasi untuk role:
+// 1. Umat: Dapat melihat histori pembayaran mereka sendiri
+// 2. SuperUser: Dapat melihat semua histori pembayaran dari semua umat
+// Pengaturan akses diimplementasikan melalui:
+// - routeAccessMap di middleware.ts 
+// - navMain di nav-menu.ts yang menampilkan menu untuk role yang bersangkutan
 
 export default function HistoriPembayaranPage() {
   return (
-    <div className="container mx-auto py-6">
-      <h1 className="text-2xl font-bold mb-6">Histori Pembayaran</h1>
-      <Tabs defaultValue="dana-mandiri" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="dana-mandiri">Dana Mandiri</TabsTrigger>
-          <TabsTrigger value="ikata">IKATA</TabsTrigger>
-        </TabsList>
-
-        {/* Tab 1: Dana Mandiri */}
-        <TabsContent value="dana-mandiri">
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <Input type="year" className="w-[200px]" />
-              <Button variant="outline">Print PDF</Button>
-            </div>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tahun</TableHead>
-                    <TableHead>Tanggal Bayar</TableHead>
-                    <TableHead>Jumlah</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center">
-                      Tidak ada data
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* Tab 2: IKATA */}
-        <TabsContent value="ikata">
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <Input type="year" className="w-[200px]" />
-              <Button variant="outline">Print PDF</Button>
-            </div>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tahun</TableHead>
-                    <TableHead>Tanggal Bayar</TableHead>
-                    <TableHead>Jumlah</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center">
-                      Tidak ada data
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
+    <div className="p-2">
+      <Suspense fallback={<LoadingSkeleton />}>
+        <HistoriPembayaranContent />
+      </Suspense>
     </div>
   )
 } 
