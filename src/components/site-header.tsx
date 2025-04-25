@@ -85,8 +85,8 @@ export function SiteHeader({ userRole = "Umat" }: SiteHeaderProps) {
         </div>
         <div className="flex items-center gap-2">
           {isDevelopmentMode && (
-            <Badge variant="destructive" className="mr-2 text-white">
-              DEV MODE
+            <Badge variant="secondary" className="mr-2">
+              DEMO MODE
             </Badge>
           )}
           <Popover>

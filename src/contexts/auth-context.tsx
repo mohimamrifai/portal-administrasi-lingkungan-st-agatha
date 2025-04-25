@@ -29,12 +29,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 /**
  * AuthProvider - Menyediakan konteks autentikasi untuk aplikasi
  * 
- * Mode Development:
+ * Mode Development dan Demo:
  * - Feature role selector tersedia melalui setDevelopmentRole
  * - Role disimpan dalam cookie "devUserRole" dengan masa berlaku 1 hari
- * - isDevelopmentMode = true menandakan aplikasi berjalan dalam mode development
- * 
- * Catatan: Fitur ini hanya untuk keperluan development dan tidak akan tersedia di production.
+ * - isDevelopmentMode = true menandakan aplikasi berjalan dalam mode development atau bahwa
+ *   fitur development diaktifkan di production untuk tujuan demo
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userRole, setUserRole] = useState<string>("Umat")
@@ -46,9 +45,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Safe check for browser environment
     if (typeof window === 'undefined') return;
 
-    // Check if we're in development mode
+    // Check if we're in development mode or demo mode is enabled
     const isDev = process.env.NODE_ENV === 'development';
-    setIsDevelopmentMode(isDev);
+    // Selalu aktifkan mode development untuk demo client
+    setIsDevelopmentMode(true);
     
     // In development, use the environment variable if available
     const devRole = process.env.NEXT_PUBLIC_DEV_USER_ROLE;
@@ -60,13 +60,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // Check for dev role cookie first (for our temporary role selection feature)
     const devRoleCookie = Cookies.get("devUserRole");
-    if (isDev && devRoleCookie) {
+    if (devRoleCookie) {
       setUserRole(devRoleCookie);
       setIsLoading(false);
       return;
     }
     
-    // In production, use stored cookie
+    // Fall back to regular user role cookie
     const storedRole = Cookies.get("userRole")
     if (storedRole) {
       setUserRole(storedRole)
@@ -75,18 +75,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   /**
-   * Fungsi untuk mengatur role secara langsung untuk keperluan development
-   * Fungsi ini hanya tersedia dalam mode development dan akan mereturn false di production
+   * Fungsi untuk mengatur role secara langsung untuk keperluan development/demo
+   * Fitur ini sekarang juga tersedia di production untuk tujuan demo
    */
   const setDevelopmentRole = async (role: string): Promise<boolean> => {
-    if (process.env.NODE_ENV !== 'development') {
-      console.warn('Development role selection is only available in development mode');
-      return false;
-    }
-    
     setIsLoading(true);
     
-    // Store role in cookies (1 day expiry for dev purposes)
+    // Store role in cookies (1 day expiry for dev/demo purposes)
     Cookies.set("devUserRole", role, { expires: 1 });
     setUserRole(role);
     setIsLoading(false);

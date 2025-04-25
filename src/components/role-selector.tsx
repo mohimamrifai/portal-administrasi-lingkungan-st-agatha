@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
 import { ROLES } from "@/contexts/auth-context"
 import { useState } from "react"
-import { Loader2, AlertCircle } from "lucide-react"
+import { Loader2, InfoIcon } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export function RoleSelector() {
@@ -20,11 +20,11 @@ export function RoleSelector() {
     setIsLoading(true)
     
     try {
-      // Secara sementara set role untuk keperluan development
+      // Set role untuk keperluan development/demo
       await setDevelopmentRole(role)
       router.push("/dashboard")
     } catch (error) {
-      console.error("Error setting development role:", error)
+      console.error("Error setting role:", error)
     } finally {
       setIsLoading(false)
     }
@@ -33,9 +33,9 @@ export function RoleSelector() {
   return (
     <Card className="mt-6">
       <CardHeader>
-        <CardTitle className="text-center text-base font-bold">Mode Development</CardTitle>
+        <CardTitle className="text-center text-base font-bold">Mode Demo</CardTitle>
         <CardDescription className="text-center text-sm">
-          Pilih role untuk keperluan pengembangan
+          Pilih role untuk mencoba fitur sebagai pengguna berbeda
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -57,10 +57,10 @@ export function RoleSelector() {
         </div>
       </CardContent>
       <CardFooter>
-        <Alert variant="destructive" className="w-full">
-          <AlertCircle className="h-4 w-4" />
+        <Alert className="w-full">
+          <InfoIcon className="h-4 w-4" />
           <AlertDescription>
-            Fitur ini hanya untuk keperluan development dan tidak akan tersedia di production.
+            Fitur ini memungkinkan Anda mencoba semua peran untuk tujuan demonstrasi.
           </AlertDescription>
         </Alert>
       </CardFooter>

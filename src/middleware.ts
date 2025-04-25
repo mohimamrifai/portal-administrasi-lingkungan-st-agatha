@@ -41,22 +41,18 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // For development purposes, check for devUserRole cookie first
-  // In production, this would come from a session or cookie
+  // Allow development features in both development and production environments
+  // for demo purposes
   let userRole = 'Umat'; // default role
   
-  if (process.env.NODE_ENV === 'development') {
-    // Check for development role cookie first
-    const devRoleCookie = request.cookies.get("devUserRole")?.value;
-    if (devRoleCookie) {
-      userRole = devRoleCookie;
-    } else {
-      // Fall back to environment variable if no cookie
-      userRole = getDevUserRole();
-    }
+  // Check for development role cookie first (in both environments)
+  const devRoleCookie = request.cookies.get("devUserRole")?.value;
+  if (devRoleCookie) {
+    userRole = devRoleCookie;
   } else {
-    // In production, use the regular userRole cookie
-    userRole = request.cookies.get("userRole")?.value || 'Umat';
+    // Fall back to regular userRole cookie, or environment variable if in development
+    userRole = request.cookies.get("userRole")?.value || 
+              (process.env.NODE_ENV === 'development' ? getDevUserRole() : 'Umat');
   }
 
   // Check if user is authenticated
