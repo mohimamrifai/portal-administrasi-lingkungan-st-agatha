@@ -4,26 +4,24 @@ export const ROLES = [
   { id: "umat", label: "Umat" },
   { id: "ketuaLingkungan", label: "Ketua Lingkungan" },
   { id: "sekretaris", label: "Sekretaris" },
+  { id: "wakilSekretaris", label: "Wakil Sekretaris" },
   { id: "bendahara", label: "Bendahara" },
+  { id: "wakilBendahara", label: "Wakil Bendahara" },
   { id: "adminLingkungan", label: "Admin Lingkungan" },
-  { id: "pengurus", label: "Pengurus" },
   { id: "superUser", label: "SuperUser" }
 ];
 
-// Konstanta target penerima untuk publikasi - disesuaikan dengan ROLES
+// Konstanta target penerima untuk publikasi - disesuaikan dengan persyaratan
 export const TARGET_PENERIMA = [
-  { id: "all", label: "Semua Pengguna" },
+  { id: "all", label: "Semua Pengguna (kecuali SuperUser)" },
   { id: "umat", label: "Umat" },
   { id: "ketuaLingkungan", label: "Ketua Lingkungan" },
   { id: "sekretaris", label: "Sekretaris" },
+  { id: "wakilSekretaris", label: "Wakil Sekretaris" },
   { id: "bendahara", label: "Bendahara" },
+  { id: "wakilBendahara", label: "Wakil Bendahara" },
   { id: "adminLingkungan", label: "Admin Lingkungan" },
-  { id: "pengurus", label: "Pengurus" },
-  { id: "superUser", label: "SuperUser" },
-  // Target berdasarkan kategori khusus
-  { id: "ketuaKeluarga", label: "Kepala Keluarga" },
-  { id: "ikata", label: "Anggota IKATA" },
-  { id: "doling", label: "Peserta Doa Lingkungan" }
+  { id: "pengurus", label: "Pengurus (Semua Pengurus)" }
 ];
 
 // Konstanta kategori publikasi

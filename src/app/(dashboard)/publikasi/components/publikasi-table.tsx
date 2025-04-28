@@ -97,6 +97,7 @@ import {
 import { Calendar } from "@/components/ui/calendar"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Switch } from "@/components/ui/switch"
+import BuatLaporanDialog from "./buat-laporan-dialog"
 
 // Definisi kolom tabel dengan urutan yang sudah ditukar
 export const columns: ColumnDef<Publikasi>[] = [
@@ -244,6 +245,10 @@ export function PublikasiTable({ data }: PublikasiTableProps) {
   const [editAttachment, setEditAttachment] = useState<File | null>(null)
   const [editSendNotification, setEditSendNotification] = useState(true)
   
+  // Tambahkan state untuk dialog buat laporan dan publikasi yang dipilih
+  const [buatLaporanDialogOpen, setBuatLaporanDialogOpen] = useState(false)
+  const [selectedPublikasiForReport, setSelectedPublikasiForReport] = useState<Publikasi | null>(null)
+  
   const table = useReactTable({
     data,
     columns,
@@ -365,6 +370,13 @@ export function PublikasiTable({ data }: PublikasiTableProps) {
     setNotificationDialogOpen(false);
   };
 
+  // Tambahkan fungsi untuk membuka dialog buat laporan
+  const handleCreateReport = (publikasi: Publikasi) => {
+    // Tampilkan dialog buat laporan
+    setBuatLaporanDialogOpen(true);
+    setSelectedPublikasiForReport(publikasi);
+  };
+
   // Render Actions Cell Function
   const renderActionsCell = (publikasi: Publikasi) => {
     return (
@@ -399,6 +411,10 @@ export function PublikasiTable({ data }: PublikasiTableProps) {
             ) : (
               <><LockIcon className="h-4 w-4 mr-2" />Kunci</>
             )}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleCreateReport(publikasi)} className="cursor-pointer">
+            <FileText className="h-4 w-4 mr-2" />
+            Buat Laporan
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => handleDeleteConfirm(publikasi)} className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50">
@@ -973,6 +989,21 @@ export function PublikasiTable({ data }: PublikasiTableProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog Buat Laporan */}
+      {selectedPublikasiForReport && (
+        <BuatLaporanDialog
+          open={buatLaporanDialogOpen}
+          onOpenChange={setBuatLaporanDialogOpen}
+          publikasi={selectedPublikasiForReport}
+          onSubmit={(values) => {
+            toast.success("Laporan berhasil dibuat", {
+              description: `Laporan untuk publikasi "${selectedPublikasiForReport.judul}" telah dibuat`,
+            });
+            setBuatLaporanDialogOpen(false);
+          }}
+        />
+      )}
     </div>
   )
 } 

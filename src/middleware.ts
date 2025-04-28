@@ -1,120 +1,126 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { navMain } from '@/lib/nav-menu'
-import { getDevUserRole } from '@/lib/env-config'
+import { isValidRole, getDevUserRole, VALID_ROLES } from './lib/env-config'
 
-// Map for route to role access
-// This defines which roles can access which routes
-const routeAccessMap: Record<string, string[]> = {
-  '/dashboard': ['SuperUser', 'Ketua', 'WakilKetua', 'Sekretaris', 'WakilSekretaris', 'Bendahara', 'WakilBendahara', 'Umat'],
+const unAuthRoutes = ['/login', '/forgot-password', '/verify', '/__nextjs_original-stack-frame']
+const rootFiles = ['/favicon.ico', '/manifest.json']
+
+type RouteAccess = {
+  [key: string]: string[]
+}
+
+const routeAccessMap: RouteAccess = {
+  '/dashboard': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'adminLingkungan', 'umat'],
   
-  '/lingkungan/kas': ['SuperUser', 'Ketua', 'WakilKetua', 'Bendahara', 'WakilBendahara'],
-  '/lingkungan/mandiri': ['SuperUser', 'Ketua', 'WakilKetua', 'Bendahara', 'WakilBendahara'],
+  '/lingkungan': ['SuperUser', 'wakilKetua', 'bendahara', 'adminLingkungan'],
+  '/lingkungan/kas': ['SuperUser', 'wakilKetua', 'bendahara', 'adminLingkungan'],
+  '/lingkungan/mandiri': ['SuperUser', 'wakilKetua', 'bendahara', 'adminLingkungan'],
   
-  '/ikata/kas': ['SuperUser', 'Ketua', 'WakilKetua', 'Bendahara', 'WakilBendahara'],
-  '/ikata/monitoring': ['SuperUser', 'Ketua', 'WakilKetua', 'Bendahara', 'WakilBendahara'],
+  '/ikata': ['SuperUser', 'wakilKetua', 'wakilBendahara', 'adminLingkungan'],
+  '/ikata/kas': ['SuperUser', 'wakilKetua', 'wakilBendahara', 'adminLingkungan'],
+  '/ikata/monitoring': ['SuperUser', 'wakilKetua', 'wakilBendahara', 'adminLingkungan'],
   
-  '/kesekretariatan/umat': ['SuperUser', 'Ketua', 'WakilKetua', 'Sekretaris', 'WakilSekretaris', 'Bendahara', 'WakilBendahara'],
-  '/kesekretariatan/doling': ['SuperUser', 'Ketua', 'WakilKetua', 'Sekretaris', 'WakilSekretaris', 'Umat'],
-  '/kesekretariatan/agenda': ['SuperUser', 'Ketua', 'WakilKetua', 'Sekretaris', 'WakilSekretaris', 'Bendahara', 'WakilBendahara', 'Umat'],
+  '/kesekretariatan': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'adminLingkungan', 'umat'],
+  '/kesekretariatan/umat': ['SuperUser', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'adminLingkungan'],
+  '/kesekretariatan/doling': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'umat'],
+  '/kesekretariatan/agenda': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'adminLingkungan'],
   
-  '/publikasi': ['SuperUser', 'Ketua', 'WakilKetua', 'Sekretaris', 'WakilSekretaris', 'Umat'],
-  '/publikasi/buat': ['SuperUser', 'Sekretaris', 'WakilSekretaris'],
+  '/publikasi': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'adminLingkungan'],
   
-  '/approval': ['SuperUser', 'Bendahara'],
+  '/approval': ['SuperUser', 'bendahara'],
   
-  '/histori': ['SuperUser', 'Ketua', 'WakilKetua', 'Sekretaris', 'WakilSekretaris', 'Bendahara', 'WakilBendahara', 'Umat'],
-  '/histori-pembayaran': ['SuperUser', 'Umat'],
+  '/histori-pembayaran': ['SuperUser', 'umat'],
   
-  '/pengaturan/profil': ['SuperUser', 'Umat'],
-  '/pengaturan/password': ['SuperUser', 'Ketua', 'WakilKetua', 'Sekretaris', 'WakilSekretaris', 'Bendahara', 'WakilBendahara', 'Umat'],
+  '/pengaturan': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'adminLingkungan', 'umat'],
+  '/pengaturan/profil': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'adminLingkungan', 'umat'],
+  '/pengaturan/password': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'adminLingkungan', 'umat'],
   '/pengaturan/wipe': ['SuperUser'],
 }
 
+const checkAccess = (path: string, role: string): boolean => {
+  // If it's an undefined route or user role, deny access
+  if (!role || !isValidRole(role)) return false
+
+  // Looking for exact match first
+  if (routeAccessMap[path]) {
+    return routeAccessMap[path].includes(role)
+  }
+
+  // Looking for path segment matches
+  // Find the closest parent path that has a defined access control
+  const pathSegments = path.split('/').filter(Boolean)
+  let currentPath = ''
+
+  for (let i = 0; i < pathSegments.length; i++) {
+    currentPath = `/${pathSegments.slice(0, i + 1).join('/')}`
+    if (routeAccessMap[currentPath]) {
+      return routeAccessMap[currentPath].includes(role)
+    }
+  }
+
+  // If no matches found, deny access
+  return false
+}
+
 export function middleware(request: NextRequest) {
-  // Skip middleware on public routes
+  // Get the path from the request
+  const path = request.nextUrl.pathname
+
+  // Skip for static files, api routes and next internals
   if (
-    request.nextUrl.pathname.startsWith('/login') ||
-    request.nextUrl.pathname.startsWith('/register') ||
-    request.nextUrl.pathname.startsWith('/forgot-password')
+    path.includes('/_next') ||
+    path.startsWith('/api') ||
+    path.includes('/static') ||
+    rootFiles.some((file) => path === file) ||
+    path === '/'
   ) {
     return NextResponse.next()
   }
 
-  // Allow development features in both development and production environments
-  // for demo purposes
-  let userRole = 'Umat'; // default role
-  
-  // Check for development role cookie first (in both environments)
-  const devRoleCookie = request.cookies.get("devUserRole")?.value;
-  if (devRoleCookie) {
-    userRole = devRoleCookie;
-  } else {
-    // Fall back to regular userRole cookie, or environment variable if in development
-    userRole = request.cookies.get("userRole")?.value || 
-              (process.env.NODE_ENV === 'development' ? getDevUserRole() : 'Umat');
+  // For login-related routes, if user is already authenticated, redirect to dashboard
+  if (unAuthRoutes.includes(path)) {
+    // If userRole cookie exists, user is logged in already
+    const userRoleCookie = request.cookies.get('userRole')
+    if (userRoleCookie?.value) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+    return NextResponse.next()
   }
 
-  // Check if user is authenticated
+  // For all other routes, check if user is authenticated
+  
+  // Check for development role first (in both environments)
+  const devRoleCookie = request.cookies.get('devUserRole')
+  let userRole = devRoleCookie?.value
+  
+  // If not in dev mode with role set, use the regular role cookie
   if (!userRole) {
+    const userRoleCookie = request.cookies.get('userRole')
+    userRole = userRoleCookie?.value || (process.env.NODE_ENV === 'development' ? getDevUserRole() : undefined)
+  }
+
+  // If role doesn't exist or is invalid, redirect to login
+  if (!userRole || !isValidRole(userRole)) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Check if user has access to the requested route
-  const path = request.nextUrl.pathname
-  const hasAccess = checkAccess(path, userRole)
-
-  if (!hasAccess) {
-    // Redirect to dashboard if user doesn't have access
+  // Check if user has access to the route
+  if (!checkAccess(path, userRole)) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   return NextResponse.next()
 }
 
-// Helper function to check if a user has access to a route
-function checkAccess(path: string, role: string): boolean {
-  // Check direct route access
-  if (routeAccessMap[path] && routeAccessMap[path].includes(role)) {
-    return true
-  }
-
-  // Check parent routes access
-  for (const route in routeAccessMap) {
-    if (path.startsWith(route) && routeAccessMap[route].includes(role)) {
-      return true
-    }
-  }
-
-  // Check if route is accessible through menu items
-  const menuItems = navMain[role] || []
-  for (const item of menuItems) {
-    if (item.path === path) {
-      return true
-    }
-    
-    if (item.children) {
-      for (const child of item.children) {
-        if (child.path === path) {
-          return true
-        }
-      }
-    }
-  }
-
-  return false
-}
-
-// Specify which routes this middleware should run on
 export const config = {
   matcher: [
     /*
-     * Match all routes except for:
-     * 1. /api routes
-     * 2. /_next (Next.js internals)
-     * 3. /_static (inside /public)
-     * 4. all root files inside /public (e.g. /favicon.ico)
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
      */
-    '/((?!api|_next|_static|_vercel|[\\w-]+\\.\\w+).*)',
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 } 

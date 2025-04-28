@@ -43,16 +43,31 @@ export default function DashboardContent() {
   // Mengambil role pengguna dari konteks auth
   const { userRole } = useAuth()
   
-  // Cek apakah user memiliki akses ke komponen tertentu
-  // Asumsikan role yang dapat melihat data keuangan: PengurusLingkungan, BendaharaLingkungan, SuperUser
-  // Asumsikan role yang dapat melihat data ikata: PengurusIKATA, BendaharaIKATA, SuperUser
-  // Asumsikan role yang dapat melihat data kesekretariatan: SekretarisLingkungan, KetuaLingkungan, SuperUser
-  const canViewKeuanganLingkungan = ["PengurusLingkungan", "BendaharaLingkungan", "KetuaLingkungan", "SuperUser"].includes(userRole)
-  const canViewKeuanganIkata = ["PengurusIKATA", "BendaharaIKATA", "KetuaIKATA", "SuperUser"].includes(userRole)
-  const canViewKesekretariatan = ["SekretarisLingkungan", "KetuaLingkungan", "SuperUser"].includes(userRole)
+  // Cek akses berdasarkan role
+  const canViewKeuanganLingkungan = [
+    'SuperUser', 
+    'ketuaLingkungan', 
+    'bendahara',
+    'adminLingkungan'
+  ].includes(userRole)
   
-  // Umat biasa juga bisa melihat daftar penunggak
-  const canViewPenunggak = ["Umat", "PengurusLingkungan", "BendaharaLingkungan", "KetuaLingkungan", "PengurusIKATA", "BendaharaIKATA", "KetuaIKATA", "SekretarisLingkungan", "SuperUser"].includes(userRole)
+  const canViewKeuanganIkata = [
+    'SuperUser', 
+    'ketuaLingkungan', 
+    'wakilBendahara',
+    'adminLingkungan'
+  ].includes(userRole)
+  
+  const canViewKesekretariatan = [
+    'SuperUser', 
+    'ketuaLingkungan', 
+    'sekretaris', 
+    'wakilSekretaris',
+    'adminLingkungan'
+  ].includes(userRole)
+  
+  // Semua pengguna dapat melihat daftar penunggak pada dashboard
+  const canViewPenunggak = true
   
   // State untuk filter periode
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date())

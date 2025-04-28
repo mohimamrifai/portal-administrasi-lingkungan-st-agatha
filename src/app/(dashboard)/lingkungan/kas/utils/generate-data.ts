@@ -30,17 +30,17 @@ export function generateTransactions(): Transaction[] {
     {
       id: 3,
       date: new Date(currentYear, currentMonth, 12),
-      description: "Transfer dari IKATA",
+      description: "Kolekte II",
       debit: 500000,
       credit: 0,
       locked: true,
       transactionType: "debit",
-      transactionSubtype: "transfer_ikata"
+      transactionSubtype: "kolekte_2"
     },
     {
       id: 4,
       date: new Date(currentYear, currentMonth, 15),
-      description: "Kolekte Ibadat Minggu",
+      description: "Kolekte II",
       debit: 425000,
       credit: 0,
       locked: false,

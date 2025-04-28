@@ -110,6 +110,7 @@ export default function DanaMandiriContent() {
   // Handle adding new transaction
   const handleAddTransaction = (values: TransactionFormValues) => {
     const newTransaction = createNewTransaction(values)
+    
     setTransactions(prev => [...prev, newTransaction])
     
     // Show notification
@@ -131,6 +132,8 @@ export default function DanaMandiriContent() {
         amount: values.amount,
         paymentDate: values.paymentDate,
         notes: values.notes,
+        status: values.paymentStatus === "Belum Lunas" ? "pending" as const : "paid" as const,
+        paymentStatus: values.paymentStatus,
       } : tx
     )
     
@@ -302,6 +305,7 @@ export default function DanaMandiriContent() {
             amount: editingTransaction.amount,
             paymentDate: editingTransaction.paymentDate,
             notes: editingTransaction.notes || "",
+            paymentStatus: editingTransaction.paymentStatus,
           }}
           mode="edit"
         />

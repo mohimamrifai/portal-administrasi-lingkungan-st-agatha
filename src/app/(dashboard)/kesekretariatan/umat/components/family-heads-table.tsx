@@ -29,17 +29,22 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
 
 interface FamilyHeadsTableProps {
   familyHeads: FamilyHead[];
   onEdit: (familyHead: FamilyHead) => void;
   onDelete: (id: number) => Promise<void>;
+  canModifyData?: boolean;
 }
 
 export function FamilyHeadsTable({
   familyHeads,
   onEdit,
   onDelete,
+  canModifyData = true,
 }: FamilyHeadsTableProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedFamilyHead, setSelectedFamilyHead] = useState<FamilyHead | null>(
@@ -60,16 +65,16 @@ export function FamilyHeadsTable({
     }
   };
 
-  const getStatusLabel = (status: FamilyHead["status"]) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "active":
-        return "Aktif";
+        return <Badge variant="outline">Aktif</Badge>;
       case "moved":
-        return "Pindah";
+        return <Badge variant="outline" className="bg-yellow-100 hover:bg-yellow-100">Pindah</Badge>;
       case "deceased":
-        return "Meninggal";
+        return <Badge variant="outline" className="bg-gray-100 hover:bg-gray-100">Meninggal</Badge>;
       default:
-        return status;
+        return <Badge variant="outline">Aktif</Badge>;
     }
   };
 
@@ -84,43 +89,59 @@ export function FamilyHeadsTable({
               <TableHead>Alamat</TableHead>
               <TableHead>No. Telepon</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Aksi</TableHead>
+              <TableHead>Tanggal Update</TableHead>
+              {canModifyData && <TableHead>Aksi</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {familyHeads.map((familyHead, index) => (
-              <TableRow key={familyHead.id}>
-                <TableCell>{index + 1}</TableCell>
-                <TableCell>{familyHead.name}</TableCell>
-                <TableCell>{familyHead.address}</TableCell>
-                <TableCell>{familyHead.phoneNumber}</TableCell>
-                <TableCell>{getStatusLabel(familyHead.status)}</TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onEdit(familyHead)}>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setSelectedFamilyHead(familyHead);
-                          setDeleteDialogOpen(true);
-                        }}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Hapus
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+            {familyHeads.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={canModifyData ? 6 : 5} className="h-24 text-center">
+                  Tidak ada data
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              familyHeads.map((familyHead, index) => (
+                <TableRow key={familyHead.id}>
+                  <TableCell>{index + 1}</TableCell>
+                  <TableCell>{familyHead.name}</TableCell>
+                  <TableCell>{familyHead.address}</TableCell>
+                  <TableCell>{familyHead.phoneNumber}</TableCell>
+                  <TableCell>{getStatusBadge(familyHead.status)}</TableCell>
+                  <TableCell>
+                    {format(familyHead.updatedAt, "dd MMMM yyyy", {
+                      locale: id,
+                    })}
+                  </TableCell>
+                  {canModifyData && (
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => onEdit(familyHead)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedFamilyHead(familyHead);
+                              setDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Hapus
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Trash2, ShieldAlert } from "lucide-react"
+import { Trash2, ShieldAlert, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -25,7 +25,6 @@ export default function WipeContent() {
   const [activeTab, setActiveTab] = useState<WipeMode>("selective")
   const [isProcessing, setIsProcessing] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
-  
   const { userRole } = useAuth()
   const router = useRouter()
   
@@ -46,6 +45,11 @@ export default function WipeContent() {
   }
 
   const handleWipeData = async () => {
+    if (confirmText !== "WIPE ALL DATA") {
+      toast.error("Teks konfirmasi tidak cocok")
+      return
+    }
+
     setIsProcessing(true)
     
     try {
@@ -72,6 +76,26 @@ export default function WipeContent() {
   
   const isSelectiveFormValid = startDate && endDate && dataType && confirmText === "KONFIRMASI" && backupConfirm
   const isEmergencyFormValid = confirmText === "EMERGENCY WIPE" && backupConfirm
+
+  // Cek apakah user adalah SuperUser - hanya SuperUser yang boleh mengakses fitur ini
+  const isSuperUser = userRole === 'SuperUser'
+
+  // Jika bukan SuperUser, tampilkan pesan akses ditolak
+  if (!isSuperUser) {
+    return (
+      <Card className="border-destructive">
+        <CardHeader>
+          <CardTitle className="text-destructive flex items-center">
+            <AlertTriangle className="h-5 w-5 mr-2" />
+            Akses Ditolak
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p>Anda tidak memiliki izin untuk mengakses fitur ini. Fitur ini hanya tersedia untuk pengguna SuperUser.</p>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <div className="container mx-auto py-8">

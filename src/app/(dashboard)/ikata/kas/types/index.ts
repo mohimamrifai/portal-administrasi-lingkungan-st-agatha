@@ -11,6 +11,8 @@ export interface IKATATransaction {
   createdBy: string;
   updatedBy: string;
   locked: boolean;
+  anggotaId?: string;
+  periodeIuran?: string;
 }
 
 export interface IKATASummary {
@@ -30,4 +32,6 @@ export interface TransactionFormData {
   keterangan: string;
   jumlah: number;
   jenis: TransactionType;
+  anggotaId?: string;
+  periodeIuran?: string;
 } 

@@ -6,13 +6,13 @@ import Cookies from 'js-cookie'
 // Available roles in the system
 export const ROLES = {
   SUPER_USER: 'SuperUser',
-  KETUA: 'Ketua',
-  WAKIL_KETUA: 'WakilKetua',
-  SEKRETARIS: 'Sekretaris',
-  WAKIL_SEKRETARIS: 'WakilSekretaris',
-  BENDAHARA: 'Bendahara',
-  WAKIL_BENDAHARA: 'WakilBendahara',
-  UMAT: 'Umat',
+  KETUA_LINGKUNGAN: 'ketuaLingkungan',
+  SEKRETARIS: 'sekretaris',
+  WAKIL_SEKRETARIS: 'wakilSekretaris',
+  BENDAHARA: 'bendahara',
+  WAKIL_BENDAHARA: 'wakilBendahara',
+  ADMIN_LINGKUNGAN: 'adminLingkungan',
+  UMAT: 'umat',
 };
 
 interface AuthContextType {
@@ -36,7 +36,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
  *   fitur development diaktifkan di production untuk tujuan demo
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [userRole, setUserRole] = useState<string>("Umat")
+  const [userRole, setUserRole] = useState<string>("umat")
   const [isLoading, setIsLoading] = useState(true)
   const [isDevelopmentMode, setIsDevelopmentMode] = useState(false)
 
@@ -104,25 +104,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role = "SuperUser"
         break
       case "ketua":
-        role = "Ketua"
+        role = "ketuaLingkungan"
         break
-      case "wakilketua":
-        role = "WakilKetua"
-        break  
       case "sekretaris":
-        role = "Sekretaris"
+        role = "sekretaris"
         break
       case "wakilsekretaris":
-        role = "WakilSekretaris"
+        role = "wakilSekretaris"
         break
       case "bendahara":
-        role = "Bendahara"
+        role = "bendahara"
         break
       case "wakilbendahara":
-        role = "WakilBendahara"
+        role = "wakilBendahara"
+        break
+      case "adminlingkungan":
+        role = "adminLingkungan"
         break
       default:
-        role = "Umat"
+        role = "umat"
     }
     
     // Store role in cookies (7 day expiry)
@@ -136,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     Cookies.remove("userRole")
     Cookies.remove("devUserRole")
-    setUserRole("Umat")
+    setUserRole("umat")
     // Redirect to login page would happen in the component
   }
 

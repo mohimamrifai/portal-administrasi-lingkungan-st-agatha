@@ -18,16 +18,27 @@ import { PeriodFilter } from "./period-filter"
 import { Badge } from "@/components/ui/badge"
 import { X } from "lucide-react"
 import BuatLaporanDialog from "./buat-laporan-dialog"
-import BuatPengumumanDialog from "./buat-pengumuman-dialog"
 import BuatPublikasiDialog from "./buat-publikasi-dialog"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function PublikasiContent() {
+  const { userRole } = useAuth()
   const [activeTab, setActiveTab] = useState("pengumuman")
   const [data] = useState(dummyPublikasi)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [kategoriFilter, setKategoriFilter] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
+  
+  // Cek apakah pengguna memiliki akses untuk membuat publikasi
+  const canCreatePublication = [
+    'SuperUser', 
+    'sekretaris', 
+    'wakilSekretaris', 
+    'bendahara', 
+    'wakilBendahara',
+    'adminLingkungan'
+  ].includes(userRole)
   
   // Setup table
   const filteredData = React.useMemo(() => {
@@ -90,13 +101,15 @@ export default function PublikasiContent() {
       >
         <TabsList className="mb-4 bg-muted/60">
           <TabsTrigger value="pengumuman">Pengumuman</TabsTrigger>
-          <TabsTrigger 
-            value="buat-publikasi" 
-            className="flex items-center"
-          >
-            <PlusCircle className="h-4 w-4 mr-2" />
-            Buat Publikasi
-          </TabsTrigger>
+          {canCreatePublication && (
+            <TabsTrigger 
+              value="buat-publikasi" 
+              className="flex items-center"
+            >
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Buat Publikasi
+            </TabsTrigger>
+          )}
         </TabsList>
         
         <TabsContent value="pengumuman" className="space-y-4">
@@ -156,7 +169,6 @@ export default function PublikasiContent() {
                 
                 <div className="flex flex-col md:flex-row gap-2 md:justify-end w-full">
                   <BuatLaporanDialog />
-                  <BuatPengumumanDialog />
                 </div>
               </div>
 
@@ -182,19 +194,21 @@ export default function PublikasiContent() {
           </Card>
         </TabsContent>
         
-        <TabsContent value="buat-publikasi" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Buat Publikasi Baru</CardTitle>
-              <CardDescription>
-                Buat publikasi baru untuk disebarkan kepada umat
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <BuatPublikasiDialog />
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {canCreatePublication && (
+          <TabsContent value="buat-publikasi" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Buat Publikasi Baru</CardTitle>
+                <CardDescription>
+                  Buat publikasi baru untuk disebarkan kepada umat
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <BuatPublikasiDialog />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   )

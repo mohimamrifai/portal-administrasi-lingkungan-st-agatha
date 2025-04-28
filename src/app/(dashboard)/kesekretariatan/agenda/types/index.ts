@@ -1,4 +1,13 @@
-export type AgendaStatus = 'pending' | 'approved' | 'rejected' | 'completed';
+export type AgendaStatus = 
+  'open' | 
+  'processing_lingkungan' | 
+  'processing_stasi' | 
+  'processing_paroki' | 
+  'forwarded_to_paroki' | 
+  'rejected' | 
+  'completed';
+
+export type ProcessTarget = 'lingkungan' | 'stasi' | 'paroki';
 
 export interface Agenda {
   id: number;
@@ -6,7 +15,9 @@ export interface Agenda {
   description: string;
   date: Date;
   location: string;
+  target: ProcessTarget;
   status: AgendaStatus;
+  rejectionReason?: string;
   createdBy: {
     id: number;
     name: string;
@@ -21,4 +32,9 @@ export interface AgendaFormValues {
   description: string;
   date: Date;
   location: string;
+  target: ProcessTarget;
+}
+
+export interface RejectionFormValues {
+  reason: string;
 } 

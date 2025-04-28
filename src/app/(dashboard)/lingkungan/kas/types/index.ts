@@ -25,15 +25,13 @@ export const transactionSubtypes = {
     { value: "kolekte_1", label: "Kolekte I" },
     { value: "kolekte_2", label: "Kolekte II" },
     { value: "sumbangan_umat", label: "Sumbangan Umat" },
-    { value: "penerimaan_lain", label: "Penerimaan Lain-Lain" },
-    { value: "transfer_ikata", label: "Transfer dari IKATA" }
+    { value: "penerimaan_lain", label: "Penerimaan Lain-Lain" }
   ],
   credit: [
     { value: "operasional", label: "Biaya Operasional" },
     { value: "kegiatan", label: "Penyelenggaraan Kegiatan" },
     { value: "pembelian", label: "Pembelian" },
     { value: "sosial_duka", label: "Sosial-Duka" },
-    { value: "transfer_ikata", label: "Transfer Dana ke IKATA" },
     { value: "lain_lain", label: "Lain-Lain" }
   ]
 };
@@ -86,4 +84,35 @@ export const familyHeads = [
 ];
 
 export type TransactionFormValues = z.infer<typeof transactionFormSchema>;
-export type PrintPdfFormValues = z.infer<typeof printPdfSchema>; 
+export type PrintPdfFormValues = z.infer<typeof printPdfSchema>;
+
+export type TransactionType = 'credit' | 'debit';
+
+export type TransactionSubtype =
+  | 'iuran_lingkungan'
+  | 'iuran_app'
+  | 'sumbangan'
+  | 'amplop_app'
+  | 'dana_mandiri'
+  | 'pengeluaran_operasional'
+  | 'pengeluaran_inventaris'
+  | 'pengeluaran_konsumsi'
+  | 'pengeluaran_transport'
+  | 'pengeluaran_sumbangan';
+
+export const transactionSubtypeMap: Record<TransactionType, TransactionSubtype[]> = {
+  credit: [
+    'iuran_lingkungan',
+    'iuran_app',
+    'sumbangan',
+    'amplop_app',
+    'dana_mandiri',
+  ],
+  debit: [
+    'pengeluaran_operasional',
+    'pengeluaran_inventaris',
+    'pengeluaran_konsumsi',
+    'pengeluaran_transport',
+    'pengeluaran_sumbangan',
+  ],
+}; 

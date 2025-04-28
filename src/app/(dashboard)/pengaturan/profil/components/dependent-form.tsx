@@ -34,39 +34,44 @@ import {
   DependentFormValues, 
   dependentFormSchema, 
   Gender, 
-  Dependent 
+  Dependent,
+  Religion,
+  MaritalStatus,
+  DependentType
 } from "../types"
 import { formatDateForInput } from "../utils"
 
 interface DependentFormProps {
-  initialData?: Dependent
+  defaultValues?: Dependent
   onSubmit: (values: DependentFormValues) => void
   onCancel: () => void
-  isLoading?: boolean
+  isSubmitting?: boolean
+  readOnly?: boolean
 }
 
 export function DependentForm({ 
-  initialData, 
+  defaultValues, 
   onSubmit, 
-  onCancel,
-  isLoading = false 
+  onCancel, 
+  isSubmitting = false,
+  readOnly = false
 }: DependentFormProps) {
   // Initialize form with default values or data from prop
   const form = useForm<DependentFormValues>({
     resolver: zodResolver(dependentFormSchema),
-    defaultValues: initialData 
-      ? {
-          ...initialData,
-        }
-      : {
-          fullName: "",
-          gender: Gender.MALE,
-          birthPlace: "",
-          birthDate: new Date(2000, 0, 1),
-          nik: "",
-          relationship: "Anak",
-          occupation: "",
-        }
+    defaultValues: defaultValues || {
+      name: "",
+      gender: Gender.MALE,
+      birthPlace: "",
+      birthDate: new Date(2000, 0, 1), // Default to 2000-01-01
+      education: "",
+      religion: Religion.CATHOLIC,
+      maritalStatus: MaritalStatus.SINGLE,
+      dependentType: DependentType.CHILD,
+      baptismDate: null,
+      confirmationDate: null,
+      imageUrl: null
+    }
   })
 
   // Form submission handler
@@ -74,40 +79,47 @@ export function DependentForm({
     onSubmit(values)
   }
 
+  // Mode edit atau tambah
+  const isEditMode = !!defaultValues
+  
+  // Mengamati nilai agama untuk kondisional rendering
+  const religion = form.watch("religion")
+
   return (
-    <div className="border p-4 rounded-md relative mb-6">
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        onClick={onCancel}
-        className="absolute right-2 top-2"
-      >
-        <X className="h-4 w-4" />
-        <span className="sr-only">Batal</span>
-      </Button>
-      
-      <h3 className="text-lg font-medium mb-4">Data Tanggungan</h3>
+    <div className="bg-muted/40 p-4 rounded-lg mb-6">
+      <div className="flex justify-between items-center mb-4">
+        <h4 className="text-base font-medium">
+          {isEditMode ? "Edit Data Tanggungan" : "Tambah Data Tanggungan"}
+        </h4>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={onCancel}
+          type="button"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
       
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Full Name */}
+            {/* Nama */}
             <FormField
               control={form.control}
-              name="fullName"
+              name="name"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nama Lengkap</FormLabel>
                   <FormControl>
-                    <Input placeholder="Nama Lengkap" {...field} />
+                    <Input placeholder="Nama Lengkap Tanggungan" {...field} disabled={readOnly} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {/* Gender */}
+            {/* Jenis Kelamin */}
             <FormField
               control={form.control}
               name="gender"
@@ -117,6 +129,7 @@ export function DependentForm({
                   <Select 
                     onValueChange={field.onChange} 
                     defaultValue={field.value}
+                    disabled={readOnly}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -135,7 +148,7 @@ export function DependentForm({
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Birth Place */}
+            {/* Tempat Lahir */}
             <FormField
               control={form.control}
               name="birthPlace"
@@ -143,14 +156,14 @@ export function DependentForm({
                 <FormItem>
                   <FormLabel>Tempat Lahir</FormLabel>
                   <FormControl>
-                    <Input placeholder="Tempat Lahir" {...field} />
+                    <Input placeholder="Tempat lahir" {...field} disabled={readOnly} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {/* Birth Date */}
+            {/* Tanggal Lahir */}
             <FormField
               control={form.control}
               name="birthDate"
@@ -166,6 +179,7 @@ export function DependentForm({
                             "pl-3 text-left font-normal",
                             !field.value && "text-muted-foreground"
                           )}
+                          disabled={readOnly}
                         >
                           {field.value ? (
                             format(field.value, "dd MMMM yyyy", { locale: id })
@@ -194,70 +208,241 @@ export function DependentForm({
             />
           </div>
 
-          {/* NIK */}
-          <FormField
-            control={form.control}
-            name="nik"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>NIK (Nomor Induk Kependudukan)</FormLabel>
-                <FormControl>
-                  <Input 
-                    placeholder="16 digit NIK (tanpa spasi)" 
-                    {...field} 
-                    maxLength={16}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Relationship */}
+            {/* Jenis Tanggungan */}
             <FormField
               control={form.control}
-              name="relationship"
+              name="dependentType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Hubungan</FormLabel>
-                  <FormControl>
-                    <Input placeholder="contoh: Anak, Orang Tua, dll" {...field} />
-                  </FormControl>
+                  <FormLabel>Jenis Tanggungan</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    defaultValue={field.value}
+                    disabled={readOnly}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih jenis tanggungan" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value={DependentType.CHILD}>{DependentType.CHILD}</SelectItem>
+                      <SelectItem value={DependentType.RELATIVE}>{DependentType.RELATIVE}</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {/* Occupation */}
+            {/* Status Pernikahan */}
             <FormField
               control={form.control}
-              name="occupation"
+              name="maritalStatus"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Pekerjaan/Aktivitas</FormLabel>
-                  <FormControl>
-                    <Input placeholder="contoh: Pelajar, Mahasiswa, dll" {...field} />
-                  </FormControl>
+                  <FormLabel>Status Pernikahan</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    defaultValue={field.value}
+                    disabled={readOnly}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih status pernikahan" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value={MaritalStatus.SINGLE}>Belum Menikah</SelectItem>
+                      <SelectItem value={MaritalStatus.MARRIED}>Menikah</SelectItem>
+                      <SelectItem value={MaritalStatus.DIVORCED}>Cerai Hidup</SelectItem>
+                      <SelectItem value={MaritalStatus.WIDOWED}>Cerai Mati</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
 
-          <div className="flex gap-2 justify-end mt-4">
-            <Button 
-              type="button" 
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Agama */}
+            <FormField
+              control={form.control}
+              name="religion"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Agama</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    defaultValue={field.value}
+                    disabled={readOnly}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih agama" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value={Religion.CATHOLIC}>Katolik</SelectItem>
+                      <SelectItem value={Religion.PROTESTANT}>Protestan</SelectItem>
+                      <SelectItem value={Religion.ISLAM}>Islam</SelectItem>
+                      <SelectItem value={Religion.HINDU}>Hindu</SelectItem>
+                      <SelectItem value={Religion.BUDDHA}>Buddha</SelectItem>
+                      <SelectItem value={Religion.KONGHUCU}>Konghucu</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Pendidikan Terakhir */}
+            <FormField
+              control={form.control}
+              name="education"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Pendidikan</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    disabled={readOnly}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih pendidikan terakhir" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="SD">SD</SelectItem>
+                      <SelectItem value="SMP">SMP</SelectItem>
+                      <SelectItem value="SMA/SMK">SMA/SMK</SelectItem>
+                      <SelectItem value="D1">D1</SelectItem>
+                      <SelectItem value="D2">D2</SelectItem>
+                      <SelectItem value="D3">D3</SelectItem>
+                      <SelectItem value="D4/S1">D4/S1</SelectItem>
+                      <SelectItem value="S2">S2</SelectItem>
+                      <SelectItem value="S3">S3</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          {/* Tanggal Baptis - hanya untuk Katolik/Protestan */}
+          {(religion === Religion.CATHOLIC || religion === Religion.PROTESTANT) && (
+            <FormField
+              control={form.control}
+              name="baptismDate"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Tanggal Baptis</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                          disabled={readOnly}
+                        >
+                          {field.value ? (
+                            format(field.value, "dd MMMM yyyy", { locale: id })
+                          ) : (
+                            <span>Pilih tanggal</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value || undefined}
+                        onSelect={field.onChange}
+                        initialFocus
+                        disabled={(date) =>
+                          date > new Date() || date < new Date("1900-01-01")
+                        }
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
+          {/* Tanggal Krisma - hanya untuk Katolik */}
+          {religion === Religion.CATHOLIC && (
+            <FormField
+              control={form.control}
+              name="confirmationDate"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Tanggal Krisma</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                          disabled={readOnly}
+                        >
+                          {field.value ? (
+                            format(field.value, "dd MMMM yyyy", { locale: id })
+                          ) : (
+                            <span>Pilih tanggal</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value || undefined}
+                        onSelect={field.onChange}
+                        initialFocus
+                        disabled={(date) =>
+                          date > new Date() || date < new Date("1900-01-01")
+                        }
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
               variant="outline"
               onClick={onCancel}
             >
               Batal
             </Button>
             <Button 
-              type="submit" 
-              disabled={isLoading}
+              type="submit"
+              disabled={isSubmitting}
             >
-              {isLoading ? "Menyimpan..." : "Simpan"}
+              {isSubmitting 
+                ? "Menyimpan..." 
+                : isEditMode 
+                  ? "Perbarui Tanggungan" 
+                  : "Tambah Tanggungan"
+              }
             </Button>
           </div>
         </form>

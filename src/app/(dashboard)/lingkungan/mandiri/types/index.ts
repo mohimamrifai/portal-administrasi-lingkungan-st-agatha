@@ -10,6 +10,7 @@ export interface DanaMandiriTransaction {
   paymentDate: Date;
   isLocked: boolean;
   notes?: string;
+  paymentStatus: "Lunas" | "Belum Lunas";
 }
 
 // Interface for Arrears data (Tab 2)
@@ -29,6 +30,12 @@ export interface FamilyHead {
   phoneNumber?: string;
 }
 
+// Payment Status options
+export const paymentStatusOptions = [
+  { value: "Lunas", label: "Lunas" },
+  { value: "Belum Lunas", label: "Belum Lunas" },
+];
+
 // Form schemas
 export const transactionFormSchema = z.object({
   familyHeadId: z.number({
@@ -44,6 +51,9 @@ export const transactionFormSchema = z.object({
     required_error: "Tanggal pembayaran wajib diisi",
   }),
   notes: z.string().optional(),
+  paymentStatus: z.enum(["Lunas", "Belum Lunas"], {
+    required_error: "Status pembayaran wajib dipilih",
+  }),
 });
 
 export const printPdfSchema = z.object({

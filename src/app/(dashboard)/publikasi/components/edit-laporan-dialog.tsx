@@ -26,7 +26,7 @@ import {
   CheckCircle, 
   Upload,
   FileText,
-  Plus
+  Pencil
 } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
@@ -34,27 +34,28 @@ import { format } from "date-fns"
 import { id as localeID } from "date-fns/locale"
 import { JENIS_LAPORAN } from "../utils/constants"
 import { toast } from "sonner"
-import { Publikasi } from "../types/publikasi"
+import { Laporan } from "../types/publikasi"
 
-interface BuatLaporanDialogProps {
+interface EditLaporanDialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  publikasi?: Publikasi;
+  laporan: Laporan;
   onSubmit?: (values: any) => void;
 }
 
-export default function BuatLaporanDialog({
+export default function EditLaporanDialog({
   open = false,
   onOpenChange,
-  publikasi,
+  laporan,
   onSubmit
-}: BuatLaporanDialogProps) {
+}: EditLaporanDialogProps) {
   const [dialogOpen, setDialogOpen] = useState(open);
   const [title, setTitle] = useState("")
   const [type, setType] = useState("")
   const [date, setDate] = useState<Date>()
   const [description, setDescription] = useState("")
   const [attachment, setAttachment] = useState<File | null>(null)
+  const [currentAttachmentName, setCurrentAttachmentName] = useState<string>("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Sync internal open state with props
@@ -62,21 +63,22 @@ export default function BuatLaporanDialog({
     setDialogOpen(open);
   }, [open]);
 
-  // Initialize form with publikasi data if available
+  // Initialize form with laporan data
   useEffect(() => {
-    if (publikasi) {
-      setTitle(`Laporan: ${publikasi.judul}`);
-      setDate(new Date(publikasi.tanggal));
-      setDescription(`Laporan untuk publikasi: ${publikasi.judul}`);
+    if (laporan) {
+      setTitle(laporan.judul || "");
+      setType(laporan.jenis || "");
+      setDate(laporan.tanggal ? new Date(laporan.tanggal) : undefined);
+      setDescription(laporan.keterangan || "");
+      setCurrentAttachmentName(laporan.lampiran || "");
     }
-  }, [publikasi]);
+  }, [laporan]);
 
   const handleOpenChange = (newOpen: boolean) => {
     setDialogOpen(newOpen);
     if (onOpenChange) {
       onOpenChange(newOpen);
     }
-    if (!newOpen) resetForm();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,54 +97,52 @@ export default function BuatLaporanDialog({
 
     // Prepare form values
     const formValues = {
-      title,
-      type,
-      date,
-      description,
-      attachment,
-      publikasiId: publikasi?.id
+      id: laporan.id,
+      judul: title,
+      jenis: type,
+      tanggal: date,
+      keterangan: description,
+      lampiran: attachment, // New file if uploaded
+      currentLampiran: currentAttachmentName, // Existing file name
     };
 
-    // Call the external onSubmit handler if provided
-    if (onSubmit) {
-      onSubmit(formValues);
-    } else {
-      // Fallback behavior if no onSubmit provided
-      setTimeout(() => {
-        toast.success("Laporan berhasil disimpan", {
-          description: "Laporan telah berhasil ditambahkan ke sistem"
-        });
-        
-        resetForm();
-        setIsSubmitting(false);
-        handleOpenChange(false);
-      }, 1500);
+    try {
+      // Call the external onSubmit handler
+      if (onSubmit) {
+        await onSubmit(formValues);
+      } else {
+        // Fallback behavior if no onSubmit provided
+        setTimeout(() => {
+          toast.success("Laporan berhasil diperbarui", {
+            description: "Perubahan pada laporan telah disimpan"
+          });
+          
+          setIsSubmitting(false);
+          handleOpenChange(false);
+        }, 1500);
+      }
+    } catch (error) {
+      toast.error("Gagal memperbarui laporan", {
+        description: "Terjadi kesalahan saat memperbarui data"
+      });
+      setIsSubmitting(false);
     }
-  }
-
-  const resetForm = () => {
-    setTitle("")
-    setType("")
-    setDate(undefined)
-    setDescription("")
-    setAttachment(null)
   }
 
   return (
     <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
       {!onOpenChange && (
         <DialogTrigger asChild>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Buat Laporan
+          <Button variant="outline" size="icon">
+            <Pencil className="h-4 w-4" />
           </Button>
         </DialogTrigger>
       )}
       <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
-          <DialogTitle>Buat Laporan</DialogTitle>
+          <DialogTitle>Edit Laporan</DialogTitle>
           <DialogDescription>
-            Input data laporan untuk disimpan dalam sistem
+            Perbarui data laporan yang sudah ada
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -223,6 +223,16 @@ export default function BuatLaporanDialog({
                           {(attachment.size / 1024).toFixed(2)} KB
                         </p>
                       </>
+                    ) : currentAttachmentName ? (
+                      <>
+                        <FileText className="w-6 h-6 mb-1 text-blue-500" />
+                        <p className="text-sm text-gray-500 text-center truncate max-w-full px-4">
+                          {currentAttachmentName}
+                        </p>
+                        <p className="text-xs text-blue-500">
+                          Klik untuk mengganti file
+                        </p>
+                      </>
                     ) : (
                       <>
                         <Upload className="w-6 h-6 mb-1 text-gray-500" />
@@ -262,7 +272,7 @@ export default function BuatLaporanDialog({
             Batal
           </Button>
           <Button type="submit" onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? "Menyimpan..." : "Simpan Laporan"}
+            {isSubmitting ? "Menyimpan..." : "Simpan Perubahan"}
           </Button>
         </DialogFooter>
       </DialogContent>

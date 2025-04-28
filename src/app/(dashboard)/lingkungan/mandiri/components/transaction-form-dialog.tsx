@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
 import { CalendarIcon } from "lucide-react"
-import { familyHeads, TransactionFormValues, transactionFormSchema } from "../types"
+import { familyHeads, TransactionFormValues, transactionFormSchema, paymentStatusOptions } from "../types"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -71,6 +71,7 @@ export function TransactionFormDialog({
       amount: 1000000,
       paymentDate: new Date(),
       notes: "",
+      paymentStatus: "Belum Lunas",
     },
   })
   
@@ -79,7 +80,7 @@ export function TransactionFormDialog({
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] md:max-w-[550px] w-full mx-auto">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
@@ -195,13 +196,41 @@ export function TransactionFormDialog({
             
             <FormField
               control={form.control}
+              name="paymentStatus"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Keterangan</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih keterangan" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {paymentStatusOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
               name="notes"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Catatan</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Masukkan catatan (opsional)"
+                      placeholder="Catatan tambahan (opsional)"
                       className="resize-none"
                       {...field}
                     />
@@ -211,9 +240,18 @@ export function TransactionFormDialog({
               )}
             />
             
-            <DialogFooter>
-              <Button type="submit" className="w-full">{buttonText}</Button>
-            </DialogFooter>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
+                Batal
+              </Button>
+              <Button type="submit">
+                {buttonText}
+              </Button>
+            </div>
           </form>
         </Form>
       </DialogContent>

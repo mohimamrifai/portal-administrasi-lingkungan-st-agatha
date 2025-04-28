@@ -69,8 +69,23 @@ function NotificationList() {
   )
 }
 
-export function SiteHeader({ userRole = "Umat" }: SiteHeaderProps) {
-  const { isDevelopmentMode } = useAuth()
+export function SiteHeader({ userRole = "umat" }: SiteHeaderProps) {
+  const { userRole: currentRole, isDevelopmentMode } = useAuth()
+  
+  // Format display role name untuk tampilan badge
+  const formatRoleName = (role: string): string => {
+    switch(role) {
+      case 'SuperUser': return 'Super User';
+      case 'ketuaLingkungan': return 'Ketua Lingkungan';
+      case 'sekretaris': return 'Sekretaris';
+      case 'wakilSekretaris': return 'Wakil Sekretaris';
+      case 'bendahara': return 'Bendahara';
+      case 'wakilBendahara': return 'Wakil Bendahara';
+      case 'adminLingkungan': return 'Admin Lingkungan';
+      case 'umat': return 'Umat';
+      default: return role;
+    }
+  }
 
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height) sticky top-0 z-50 bg-background">
@@ -103,7 +118,7 @@ export function SiteHeader({ userRole = "Umat" }: SiteHeaderProps) {
             </PopoverContent>
           </Popover>
           <Badge variant="outline" className="text-muted-foreground">
-            {userRole}
+            {formatRoleName(currentRole)}
           </Badge>
         </div>
       </div>

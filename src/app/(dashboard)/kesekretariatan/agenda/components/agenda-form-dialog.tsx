@@ -5,8 +5,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Agenda, AgendaFormValues } from "../types";
+import { Agenda, AgendaFormValues, ProcessTarget } from "../types";
 import { format } from "date-fns";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 interface AgendaFormDialogProps {
   open: boolean;
@@ -26,6 +28,7 @@ export function AgendaFormDialog({
     description: agenda?.description || "",
     date: agenda?.date || new Date(),
     location: agenda?.location || "",
+    target: agenda?.target || "lingkungan",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -96,6 +99,30 @@ export function AgendaFormDialog({
               }
               required
             />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+              Tujuan Pengajuan
+            </label>
+            <RadioGroup
+              value={formValues.target}
+              onValueChange={(value: ProcessTarget) =>
+                setFormValues({ ...formValues, target: value })
+              }
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="lingkungan" id="lingkungan" />
+                <Label htmlFor="lingkungan">DPL (Lingkungan)</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="stasi" id="stasi" />
+                <Label htmlFor="stasi">DPS (Stasi)</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="paroki" id="paroki" />
+                <Label htmlFor="paroki">DPP (Paroki)</Label>
+              </div>
+            </RadioGroup>
           </div>
           <div className="flex justify-end gap-2">
             <Button

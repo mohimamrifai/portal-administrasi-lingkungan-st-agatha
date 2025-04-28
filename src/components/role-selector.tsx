@@ -15,6 +15,18 @@ export function RoleSelector() {
   const [isLoading, setIsLoading] = useState(false)
   const [selectedRole, setSelectedRole] = useState<string | null>(null)
 
+  // Daftar role dengan label yang bersahabat untuk tampilan
+  const roleOptions = [
+    { id: ROLES.SUPER_USER, label: "Super User" },
+    { id: ROLES.KETUA_LINGKUNGAN, label: "Ketua Lingkungan" },
+    { id: ROLES.SEKRETARIS, label: "Sekretaris" },
+    { id: ROLES.WAKIL_SEKRETARIS, label: "Wakil Sekretaris" },
+    { id: ROLES.BENDAHARA, label: "Bendahara" },
+    { id: ROLES.WAKIL_BENDAHARA, label: "Wakil Bendahara" },
+    { id: ROLES.ADMIN_LINGKUNGAN, label: "Admin Lingkungan" },
+    { id: ROLES.UMAT, label: "Umat" },
+  ]
+
   const handleRoleSelect = async (role: string) => {
     setSelectedRole(role)
     setIsLoading(true)
@@ -40,18 +52,18 @@ export function RoleSelector() {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-2">
-          {Object.entries(ROLES).map(([key, role]) => (
+          {roleOptions.map((roleOption) => (
             <Button
-              key={key}
-              variant={selectedRole === role ? "default" : "outline"}
+              key={roleOption.id}
+              variant={selectedRole === roleOption.id ? "default" : "outline"}
               className="p-2 w-full"
-              onClick={() => handleRoleSelect(role)}
+              onClick={() => handleRoleSelect(roleOption.id)}
               disabled={isLoading}
             >
-              {isLoading && selectedRole === role ? (
+              {isLoading && selectedRole === roleOption.id ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
-              {role}
+              {roleOption.label}
             </Button>
           ))}
         </div>

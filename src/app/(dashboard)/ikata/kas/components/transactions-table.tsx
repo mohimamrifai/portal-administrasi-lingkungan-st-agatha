@@ -62,6 +62,7 @@ interface TransactionsTableProps {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onToggleLock: (id: string) => void;
+  canModifyData?: boolean;
 }
 
 export function TransactionsTable({ 
@@ -69,7 +70,8 @@ export function TransactionsTable({
   period, 
   onEdit, 
   onDelete,
-  onToggleLock 
+  onToggleLock,
+  canModifyData = true
 }: TransactionsTableProps) {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -178,13 +180,13 @@ export function TransactionsTable({
           )}
         </div>
         
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-2">
           {/* Type Filter */}
           <Select
             value={typeFilter || "all"}
             onValueChange={(value) => setTypeFilter(value === "all" ? null : value)}
           >
-            <SelectTrigger className="w-[150px]">
+            <SelectTrigger className="w-full sm:w-[150px]">
               <SelectValue placeholder="Tipe Transaksi" />
             </SelectTrigger>
             <SelectContent>
@@ -205,7 +207,7 @@ export function TransactionsTable({
               <Button
                 variant="outline"
                 className={cn(
-                  "w-[240px] justify-start text-left font-normal",
+                  "w-full sm:w-[240px] justify-start text-left font-normal",
                   !dateRange && "text-muted-foreground"
                 )}
               >
@@ -230,7 +232,17 @@ export function TransactionsTable({
                 defaultMonth={dateRange?.from}
                 selected={dateRange}
                 onSelect={setDateRange}
+                numberOfMonths={1}
+                className="sm:block hidden"
+              />
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange?.from}
+                selected={dateRange}
+                onSelect={setDateRange}
                 numberOfMonths={2}
+                className="hidden lg:block"
               />
               <div className="flex items-center justify-between px-3 pb-2">
                 <Button
@@ -324,7 +336,7 @@ export function TransactionsTable({
                 <TableHead className="min-w-[250px]">Keterangan</TableHead>
                 <TableHead className="text-right w-[120px]">Jumlah</TableHead>
                 <TableHead className="text-center w-[90px]">Status</TableHead>
-                <TableHead className="sticky right-0 bg-white shadow-md w-[50px] text-center">Aksi</TableHead>
+                {canModifyData && <TableHead className="sticky right-0 bg-white shadow-md w-[50px] text-center">Aksi</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -373,65 +385,67 @@ export function TransactionsTable({
                         </Badge>
                       }
                     </TableCell>
-                    <TableCell className="sticky right-0 bg-white shadow-md">
-                      <AlertDialog>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Apakah Anda yakin ingin menghapus transaksi ini? Tindakan ini tidak dapat dibatalkan.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Batal</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => onDelete(tx.id)}>
-                              Hapus
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              className="h-8 w-8 p-0"
-                            >
-                              <span className="sr-only">Buka menu</span>
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => onEdit(tx.id)}
-                              disabled={tx.locked}
-                              className={tx.locked ? "cursor-not-allowed opacity-50" : ""}
-                            >
-                              <PencilIcon className="mr-2 h-4 w-4" />
-                              <span>Edit</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => onToggleLock(tx.id)}
-                            >
-                              {tx.locked ?
-                                <UnlockIcon className="mr-2 h-4 w-4" /> :
-                                <LockIcon className="mr-2 h-4 w-4" />
-                              }
-                              <span>{tx.locked ? 'Buka Kunci' : 'Kunci'}</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <AlertDialogTrigger asChild>
-                              <DropdownMenuItem
-                                disabled={tx.locked}
-                                className={`${tx.locked ? "cursor-not-allowed opacity-50" : ""} text-red-600 focus:text-red-600`}
+                    {canModifyData && (
+                      <TableCell className="sticky right-0 bg-white shadow-md">
+                        <AlertDialog>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Apakah Anda yakin ingin menghapus transaksi ini? Tindakan ini tidak dapat dibatalkan.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Batal</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => onDelete(tx.id)}>
+                                Hapus
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                className="h-8 w-8 p-0"
                               >
-                                <Trash2Icon className="mr-2 h-4 w-4" />
-                                <span>Hapus</span>
+                                <span className="sr-only">Buka menu</span>
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => onEdit(tx.id)}
+                                disabled={tx.locked}
+                                className={tx.locked ? "cursor-not-allowed opacity-50" : ""}
+                              >
+                                <PencilIcon className="mr-2 h-4 w-4" />
+                                <span>Edit</span>
                               </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </AlertDialog>
-                    </TableCell>
+                              <DropdownMenuItem
+                                onClick={() => onToggleLock(tx.id)}
+                              >
+                                {tx.locked ?
+                                  <UnlockIcon className="mr-2 h-4 w-4" /> :
+                                  <LockIcon className="mr-2 h-4 w-4" />
+                                }
+                                <span>{tx.locked ? 'Buka Kunci' : 'Kunci'}</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem
+                                  disabled={tx.locked}
+                                  className={`${tx.locked ? "cursor-not-allowed opacity-50" : ""} text-red-600 focus:text-red-600`}
+                                >
+                                  <Trash2Icon className="mr-2 h-4 w-4" />
+                                  <span>Hapus</span>
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </AlertDialog>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
@@ -443,14 +457,14 @@ export function TransactionsTable({
       {/* Pagination Controls */}
       {transactions.length > 0 && (
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-2">
-          <div className="flex items-center space-x-2">
-            <p className="text-sm text-muted-foreground">
+          <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+            <p className="text-sm text-muted-foreground text-center sm:text-left">
               Menampilkan {startIndex + 1}-{endIndex} dari {totalItems} transaksi
               {(searchTerm || typeFilter || dateRange) && 
                 ` (difilter dari ${transactions.length} total)`}
             </p>
             <div className="flex items-center space-x-2">
-              <p className="text-sm text-muted-foreground">Tampilkan</p>
+              <p className="text-sm text-muted-foreground hidden sm:block">Tampilkan</p>
               <Select 
                 value={pageSize.toString()} 
                 onValueChange={handlePageSizeChange}
@@ -470,52 +484,54 @@ export function TransactionsTable({
             </div>
           </div>
           
-          <div className="flex items-center space-x-2">
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={goToFirstPage} 
-              disabled={currentPage === 1}
-              className="h-8 w-8"
-            >
-              <ChevronsLeftIcon className="h-4 w-4" />
-              <span className="sr-only">First Page</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={goToPreviousPage} 
-              disabled={currentPage === 1}
-              className="h-8 w-8"
-            >
-              <ChevronLeftIcon className="h-4 w-4" />
-              <span className="sr-only">Previous Page</span>
-            </Button>
-            
-            <span className="text-sm">
+          <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+            <span className="text-sm mb-2 sm:mb-0 sm:mr-2 order-1 sm:order-none">
               Halaman {currentPage} dari {totalPages}
             </span>
             
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={goToNextPage} 
-              disabled={currentPage === totalPages}
-              className="h-8 w-8"
-            >
-              <ChevronRightIcon className="h-4 w-4" />
-              <span className="sr-only">Next Page</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={goToLastPage} 
-              disabled={currentPage === totalPages}
-              className="h-8 w-8"
-            >
-              <ChevronsRightIcon className="h-4 w-4" />
-              <span className="sr-only">Last Page</span>
-            </Button>
+            <div className="flex items-center space-x-1 sm:space-x-2 order-2 sm:order-none">
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={goToFirstPage} 
+                disabled={currentPage === 1}
+                className="h-7 w-7 sm:h-8 sm:w-8"
+              >
+                <ChevronsLeftIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="sr-only">First Page</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={goToPreviousPage} 
+                disabled={currentPage === 1}
+                className="h-7 w-7 sm:h-8 sm:w-8"
+              >
+                <ChevronLeftIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="sr-only">Previous Page</span>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={goToNextPage} 
+                disabled={currentPage === totalPages}
+                className="h-7 w-7 sm:h-8 sm:w-8"
+              >
+                <ChevronRightIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="sr-only">Next Page</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={goToLastPage} 
+                disabled={currentPage === totalPages}
+                className="h-7 w-7 sm:h-8 sm:w-8"
+              >
+                <ChevronsRightIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="sr-only">Last Page</span>
+              </Button>
+            </div>
           </div>
         </div>
       )}

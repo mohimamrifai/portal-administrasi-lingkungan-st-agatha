@@ -65,6 +65,7 @@ function TransactionForm({
   isEditing: boolean
 }) {
   const [showFamilyHeadSelect, setShowFamilyHeadSelect] = useState(false);
+  const [showConfirmTransfer, setShowConfirmTransfer] = useState(false);
   const currentType = form.watch("type");
   const currentSubtype = form.watch("subtype");
   
@@ -72,6 +73,10 @@ function TransactionForm({
   useEffect(() => {
     setShowFamilyHeadSelect(
       currentType === "debit" && currentSubtype === "sumbangan_umat"
+    );
+    
+    setShowConfirmTransfer(
+      currentType === "credit" && currentSubtype === "transfer_ikata"
     );
   }, [currentType, currentSubtype]);
 
@@ -242,11 +247,11 @@ function TransactionForm({
           )}
         />
         
-        {/* From IKATA Checkbox */}
-        {currentType === "debit" && currentSubtype === "transfer_ikata" && (
+        {/* Confirmation for IKATA Transfer */}
+        {showConfirmTransfer && (
           <FormField
             control={form.control}
-            name="fromIkata"
+            name="confirmIkataTransfer"
             render={({ field }) => (
               <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                 <FormControl>
@@ -256,11 +261,9 @@ function TransactionForm({
                   />
                 </FormControl>
                 <div className="space-y-1 leading-none">
-                  <FormLabel>
-                    Transfer dari Kas IKATA
-                  </FormLabel>
+                  <FormLabel>Kirim ke Kas IKATA</FormLabel>
                   <FormDescription>
-                    Pilih ini jika transaksi merupakan transfer dari Kas IKATA
+                    Dana akan langsung dicatat di kas IKATA sebagai pemasukan
                   </FormDescription>
                 </div>
               </FormItem>
@@ -268,105 +271,50 @@ function TransactionForm({
           />
         )}
         
-        <DialogFooter>
-          <Button type="submit" className="w-full md:w-auto">
-            {isEditing ? "Perbarui" : "Simpan"}
+        <div className="flex justify-end gap-2">
+          <Button type="submit">
+            {isEditing ? "Simpan Perubahan" : "Tambah Transaksi"}
           </Button>
-        </DialogFooter>
+        </div>
       </form>
     </Form>
-  );
+  )
 }
 
-// Create transaction dialog
 interface CreateTransactionProps {
   form: UseFormReturn<TransactionFormValues>;
   onSubmit: (values: TransactionFormValues) => void;
 }
 
 export function CreateTransactionDialog({ form, onSubmit }: CreateTransactionProps) {
-  const [showIkataConfirmation, setShowIkataConfirmation] = useState(false);
-  const [pendingValues, setPendingValues] = useState<TransactionFormValues | null>(null);
+  const [open, setOpen] = useState(false);
   
-  // Handle form submission
   const handleSubmit = (values: TransactionFormValues) => {
-    // Check if it's a transfer to IKATA and needs confirmation
-    if (values.type === "credit" && values.subtype === "transfer_ikata") {
-      setShowIkataConfirmation(true);
-      setPendingValues(values);
-    } else {
-      onSubmit(values);
-    }
-  };
-  
-  // Handle confirmation submit
-  const handleConfirmTransfer = () => {
-    if (pendingValues) {
-      // Add confirmation flag and submit
-      onSubmit({
-        ...pendingValues,
-        confirmIkataTransfer: true
-      });
-      
-      // Reset state
-      setShowIkataConfirmation(false);
-      setPendingValues(null);
-    }
-  };
-  
-  // Handle cancel
-  const handleCancelTransfer = () => {
-    setShowIkataConfirmation(false);
-    setPendingValues(null);
+    onSubmit(values);
+    setOpen(false);
   };
 
   return (
-    <>
-      <Dialog>
-        <DialogTrigger asChild>
-          <Button className="w-full md:w-auto mt-2 md:mt-0">
-            <PlusIcon className="h-4 w-4 mr-2" />
-            Input Transaksi
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="max-w-[95vw] md:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Input Transaksi Baru</DialogTitle>
-            <DialogDescription>
-              Isi form berikut untuk menambahkan transaksi kas lingkungan.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <TransactionForm 
-            form={form} 
-            onSubmit={handleSubmit} 
-            isEditing={false} 
-          />
-        </DialogContent>
-      </Dialog>
-      
-      {/* Confirmation Dialog for IKATA Transfers */}
-      <AlertDialog open={showIkataConfirmation} onOpenChange={setShowIkataConfirmation}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Konfirmasi Transfer ke IKATA</AlertDialogTitle>
-            <AlertDialogDescription>
-              Transaksi ini akan otomatis tercatat di kas IKATA sebagai pemasukan. Lanjutkan?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancelTransfer}>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmTransfer}>
-              Konfirmasi Transfer
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="mr-4">
+          <PlusIcon className="mr-2 h-4 w-4" />
+          Tambah Transaksi
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px] md:max-w-[550px] lg:max-w-[600px] w-full mx-auto">
+        <DialogHeader>
+          <DialogTitle>Tambah Transaksi</DialogTitle>
+          <DialogDescription>
+            Tambahkan transaksi kas lingkungan baru.
+          </DialogDescription>
+        </DialogHeader>
+        <TransactionForm form={form} onSubmit={handleSubmit} isEditing={false} />
+      </DialogContent>
+    </Dialog>
   );
 }
 
-// Edit transaction dialog
 interface EditTransactionProps {
   form: UseFormReturn<TransactionFormValues>;
   onSubmit: (values: TransactionFormValues) => void;
@@ -380,77 +328,23 @@ export function EditTransactionDialog({
   isOpen,
   onOpenChange
 }: EditTransactionProps) {
-  const [showIkataConfirmation, setShowIkataConfirmation] = useState(false);
-  const [pendingValues, setPendingValues] = useState<TransactionFormValues | null>(null);
   
-  // Handle form submission
   const handleSubmit = (values: TransactionFormValues) => {
-    // Check if it's a transfer to IKATA and needs confirmation
-    if (values.type === "credit" && values.subtype === "transfer_ikata") {
-      setShowIkataConfirmation(true);
-      setPendingValues(values);
-    } else {
-      onSubmit(values);
-    }
-  };
-  
-  // Handle confirmation submit
-  const handleConfirmTransfer = () => {
-    if (pendingValues) {
-      // Add confirmation flag and submit
-      onSubmit({
-        ...pendingValues,
-        confirmIkataTransfer: true
-      });
-      
-      // Reset state
-      setShowIkataConfirmation(false);
-      setPendingValues(null);
-    }
-  };
-  
-  // Handle cancel
-  const handleCancelTransfer = () => {
-    setShowIkataConfirmation(false);
-    setPendingValues(null);
+    onSubmit(values);
+    onOpenChange(false);
   };
 
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-[95vw] md:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Transaksi</DialogTitle>
-            <DialogDescription>
-              Ubah detail transaksi sesuai kebutuhan.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <TransactionForm 
-            form={form} 
-            onSubmit={handleSubmit} 
-            isEditing={true} 
-          />
-        </DialogContent>
-      </Dialog>
-      
-      {/* Confirmation Dialog for IKATA Transfers */}
-      <AlertDialog open={showIkataConfirmation} onOpenChange={setShowIkataConfirmation}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Konfirmasi Transfer ke IKATA</AlertDialogTitle>
-            <AlertDialogDescription>
-              Transaksi ini akan otomatis tercatat di kas IKATA sebagai pemasukan. Lanjutkan?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancelTransfer}>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmTransfer}>
-              Konfirmasi Transfer
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px] md:max-w-[550px] lg:max-w-[600px] w-full mx-auto">
+        <DialogHeader>
+          <DialogTitle>Edit Transaksi</DialogTitle>
+          <DialogDescription>
+            Ubah data transaksi kas lingkungan.
+          </DialogDescription>
+        </DialogHeader>
+        <TransactionForm form={form} onSubmit={handleSubmit} isEditing={true} />
+      </DialogContent>
+    </Dialog>
   );
 } 

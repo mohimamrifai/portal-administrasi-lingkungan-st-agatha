@@ -55,7 +55,28 @@ export const navMain: Record<string, MenuItem[]> = {
         },
     ],
 
-    Ketua: [
+    ketuaLingkungan: [
+        { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+        {
+            label: 'Kesekretariatan',
+            icon: Users,
+            children: [
+                { label: 'Doa Lingkungan', path: '/kesekretariatan/doling' },
+                { label: 'Agenda', path: '/kesekretariatan/agenda' },
+            ],
+        },
+        { label: 'Publikasi', path: '/publikasi', icon: FileText },
+        {
+            label: 'Pengaturan',
+            icon: Settings,
+            children: [
+                { label: 'Profil', path: '/pengaturan/profil' },
+                { label: 'Ganti Password', path: '/pengaturan/password' },
+            ],
+        },
+    ],
+
+    wakilKetua: [
         { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         {
             label: 'Lingkungan',
@@ -86,46 +107,14 @@ export const navMain: Record<string, MenuItem[]> = {
         {
             label: 'Pengaturan',
             icon: Settings,
-            children: [{ label: 'Ganti Password', path: '/pengaturan/password' }],
+            children: [
+                { label: 'Profil', path: '/pengaturan/profil' },
+                { label: 'Ganti Password', path: '/pengaturan/password' },
+            ],
         },
     ],
 
-    WakilKetua: [
-        { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-        {
-            label: 'Lingkungan',
-            icon: Home,
-            children: [
-                { label: 'Kas Lingkungan', path: '/lingkungan/kas' },
-                { label: 'Dana Mandiri', path: '/lingkungan/mandiri' },
-            ],
-        },
-        { 
-            label: 'IKATA', 
-            icon: Banknote,
-            children: [
-                { label: 'Kas IKATA', path: '/ikata/kas' },
-                { label: 'Monitoring Penunggak', path: '/ikata/monitoring' },
-            ],
-        },
-        {
-            label: 'Kesekretariatan',
-            icon: Users,
-            children: [
-                { label: 'Data Umat', path: '/kesekretariatan/umat' },
-                { label: 'Doa Lingkungan', path: '/kesekretariatan/doling' },
-                { label: 'Agenda', path: '/kesekretariatan/agenda' },
-            ],
-        },
-        { label: 'Publikasi', path: '/publikasi', icon: FileText },
-        {
-            label: 'Pengaturan',
-            icon: Settings,
-            children: [{ label: 'Ganti Password', path: '/pengaturan/password' }],
-        },
-    ],
-
-    Sekretaris: [
+    sekretaris: [
         { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         {
             label: 'Kesekretariatan',
@@ -140,11 +129,14 @@ export const navMain: Record<string, MenuItem[]> = {
         {
             label: 'Pengaturan',
             icon: Settings,
-            children: [{ label: 'Ganti Password', path: '/pengaturan/password' }],
+            children: [
+                { label: 'Profil', path: '/pengaturan/profil' },
+                { label: 'Ganti Password', path: '/pengaturan/password' },
+            ],
         },
     ],
 
-    WakilSekretaris: [
+    wakilSekretaris: [
         { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         {
             label: 'Kesekretariatan',
@@ -155,19 +147,18 @@ export const navMain: Record<string, MenuItem[]> = {
                 { label: 'Agenda', path: '/kesekretariatan/agenda' },
             ],
         },
-        {
-            label: 'Publikasi',
-            icon: FileText,
-            path: '/publikasi',
-        },
+        { label: 'Publikasi', path: '/publikasi', icon: FileText },
         {
             label: 'Pengaturan',
             icon: Settings,
-            children: [{ label: 'Ganti Password', path: '/pengaturan/password' }],
+            children: [
+                { label: 'Profil', path: '/pengaturan/profil' },
+                { label: 'Ganti Password', path: '/pengaturan/password' },
+            ],
         },
     ],
 
-    Bendahara: [
+    bendahara: [
         { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         {
             label: 'Lingkungan',
@@ -175,14 +166,6 @@ export const navMain: Record<string, MenuItem[]> = {
             children: [
                 { label: 'Kas Lingkungan', path: '/lingkungan/kas' },
                 { label: 'Dana Mandiri', path: '/lingkungan/mandiri' },
-            ],
-        },
-        { 
-            label: 'IKATA', 
-            icon: Banknote,
-            children: [
-                { label: 'Kas IKATA', path: '/ikata/kas' },
-                { label: 'Monitoring Penunggak', path: '/ikata/monitoring' },
             ],
         },
         { label: 'Approval', path: '/approval', icon: ClipboardCheck },
@@ -190,18 +173,49 @@ export const navMain: Record<string, MenuItem[]> = {
             label: 'Kesekretariatan',
             icon: Users,
             children: [
-                { label: 'Data Umat', path: '/kesekretariatan/umat' },
                 { label: 'Agenda', path: '/kesekretariatan/agenda' },
             ],
         },
+        { label: 'Publikasi', path: '/publikasi', icon: FileText },
         {
             label: 'Pengaturan',
             icon: Settings,
-            children: [{ label: 'Ganti Password', path: '/pengaturan/password' }],
+            children: [
+                { label: 'Profil', path: '/pengaturan/profil' },
+                { label: 'Ganti Password', path: '/pengaturan/password' },
+            ],
         },
     ],
 
-    WakilBendahara: [
+    wakilBendahara: [
+        { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+        { 
+            label: 'IKATA', 
+            icon: Banknote,
+            children: [
+                { label: 'Kas IKATA', path: '/ikata/kas' },
+                { label: 'Monitoring Penunggak', path: '/ikata/monitoring' },
+            ],
+        },
+        {
+            label: 'Kesekretariatan',
+            icon: Users,
+            children: [
+                { label: 'Agenda', path: '/kesekretariatan/agenda' },
+            ],
+        },
+        { label: 'Publikasi', path: '/publikasi', icon: FileText },
+        {
+            label: 'Pengaturan',
+            icon: Settings,
+            children: [
+                { label: 'Profil', path: '/pengaturan/profil' },
+                { label: 'Ganti Password', path: '/pengaturan/password' },
+            ],
+        },
+    ],
+
+    adminLingkungan: [
         { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         {
             label: 'Lingkungan',
@@ -227,29 +241,27 @@ export const navMain: Record<string, MenuItem[]> = {
                 { label: 'Agenda', path: '/kesekretariatan/agenda' },
             ],
         },
+        { label: 'Publikasi', path: '/publikasi', icon: FileText },
         {
             label: 'Pengaturan',
             icon: Settings,
-            children: [{ label: 'Ganti Password', path: '/pengaturan/password' }],
+            children: [
+                { label: 'Profil', path: '/pengaturan/profil' },
+                { label: 'Ganti Password', path: '/pengaturan/password' },
+            ],
         },
     ],
 
-    Umat: [
+    umat: [
         { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-        {
-            label: 'Publikasi',
-            icon: FileText,
-            path: '/publikasi',
-        },
-        { label: 'Histori Pembayaran', path: '/histori-pembayaran', icon: History },
         {
             label: 'Kesekretariatan',
             icon: Users,
             children: [
                 { label: 'Doa Lingkungan', path: '/kesekretariatan/doling' },
-                { label: 'Agenda', path: '/kesekretariatan/agenda' },
             ],
         },
+        { label: 'Histori Pembayaran', path: '/histori-pembayaran', icon: History },
         {
             label: 'Pengaturan',
             icon: Settings,

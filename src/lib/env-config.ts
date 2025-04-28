@@ -8,13 +8,13 @@
 // List of valid roles in the system
 export const VALID_ROLES = [
   'SuperUser', 
-  'Ketua', 
-  'WakilKetua', 
-  'Sekretaris', 
-  'WakilSekretaris', 
-  'Bendahara', 
-  'WakilBendahara', 
-  'Umat'
+  'ketuaLingkungan', 
+  'sekretaris', 
+  'wakilSekretaris', 
+  'bendahara', 
+  'wakilBendahara',
+  'adminLingkungan',
+  'umat'
 ] as const;
 
 export type Role = typeof VALID_ROLES[number];
@@ -22,7 +22,7 @@ export type Role = typeof VALID_ROLES[number];
 // Environment configuration object with type checking
 export const envConfig = {
   // User role for development
-  devUserRole: process.env.NEXT_PUBLIC_DEV_USER_ROLE as Role || 'Umat',
+  devUserRole: process.env.NEXT_PUBLIC_DEV_USER_ROLE as Role || 'umat',
   
   // App URL
   appUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
@@ -49,7 +49,7 @@ export function isValidRole(role: string): role is Role {
  * @param defaultRole Optional default role if none is specified
  * @returns The current role
  */
-export function getDevUserRole(defaultRole: Role = 'Umat'): Role {
+export function getDevUserRole(defaultRole: Role = 'umat'): Role {
   const envRole = process.env.NEXT_PUBLIC_DEV_USER_ROLE;
   
   if (envRole && isValidRole(envRole)) {

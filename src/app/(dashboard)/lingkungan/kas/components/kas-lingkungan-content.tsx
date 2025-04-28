@@ -7,6 +7,10 @@ import { DateRange } from "react-day-picker"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
+import { useAuth } from "@/contexts/auth-context"
+import { useRouter } from "next/navigation"
+import { AlertCircle } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 // Import types and schemas
 import { 
@@ -39,12 +43,37 @@ import { CreateTransactionDialog, EditTransactionDialog } from "./transaction-fo
 import { TransactionsTable } from "./transactions-table"
 
 export default function KasLingkunganContent() {
+  const { userRole } = useAuth()
+  const router = useRouter()
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date())
   const [transactions, setTransactions] = useState<Transaction[]>(generateTransactions())
   const [isEditing, setIsEditing] = useState<number | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>(getMonthDateRange(currentMonth))
   const [nextNotificationTime, setNextNotificationTime] = useState<Date | null>(null);
+
+  // Cek apakah pengguna memiliki hak akses ke halaman
+  const hasAccess = [
+    'SuperUser',
+    'ketuaLingkungan',
+    'bendahara',
+    'adminLingkungan'
+  ].includes(userRole)
+
+  // Cek apakah pengguna memiliki hak untuk memodifikasi data
+  const canModifyData = [
+    'SuperUser',
+    'bendahara',
+    'adminLingkungan'
+  ].includes(userRole)
+
+  // Redirect jika tidak memiliki akses
+  useEffect(() => {
+    if (!hasAccess) {
+      toast.error("Anda tidak memiliki akses ke halaman ini")
+      router.push("/dashboard")
+    }
+  }, [hasAccess, router])
 
   // Calculate summary values
   const initialBalance = 1500000 // Initial balance
@@ -100,6 +129,12 @@ export default function KasLingkunganContent() {
   })
 
   function onTransactionSubmit(values: TransactionFormValues) {
+    // Validasi hak akses modifikasi
+    if (!canModifyData) {
+      toast.error("Anda tidak memiliki izin untuk melakukan perubahan data")
+      return
+    }
+
     // Generate description based on type and subtype
     const description = generateTransactionDescription(values);
     
@@ -183,11 +218,23 @@ export default function KasLingkunganContent() {
   }
 
   function handleDeleteTransaction(id: number) {
+    // Validasi hak akses modifikasi
+    if (!canModifyData) {
+      toast.error("Anda tidak memiliki izin untuk menghapus data")
+      return
+    }
+
     setTransactions(transactions.filter(tx => tx.id !== id))
     toast.success("Transaksi berhasil dihapus")
   }
 
   function handleEditTransaction(id: number) {
+    // Validasi hak akses modifikasi
+    if (!canModifyData) {
+      toast.error("Anda tidak memiliki izin untuk mengubah data")
+      return
+    }
+
     const transaction = transactions.find(tx => tx.id === id)
     if (transaction) {
       setIsEditing(id)
@@ -209,6 +256,12 @@ export default function KasLingkunganContent() {
   }
 
   function handleToggleLock(id: number) {
+    // Validasi hak akses modifikasi
+    if (!canModifyData) {
+      toast.error("Anda tidak memiliki izin untuk mengunci/membuka data")
+      return
+    }
+
     const updatedTransactions = transactions.map(tx => 
       tx.id === id ? { ...tx, locked: !tx.locked } : tx
     )
@@ -230,8 +283,22 @@ export default function KasLingkunganContent() {
   // Filter transactions for current month
   const filteredTransactions = filterTransactionsByMonth(transactions, currentMonth)
 
+  if (!hasAccess) {
+    return <div className="flex justify-center items-center h-64">Memeriksa akses...</div>
+  }
+
   return (
     <div className="space-y-6 p-2">
+      {!canModifyData && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Mode Hanya Baca</AlertTitle>
+          <AlertDescription>
+            Anda hanya dapat melihat data kas lingkungan. Untuk menambah, mengubah, atau menghapus data, hubungi Bendahara atau Admin Lingkungan.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Data Cards */}
       <SummaryCards
         initialBalance={initialBalance}
@@ -247,19 +314,21 @@ export default function KasLingkunganContent() {
             dateRange={dateRange}
             onMonthChange={handleMonthChange}
           />
+        </div>
+        
+        <div className="flex gap-2">
+          {canModifyData && (
+            <CreateTransactionDialog
+              form={createForm}
+              onSubmit={onTransactionSubmit}
+            />
+          )}
           
-          {/* Print PDF Dialog */}
           <PrintPdfDialog
             form={pdfForm}
             onSubmit={onPrintPdf}
           />
         </div>
-        
-        {/* Create Transaction Dialog */}
-        <CreateTransactionDialog
-          form={createForm}
-          onSubmit={onTransactionSubmit}
-        />
       </div>
 
       {/* Transaction Table */}
@@ -268,6 +337,7 @@ export default function KasLingkunganContent() {
         onEdit={handleEditTransaction}
         onDelete={handleDeleteTransaction}
         onToggleLock={handleToggleLock}
+        canModifyData={canModifyData}
       />
       
       {/* Edit Transaction Dialog */}

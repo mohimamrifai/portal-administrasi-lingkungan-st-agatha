@@ -61,6 +61,24 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
+import { ColumnDef } from "@tanstack/react-table"
+
+// Simple DataTableColumnHeader component implementation
+interface DataTableColumnHeaderProps<TData, TValue> {
+  column: any;
+  title: string;
+}
+
+function DataTableColumnHeader<TData, TValue>({
+  column,
+  title,
+}: DataTableColumnHeaderProps<TData, TValue>) {
+  return (
+    <div className="flex items-center space-x-2">
+      <span>{title}</span>
+    </div>
+  )
+}
 
 interface TransactionsTableProps {
   transactions: DanaMandiriTransaction[]
@@ -185,6 +203,18 @@ export function TransactionsTable({
     }
   }
   
+  // Get payment status badge
+  const getPaymentStatusBadge = (status: string) => {
+    switch (status) {
+      case "Lunas":
+        return <Badge className="bg-green-100 text-green-700 border-green-300">Lunas</Badge>
+      case "Belum Lunas":
+        return <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300">Belum Lunas</Badge>
+      default:
+        return <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">{status || "Unknown"}</Badge>
+    }
+  }
+  
   // Pagination functions
   const goToPage = (page: number) => {
     setCurrentPage(page)
@@ -213,7 +243,26 @@ export function TransactionsTable({
   const formatDateDisplay = (date: Date | null): string => {
     return date ? format(date, "dd MMM yyyy") : ""
   }
-  
+
+  const columns: ColumnDef<DanaMandiriTransaction>[] = [
+    {
+      accessorKey: "paymentStatus",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Status Pembayaran" />
+      ),
+      cell: ({ row }) => {
+        const status = row.getValue("paymentStatus") as string;
+        return (
+          <div className="flex w-[100px] items-center">
+            {getPaymentStatusBadge(status)}
+          </div>
+        )
+      },
+      enableSorting: false,
+      enableHiding: false,
+    },
+  ]
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -427,14 +476,15 @@ export function TransactionsTable({
                 <TableHead className="w-[100px]">Status</TableHead>
                 <TableHead className="text-right w-[120px]">Jumlah (Rp)</TableHead>
                 <TableHead className="w-[120px]">Tanggal Bayar</TableHead>
-                <TableHead className="w-[100px]">Status Kunci</TableHead>
+                <TableHead className="w-[100px]">Keterangan</TableHead>
+                <TableHead className="w-[120px]">Catatan</TableHead>
                 <TableHead className="sticky right-0 bg-white shadow-md w-[50px] text-center">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {currentTransactions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-10">
+                  <TableCell colSpan={9} className="text-center py-10">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       {filteredTransactions.length === 0 ? (
                         transactions.length > 0 ? (
@@ -475,14 +525,10 @@ export function TransactionsTable({
                     <TableCell className="text-right font-medium">{formatCurrency(tx.amount)}</TableCell>
                     <TableCell>{format(tx.paymentDate, "dd MMM yyyy")}</TableCell>
                     <TableCell>
-                      {tx.isLocked ? 
-                        <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">
-                          Terkunci
-                        </Badge> : 
-                        <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
-                          Aktif
-                        </Badge>
-                      }
+                      {getPaymentStatusBadge(tx.paymentStatus)}
+                    </TableCell>
+                    <TableCell className="max-w-[200px] truncate">
+                      {tx.notes || "-"}
                     </TableCell>
                     <TableCell className="sticky right-0 bg-white shadow-md">
                       <AlertDialog>

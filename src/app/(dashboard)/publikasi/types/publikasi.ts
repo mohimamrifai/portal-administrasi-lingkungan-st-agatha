@@ -25,4 +25,15 @@ export type TargetPenerimaType =
   | "SuperUser"
   | "Kepala Keluarga"
   | "Anggota IKATA"
-  | "Peserta Doa Lingkungan" 
+  | "Peserta Doa Lingkungan"
+
+// Definisi interface untuk Laporan
+export interface Laporan {
+  id: string
+  judul: string
+  jenis?: string
+  tanggal?: string | Date
+  keterangan?: string
+  lampiran?: string
+  publikasiId?: string
+} 

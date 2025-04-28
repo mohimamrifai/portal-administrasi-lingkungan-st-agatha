@@ -5,7 +5,10 @@ import {
   ProfileData, 
   FamilyHead, 
   Spouse, 
-  Dependent 
+  Dependent,
+  Religion,
+  LivingStatus,
+  DependentType
 } from "../types";
 
 // Generate mock profile data berdasarkan userID
@@ -22,9 +25,17 @@ export function generateMockProfile(userId: number): ProfileData {
         nik: "3171091506800004",
         maritalStatus: MaritalStatus.MARRIED,
         address: "Jl. Anggrek No. 123, RT 01/RW 02, Kelurahan Melati, Kecamatan Bunga, Jakarta Selatan",
+        city: "Jakarta Selatan",
         phoneNumber: "081234567890",
         email: "budi.santoso@example.com",
         occupation: "Wiraswasta",
+        education: "D4/S1",
+        religion: Religion.CATHOLIC,
+        livingStatus: LivingStatus.ALIVE,
+        bidukNumber: "12345",
+        baptismDate: new Date(1980, 8, 15),
+        confirmationDate: new Date(1992, 5, 20),
+        deathDate: null,
         imageUrl: "https://i.pravatar.cc/300?img=12"
       },
       spouse: {
@@ -34,32 +45,47 @@ export function generateMockProfile(userId: number): ProfileData {
         birthPlace: "Bandung",
         birthDate: new Date(1982, 8, 20),
         nik: "3171092009820003",
+        address: "Jl. Anggrek No. 123, RT 01/RW 02, Kelurahan Melati, Kecamatan Bunga, Jakarta Selatan",
+        city: "Jakarta Selatan",
         phoneNumber: "081234567891",
         email: "siti.rahma@example.com",
         occupation: "Guru",
+        education: "D4/S1",
+        religion: Religion.CATHOLIC,
+        livingStatus: LivingStatus.ALIVE,
+        bidukNumber: "12346",
+        baptismDate: new Date(1982, 10, 5),
+        confirmationDate: new Date(1994, 7, 12),
+        deathDate: null,
         imageUrl: "https://i.pravatar.cc/300?img=5"
       },
       dependents: [
         {
           id: 201,
-          fullName: "Agus Santoso",
+          name: "Agus Santoso",
           gender: Gender.MALE,
           birthPlace: "Jakarta",
           birthDate: new Date(2005, 3, 10),
-          nik: "3171091004050001",
-          relationship: "Anak",
-          occupation: "Pelajar",
+          education: "SMA/SMK",
+          religion: Religion.CATHOLIC,
+          maritalStatus: MaritalStatus.SINGLE,
+          dependentType: DependentType.CHILD,
+          baptismDate: new Date(2005, 5, 20),
+          confirmationDate: new Date(2017, 8, 15),
           imageUrl: "https://i.pravatar.cc/300?img=10"
         },
         {
           id: 202,
-          fullName: "Dewi Santoso",
+          name: "Dewi Santoso",
           gender: Gender.FEMALE,
           birthPlace: "Jakarta",
           birthDate: new Date(2008, 7, 22),
-          nik: "3171092208080002",
-          relationship: "Anak",
-          occupation: "Pelajar",
+          education: "SMP",
+          religion: Religion.CATHOLIC,
+          maritalStatus: MaritalStatus.SINGLE,
+          dependentType: DependentType.CHILD,
+          baptismDate: new Date(2008, 9, 10),
+          confirmationDate: null,
           imageUrl: "https://i.pravatar.cc/300?img=9"
         }
       ]
@@ -77,9 +103,17 @@ export function generateMockProfile(userId: number): ProfileData {
       nik: "3171010101750001",
       maritalStatus: MaritalStatus.MARRIED,
       address: "Jl. Admin No. 1, Jakarta",
+      city: "Jakarta Pusat",
       phoneNumber: "081234567899",
       email: "admin@example.com",
       occupation: "Administrator",
+      education: "D4/S1",
+      religion: Religion.CATHOLIC,
+      livingStatus: LivingStatus.ALIVE,
+      bidukNumber: "12347",
+      baptismDate: new Date(1975, 2, 15),
+      confirmationDate: new Date(1987, 5, 20),
+      deathDate: null,
       imageUrl: "https://i.pravatar.cc/300?img=70"
     },
     spouse: null,

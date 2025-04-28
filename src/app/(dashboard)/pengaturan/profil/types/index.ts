@@ -10,7 +10,30 @@ export enum Gender {
 export enum MaritalStatus {
   SINGLE = "Belum Menikah",
   MARRIED = "Menikah",
-  WIDOWED = "Janda/Duda"
+  DIVORCED = "Cerai Hidup",
+  WIDOWED = "Cerai Mati"
+}
+
+// Status hidup enum
+export enum LivingStatus {
+  ALIVE = "Hidup",
+  DECEASED = "Meninggal"
+}
+
+// Agama enum
+export enum Religion {
+  CATHOLIC = "Katolik",
+  PROTESTANT = "Protestan",
+  ISLAM = "Islam",
+  HINDU = "Hindu",
+  BUDDHA = "Buddha",
+  KONGHUCU = "Konghucu"
+}
+
+// Jenis tanggungan enum
+export enum DependentType {
+  CHILD = "Anak",
+  RELATIVE = "Kerabat Lain"
 }
 
 // Profile interfaces
@@ -23,10 +46,18 @@ export interface FamilyHead {
   nik: string
   maritalStatus: MaritalStatus
   address: string
+  city: string // Kota domisili
   phoneNumber: string
   email: string
   occupation: string
-  imageUrl?: string
+  education: string // Pendidikan terakhir
+  religion: Religion // Agama
+  livingStatus: LivingStatus // Status hidup/meninggal
+  bidukNumber?: string | null // No. Biduk jika Katolik
+  baptismDate?: Date | null // Tanggal baptis
+  confirmationDate?: Date | null // Tanggal krisma
+  deathDate?: Date | null // Tanggal meninggal jika status meninggal
+  imageUrl?: string | null
 }
 
 export interface Spouse {
@@ -36,22 +67,34 @@ export interface Spouse {
   birthPlace: string
   birthDate: Date
   nik: string
+  address: string
+  city: string // Kota domisili
   phoneNumber: string
   email: string
   occupation: string
-  imageUrl?: string
+  education: string // Pendidikan terakhir
+  religion: Religion // Agama pasangan
+  livingStatus: LivingStatus // Status hidup/meninggal
+  bidukNumber?: string | null // No. Biduk jika Katolik
+  baptismDate?: Date | null // Tanggal baptis jika Katolik
+  confirmationDate?: Date | null // Tanggal krisma jika Katolik
+  deathDate?: Date | null // Tanggal meninggal jika status meninggal
+  imageUrl?: string | null
 }
 
 export interface Dependent {
   id: number
-  fullName: string
+  name: string
+  dependentType: DependentType // Jenis tanggungan (anak/kerabat lain)
   gender: Gender
   birthPlace: string
   birthDate: Date
-  nik: string
-  relationship: string
-  occupation: string
-  imageUrl?: string
+  education: string // Pendidikan terakhir
+  religion: Religion // Agama
+  maritalStatus: MaritalStatus // Status pernikahan
+  baptismDate?: Date | null // Tanggal baptis jika Katolik
+  confirmationDate?: Date | null // Tanggal krisma jika Katolik
+  imageUrl?: string | null
 }
 
 export interface ProfileData {
@@ -75,13 +118,52 @@ export const familyHeadFormSchema = z.object({
     required_error: "Status pernikahan wajib dipilih" 
   }),
   address: z.string().min(5, { message: "Alamat minimal 5 karakter" }),
+  city: z.string().min(3, { message: "Kota domisili minimal 3 karakter" }),
   phoneNumber: z.string().regex(/^08\d{8,11}$/, { 
     message: "Nomor telepon harus dimulai dengan 08 dan minimal 10 digit" 
   }),
   email: z.string().email({ message: "Format email tidak valid" }).optional().or(z.literal("")),
   occupation: z.string().min(3, { message: "Pekerjaan minimal 3 karakter" }),
-  imageUrl: z.string().optional()
+  education: z.string().min(2, { message: "Pendidikan terakhir wajib diisi" }),
+  religion: z.nativeEnum(Religion, {
+    required_error: "Agama wajib dipilih" 
+  }),
+  livingStatus: z.nativeEnum(LivingStatus, {
+    required_error: "Status hidup/meninggal wajib dipilih" 
+  }),
+  bidukNumber: z.string().optional().nullable(),
+  baptismDate: z.date().optional().nullable(),
+  confirmationDate: z.date().optional().nullable(),
+  deathDate: z.date().optional().nullable(),
+  imageUrl: z.string().optional().nullable()
 })
+.refine(
+  (data) => {
+    // Validasi: Jika status meninggal, tanggal meninggal harus diisi
+    if (data.livingStatus === LivingStatus.DECEASED && !data.deathDate) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Tanggal meninggal harus diisi jika status meninggal",
+    path: ["deathDate"],
+  }
+)
+.refine(
+  (data) => {
+    // Validasi: Jika agama Katolik, data baptis dan krisma sebaiknya diisi
+    if (data.religion === Religion.CATHOLIC) {
+      // Tanggal baptis dan krisma opsional tapi disarankan
+      return true;
+    }
+    return true;
+  },
+  {
+    message: "Sebaiknya mengisi data baptis dan krisma untuk agama Katolik",
+    path: ["baptismDate"],
+  }
+);
 
 export const spouseFormSchema = z.object({
   fullName: z.string().min(3, { message: "Nama lengkap minimal 3 karakter" }),
@@ -93,16 +175,59 @@ export const spouseFormSchema = z.object({
     required_error: "Tanggal lahir wajib diisi" 
   }),
   nik: z.string().regex(/^\d{16}$/, { message: "NIK harus 16 digit angka" }),
+  address: z.string().min(5, { message: "Alamat minimal 5 karakter" }),
+  city: z.string().min(3, { message: "Kota domisili minimal 3 karakter" }),
   phoneNumber: z.string().regex(/^08\d{8,11}$/, { 
     message: "Nomor telepon harus dimulai dengan 08 dan minimal 10 digit" 
   }),
   email: z.string().email({ message: "Format email tidak valid" }).optional().or(z.literal("")),
   occupation: z.string().min(3, { message: "Pekerjaan minimal 3 karakter" }),
-  imageUrl: z.string().optional()
+  education: z.string().min(2, { message: "Pendidikan terakhir wajib diisi" }),
+  religion: z.nativeEnum(Religion, {
+    required_error: "Agama wajib dipilih" 
+  }),
+  livingStatus: z.nativeEnum(LivingStatus, {
+    required_error: "Status hidup/meninggal wajib dipilih" 
+  }),
+  bidukNumber: z.string().optional().nullable(),
+  baptismDate: z.date().optional().nullable(),
+  confirmationDate: z.date().optional().nullable(),
+  deathDate: z.date().optional().nullable(),
+  imageUrl: z.string().optional().nullable()
 })
+.refine(
+  (data) => {
+    // Validasi: Jika status meninggal, tanggal meninggal harus diisi
+    if (data.livingStatus === LivingStatus.DECEASED && !data.deathDate) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Tanggal meninggal harus diisi jika status meninggal",
+    path: ["deathDate"],
+  }
+)
+.refine(
+  (data) => {
+    // Validasi: Jika agama Katolik, data baptis dan krisma sebaiknya diisi
+    if (data.religion === Religion.CATHOLIC) {
+      // Tanggal baptis dan krisma opsional tapi disarankan
+      return true;
+    }
+    return true;
+  },
+  {
+    message: "Sebaiknya mengisi data baptis dan krisma untuk agama Katolik",
+    path: ["baptismDate"],
+  }
+);
 
 export const dependentFormSchema = z.object({
-  fullName: z.string().min(3, { message: "Nama lengkap minimal 3 karakter" }),
+  name: z.string().min(3, { message: "Nama lengkap minimal 3 karakter" }),
+  dependentType: z.nativeEnum(DependentType, {
+    required_error: "Jenis tanggungan wajib dipilih" 
+  }),
   gender: z.nativeEnum(Gender, { 
     required_error: "Jenis kelamin wajib dipilih" 
   }),
@@ -110,12 +235,33 @@ export const dependentFormSchema = z.object({
   birthDate: z.date({ 
     required_error: "Tanggal lahir wajib diisi" 
   }),
-  nik: z.string().regex(/^\d{16}$/, { message: "NIK harus 16 digit angka" }),
-  relationship: z.string().min(2, { message: "Hubungan minimal 2 karakter" }),
-  occupation: z.string().min(3, { message: "Pekerjaan minimal 3 karakter" }).optional().or(z.literal("")),
-  imageUrl: z.string().optional()
+  education: z.string().min(2, { message: "Pendidikan terakhir wajib diisi" }),
+  religion: z.nativeEnum(Religion, {
+    required_error: "Agama wajib dipilih" 
+  }),
+  maritalStatus: z.nativeEnum(MaritalStatus, {
+    required_error: "Status pernikahan wajib dipilih" 
+  }),
+  baptismDate: z.date().optional().nullable(),
+  confirmationDate: z.date().optional().nullable(),
+  imageUrl: z.string().optional().nullable()
 })
+.refine(
+  (data) => {
+    // Validasi: Jika agama Katolik, data baptis dan krisma sebaiknya diisi
+    if (data.religion === Religion.CATHOLIC) {
+      // Tanggal baptis dan krisma opsional tapi disarankan
+      return true;
+    }
+    return true;
+  },
+  {
+    message: "Sebaiknya mengisi data baptis dan krisma untuk agama Katolik",
+    path: ["baptismDate"],
+  }
+);
 
+// Types
 export type FamilyHeadFormValues = z.infer<typeof familyHeadFormSchema>
 export type SpouseFormValues = z.infer<typeof spouseFormSchema>
 export type DependentFormValues = z.infer<typeof dependentFormSchema> 

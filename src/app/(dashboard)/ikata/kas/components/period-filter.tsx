@@ -10,12 +10,12 @@ interface PeriodFilterProps {
 
 export function PeriodFilter({ period, onPeriodChange }: PeriodFilterProps) {
   return (
-    <div className="flex gap-4">
+    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
       <Select
         value={period.bulan.toString()}
         onValueChange={(value) => onPeriodChange({ ...period, bulan: parseInt(value) })}
       >
-        <SelectTrigger className="w-[180px]">
+        <SelectTrigger className="w-full sm:w-[120px] md:w-[180px]">
           <SelectValue placeholder="Pilih Bulan" />
         </SelectTrigger>
         <SelectContent>
@@ -31,7 +31,7 @@ export function PeriodFilter({ period, onPeriodChange }: PeriodFilterProps) {
         value={period.tahun.toString()}
         onValueChange={(value) => onPeriodChange({ ...period, tahun: parseInt(value) })}
       >
-        <SelectTrigger className="w-[180px]">
+        <SelectTrigger className="w-full sm:w-[120px] md:w-[180px]">
           <SelectValue placeholder="Pilih Tahun" />
         </SelectTrigger>
         <SelectContent>

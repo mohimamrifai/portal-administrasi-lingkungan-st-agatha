@@ -46,7 +46,7 @@ export function AbsensiDolingFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[425px] md:max-w-[550px] w-full mx-auto">
         <DialogHeader>
           <DialogTitle>
             {absensi ? 'Edit Absensi' : 'Tambah Absensi'}

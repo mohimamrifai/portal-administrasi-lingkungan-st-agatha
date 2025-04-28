@@ -1,59 +1,297 @@
 "use client";
 
-import { Button } from "@/components/ui/button"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { JadwalDoling } from "../types"
-import { format } from "date-fns"
-import { id } from "date-fns/locale"
+import { useState } from "react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { JadwalDoling } from "../types";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
+import { CalendarIcon, Edit2, LucideTrash2, SearchIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 interface JadwalDolingTableProps {
-  jadwal: JadwalDoling[]
-  onEdit: (jadwal: JadwalDoling) => void
-  onDelete: (id: number) => void
+  jadwal: JadwalDoling[];
+  onEdit: (jadwal: JadwalDoling) => void;
+  onDelete: (id: number) => void;
 }
 
 export function JadwalDolingTable({ jadwal, onEdit, onDelete }: JadwalDolingTableProps) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const itemsPerPage = 5;
+  
+  // Hitung tanggal saat ini untuk memfilter jadwal yang segera datang
+  const today = new Date();
+  const upcomingDate = new Date();
+  upcomingDate.setDate(today.getDate() + 14); // 2 minggu ke depan
+  
+  // Filter jadwal berdasarkan pencarian dan status
+  const filteredJadwal = jadwal
+    .filter(item => 
+      (item.tuanRumah.toLowerCase().includes(searchTerm.toLowerCase()) ||
+       item.alamat.toLowerCase().includes(searchTerm.toLowerCase())) &&
+      (statusFilter === "all" || item.status === statusFilter)
+    )
+    .sort((a, b) => {
+      if (sortOrder === "asc") {
+        return a.tanggal.getTime() - b.tanggal.getTime();
+      } else {
+        return b.tanggal.getTime() - a.tanggal.getTime();
+      }
+    });
+  
+  // Paginasi
+  const totalPages = Math.ceil(filteredJadwal.length / itemsPerPage);
+  const paginatedJadwal = filteredJadwal.slice(
+    (currentPage - 1) * itemsPerPage, 
+    currentPage * itemsPerPage
+  );
+  
+  // Mendapatkan jadwal yang akan datang dalam 2 minggu ke depan
+  const upcomingJadwal = jadwal
+    .filter(item => 
+      item.status === "terjadwal" && 
+      item.tanggal >= today && 
+      item.tanggal <= upcomingDate)
+    .sort((a, b) => a.tanggal.getTime() - b.tanggal.getTime());
+  
+  // Fungsi untuk mendapatkan variant badge berdasarkan status
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case "terjadwal": return "default";
+      case "selesai": return "success";
+      case "dibatalkan": return "destructive";
+      default: return "outline";
+    }
+  };
+  
+  // Fungsi untuk mendapatkan label yang lebih user-friendly dari status
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "terjadwal": return "Terjadwal";
+      case "selesai": return "Selesai";
+      case "dibatalkan": return "Dibatalkan";
+      default: return status;
+    }
+  };
+
   return (
-    <div className="border rounded-lg">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Tanggal</TableHead>
-            <TableHead>Waktu</TableHead>
-            <TableHead>Tuan Rumah</TableHead>
-            <TableHead>Alamat</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Aksi</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {jadwal.map((item) => (
-            <TableRow key={item.id}>
-              <TableCell>{format(item.tanggal, "dd/MM/yyyy", { locale: id })}</TableCell>
-              <TableCell>{item.waktu}</TableCell>
-              <TableCell>{item.tuanRumah}</TableCell>
-              <TableCell>{item.alamat}</TableCell>
-              <TableCell>
-                <span className={`px-2 py-1 rounded-full text-xs ${
-                  item.status === 'terjadwal' ? 'bg-blue-100 text-blue-800' :
-                  item.status === 'selesai' ? 'bg-green-100 text-green-800' :
-                  'bg-red-100 text-red-800'
-                }`}>
-                  {item.status}
-                </span>
-              </TableCell>
-              <TableCell>
-                <Button variant="ghost" size="sm" onClick={() => onEdit(item)}>
-                  Edit
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => onDelete(item.id)}>
-                  Hapus
-                </Button>
-              </TableCell>
+    <div className="space-y-6">
+      {/* Upcoming Events Card */}
+      {upcomingJadwal.length > 0 && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="flex items-center text-base text-primary">
+              <CalendarIcon className="h-4 w-4 mr-2" />
+              Akan Datang dalam 2 Minggu
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-4">
+            <div className="grid gap-4">
+              {upcomingJadwal.slice(0, 3).map((item) => (
+                <div 
+                  key={item.id} 
+                  className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 border rounded-lg bg-background"
+                >
+                  <div className="flex flex-col">
+                    <div className="font-medium mb-1">{item.tuanRumah}</div>
+                    <div className="text-sm text-muted-foreground">{item.alamat}</div>
+                  </div>
+                  <div className="flex mt-2 sm:mt-0 space-x-4 items-center">
+                    <div className="flex flex-col items-end">
+                      <div className="text-sm font-medium">
+                        {format(item.tanggal, "EEEE, dd MMMM yyyy", { locale: id })}
+                      </div>
+                      <div className="text-sm text-muted-foreground">{item.waktu} WIB</div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      onClick={() => onEdit(item)}
+                    >
+                      Detail
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
+      {/* Filter Controls */}
+      <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 justify-between items-start sm:items-center">
+        <div className="relative w-full sm:w-64">
+          <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Cari berdasarkan nama/alamat..."
+            className="pl-8"
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1); // Reset halaman saat pencarian berubah
+            }}
+          />
+        </div>
+        <div className="flex w-full sm:w-auto space-x-2">
+          <Select 
+            value={statusFilter} 
+            onValueChange={(value) => {
+              setStatusFilter(value);
+              setCurrentPage(1); // Reset halaman saat filter berubah
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-[150px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="all">Semua Status</SelectItem>
+                <SelectItem value="terjadwal">Terjadwal</SelectItem>
+                <SelectItem value="selesai">Selesai</SelectItem>
+                <SelectItem value="dibatalkan">Dibatalkan</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+            className="h-10 w-10"
+          >
+            {sortOrder === "asc" ? "↑" : "↓"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Tanggal & Waktu</TableHead>
+              <TableHead>Tuan Rumah</TableHead>
+              <TableHead className="hidden md:table-cell">Alamat</TableHead>
+              <TableHead className="text-center">Status</TableHead>
+              <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {paginatedJadwal.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                  Tidak ada jadwal yang sesuai dengan pencarian
+                </TableCell>
+              </TableRow>
+            ) : (
+              paginatedJadwal.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell>
+                    <div className="font-medium">
+                      {format(item.tanggal, "dd MMM yyyy", { locale: id })}
+                    </div>
+                    <div className="text-sm text-muted-foreground">{item.waktu} WIB</div>
+                  </TableCell>
+                  <TableCell>{item.tuanRumah}</TableCell>
+                  <TableCell className="hidden md:table-cell max-w-xs truncate">
+                    {item.alamat}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant={getStatusBadgeVariant(item.status)}>
+                      {getStatusLabel(item.status)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onEdit(item)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onDelete(item.id)}
+                      >
+                        <LucideTrash2 className="h-4 w-4" />
+                        <span className="sr-only">Delete</span>
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-between items-center mt-4">
+          <div className="text-sm text-muted-foreground">
+            Menampilkan {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredJadwal.length)} dari {filteredJadwal.length} jadwal
+          </div>
+          <div className="flex space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              Sebelumnya
+            </Button>
+            <div className="flex items-center space-x-1">
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                // Logic untuk menampilkan 5 halaman di sekitar halaman saat ini
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    className={cn(
+                      "h-8 w-8 p-0",
+                      currentPage === pageNum && "bg-primary"
+                    )}
+                    onClick={() => setCurrentPage(pageNum)}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              Berikutnya
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
-  )
+  );
 } 
