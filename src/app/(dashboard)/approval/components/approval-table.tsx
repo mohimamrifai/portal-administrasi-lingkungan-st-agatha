@@ -43,6 +43,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
 
 interface ApprovalTableProps {
   items: ApprovalItem[]
@@ -55,6 +56,13 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
   const [messageDialogOpen, setMessageDialogOpen] = useState(false);
   const [confirmationDialogOpen, setConfirmationDialogOpen] = useState(false);
   const [actionType, setActionType] = useState<'reset' | 'approve' | 'reject' | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editValues, setEditValues] = useState({
+    kolekte1: 0,
+    kolekte2: 0,
+    ucapanSyukur: 0,
+    keterangan: ""
+  });
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -138,19 +146,45 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
     setConfirmationDialogOpen(false);
   };
 
+  // Fungsi untuk membuka dialog edit
+  const handleEditNominal = (item: ApprovalItem) => {
+    setSelectedItem(item);
+    setEditValues({
+      kolekte1: item.kolekte1,
+      kolekte2: item.kolekte2,
+      ucapanSyukur: item.ucapanSyukur,
+      keterangan: item.keterangan || ""
+    });
+    setEditDialogOpen(true);
+  };
+
+  // Fungsi untuk menyimpan hasil edit
+  const handleSaveEdit = () => {
+    if (!selectedItem) return;
+    // Update data pada items (harus di-lift ke parent jika ingin persist)
+    selectedItem.kolekte1 = editValues.kolekte1;
+    selectedItem.kolekte2 = editValues.kolekte2;
+    selectedItem.ucapanSyukur = editValues.ucapanSyukur;
+    selectedItem.keterangan = editValues.keterangan;
+    setEditDialogOpen(false);
+  };
+
   return (
     <div className="space-y-4">
-      <div className="rounded-md border relative overflow-x-auto">
+      <div className="rounded-md border relative overflow-x-auto max-w-[1020px]">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Tanggal</TableHead>
-              <TableHead>Tuan Rumah</TableHead>
+              <TableHead>Kolekte I</TableHead>
+              <TableHead>Kolekte II</TableHead>
+              <TableHead>Ucapan Syukur</TableHead>
+              <TableHead>Keterangan</TableHead>
               <TableHead>Jumlah Hadir</TableHead>
-              <TableHead>Biaya</TableHead>
+              <TableHead>Total</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Pesan</TableHead>
-              <TableHead className="sticky right-0 bg-white z-10 text-right">Aksi</TableHead>
+              <TableHead className="sticky right-0 bg-white z-20 shadow-lg text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -158,9 +192,12 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
               currentItems.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell>{format(item.tanggal, "dd/MM/yyyy", { locale: id })}</TableCell>
-                  <TableCell>{item.tuanRumah}</TableCell>
+                  <TableCell>Rp {item.kolekte1.toLocaleString('id-ID')}</TableCell>
+                  <TableCell>Rp {item.kolekte2.toLocaleString('id-ID')}</TableCell>
+                  <TableCell>Rp {item.ucapanSyukur.toLocaleString('id-ID')}</TableCell>
+                  <TableCell>{item.keterangan || '-'}</TableCell>
                   <TableCell>{item.jumlahHadir} orang</TableCell>
-                  <TableCell>Rp {item.biaya.toLocaleString('id-ID')}</TableCell>
+                  <TableCell>Rp {(item.kolekte1 + item.kolekte2 + item.ucapanSyukur).toLocaleString('id-ID')}</TableCell>
                   <TableCell>
                     <Badge
                       variant={item.status === 'approved' ? 'success' : item.status === 'rejected' ? 'destructive' : 'outline'}
@@ -201,7 +238,7 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
                       <span className="text-muted-foreground text-sm">-</span>
                     )}
                   </TableCell>
-                  <TableCell className="sticky right-0 bg-white z-10 text-right">
+                  <TableCell className="sticky right-0 bg-white z-20 shadow-lg text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">
@@ -216,9 +253,9 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
                               <CheckIcon className="mr-2 h-4 w-4 text-green-600" />
                               <span>Setujui</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => onReject(item)}>
+                            <DropdownMenuItem onClick={() => handleEditNominal(item)}>
                               <PencilIcon className="mr-2 h-4 w-4 text-blue-600" />
-                              <span>Edit</span>
+                              <span>Edit Nominal</span>
                             </DropdownMenuItem>
                           </>
                         )}
@@ -257,7 +294,7 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={10} className="h-24 text-center">
                   Tidak ada data
                 </TableCell>
               </TableRow>
@@ -388,6 +425,63 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
               onClick={confirmAction}
             >
               Ya, Lanjutkan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Nominal Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Nominal Kolekte</DialogTitle>
+            <DialogDescription>
+              Ubah nominal kolekte dan keterangan sesuai kebutuhan.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Kolekte I</label>
+              <Input
+                type="number"
+                value={editValues.kolekte1}
+                onChange={e => setEditValues({ ...editValues, kolekte1: Number(e.target.value) })}
+                min={0}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Kolekte II</label>
+              <Input
+                type="number"
+                value={editValues.kolekte2}
+                onChange={e => setEditValues({ ...editValues, kolekte2: Number(e.target.value) })}
+                min={0}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Ucapan Syukur</label>
+              <Input
+                type="number"
+                value={editValues.ucapanSyukur}
+                onChange={e => setEditValues({ ...editValues, ucapanSyukur: Number(e.target.value) })}
+                min={0}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Keterangan</label>
+              <Input
+                type="text"
+                value={editValues.keterangan}
+                onChange={e => setEditValues({ ...editValues, keterangan: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Batal
+            </Button>
+            <Button onClick={handleSaveEdit}>
+              Simpan
             </Button>
           </DialogFooter>
         </DialogContent>

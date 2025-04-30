@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { DropdownBulanTahun } from "@/app/(dashboard)/approval/components/dropdown-bulan-tahun"
 
 interface ApprovalFilterProps {
   selectedMonth: string
@@ -24,11 +25,9 @@ export function ApprovalFilter({
 }: ApprovalFilterProps) {
   return (
     <div className="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-4">
-      <Input 
-        type="month" 
-        className="w-full md:w-[200px]" 
+      <DropdownBulanTahun
         value={selectedMonth}
-        onChange={onMonthChange}
+        onChange={val => onMonthChange({ target: { value: val } } as React.ChangeEvent<HTMLInputElement>)}
       />
       <Select onValueChange={onStatusFilterChange} value={statusFilter} defaultValue="all">
         <SelectTrigger className="w-full md:w-[180px]">

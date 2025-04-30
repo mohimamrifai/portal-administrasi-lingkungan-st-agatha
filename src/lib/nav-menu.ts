@@ -60,22 +60,6 @@ export const navMain: Record<string, MenuItem[]> = {
     ketuaLingkungan: [
         { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         {
-            label: 'Lingkungan',
-            icon: Home,
-            children: [
-                { label: 'Kas Lingkungan', path: '/lingkungan/kas' },
-                { label: 'Dana Mandiri', path: '/lingkungan/mandiri' },
-            ],
-        },
-        { 
-            label: 'IKATA', 
-            icon: Banknote,
-            children: [
-                { label: 'Kas IKATA', path: '/ikata/kas' },
-                { label: 'Monitoring Penunggak', path: '/ikata/monitoring' },
-            ],
-        },
-        {
             label: 'Kesekretariatan',
             icon: Users,
             children: [
@@ -85,7 +69,6 @@ export const navMain: Record<string, MenuItem[]> = {
             ],
         },
         { label: 'Publikasi', path: '/publikasi', icon: FileText },
-        { label: 'Approval', path: '/approval', icon: ClipboardCheck },
         {
             label: 'Pengaturan',
             icon: Settings,
@@ -98,22 +81,6 @@ export const navMain: Record<string, MenuItem[]> = {
     wakilKetua: [
         { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         {
-            label: 'Lingkungan',
-            icon: Home,
-            children: [
-                { label: 'Kas Lingkungan', path: '/lingkungan/kas' },
-                { label: 'Dana Mandiri', path: '/lingkungan/mandiri' },
-            ],
-        },
-        { 
-            label: 'IKATA', 
-            icon: Banknote,
-            children: [
-                { label: 'Kas IKATA', path: '/ikata/kas' },
-                { label: 'Monitoring Penunggak', path: '/ikata/monitoring' },
-            ],
-        },
-        {
             label: 'Kesekretariatan',
             icon: Users,
             children: [
@@ -123,7 +90,6 @@ export const navMain: Record<string, MenuItem[]> = {
             ],
         },
         { label: 'Publikasi', path: '/publikasi', icon: FileText },
-        { label: 'Approval', path: '/approval', icon: ClipboardCheck },
         {
             label: 'Pengaturan',
             icon: Settings,

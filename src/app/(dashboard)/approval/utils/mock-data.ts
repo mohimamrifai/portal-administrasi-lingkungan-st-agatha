@@ -18,129 +18,165 @@ export function generateApprovalData(): ApprovalItem[] {
     {
       id: 1,
       tanggal: new Date(currentYear, currentMonth, 5),
-      tuanRumah: "Budi Santoso",
+      kolekte1: 200000,
+      kolekte2: 100000,
+      ucapanSyukur: 50000,
+      keterangan: "Kegiatan berjalan lancar",
       jumlahHadir: 25,
-      biaya: 350000,
       status: 'pending',
       createdAt: new Date(currentYear, currentMonth, 6, 9, 30, 0),
-      message: "Mohon disetujui karena kegiatannya berjalan dengan lancar"
+      message: "Mohon disetujui karena kegiatannya berjalan dengan lancar",
+      total: 350000
     },
     {
       id: 2,
       tanggal: new Date(currentYear, currentMonth, 12),
-      tuanRumah: "Ani Wijaya",
+      kolekte1: 150000,
+      kolekte2: 75000,
+      ucapanSyukur: 25000,
+      keterangan: "",
       jumlahHadir: 18,
-      biaya: 250000,
       status: 'pending',
       createdAt: new Date(currentYear, currentMonth, 13, 10, 15, 0),
+      total: 250000
     },
     {
       id: 3,
       tanggal: new Date(currentYear, currentMonth, 19),
-      tuanRumah: "Citra Dewi",
+      kolekte1: 180000,
+      kolekte2: 90000,
+      ucapanSyukur: 30000,
+      keterangan: "Tambahan konsumsi untuk tamu",
       jumlahHadir: 22,
-      biaya: 300000,
       status: 'pending',
       createdAt: new Date(currentYear, currentMonth, 20, 8, 45, 0),
-      message: "Ada beberapa tambahan biaya konsumsi untuk tamu undangan"
+      message: "Ada beberapa tambahan biaya konsumsi untuk tamu undangan",
+      total: 300000
     },
     
     // Bulan ini - sudah disetujui
     {
       id: 4,
       tanggal: new Date(currentYear, currentMonth, 3),
-      tuanRumah: "Dedi Sukamto",
+      kolekte1: 250000,
+      kolekte2: 100000,
+      ucapanSyukur: 50000,
+      keterangan: "Disetujui tanpa catatan tambahan",
       jumlahHadir: 30,
-      biaya: 400000,
       status: 'approved',
       createdAt: new Date(currentYear, currentMonth, 4, 11, 20, 0),
-      message: "Disetujui tanpa catatan tambahan"
+      message: "Disetujui tanpa catatan tambahan",
+      total: 400000
     },
     {
       id: 5,
       tanggal: new Date(currentYear, currentMonth, 10),
-      tuanRumah: "Eko Prasetyo",
+      kolekte1: 180000,
+      kolekte2: 80000,
+      ucapanSyukur: 22000,
+      keterangan: "",
       jumlahHadir: 20,
-      biaya: 280000,
       status: 'approved',
       createdAt: new Date(currentYear, currentMonth, 11, 14, 30, 0),
+      total: 282000
     },
     
     // Bulan ini - ditolak
     {
       id: 6,
       tanggal: new Date(currentYear, currentMonth, 7),
-      tuanRumah: "Feri Kurniawan",
+      kolekte1: 100000,
+      kolekte2: 70000,
+      ucapanSyukur: 30000,
+      keterangan: "Jumlah peserta tidak sesuai daftar hadir",
       jumlahHadir: 15,
-      biaya: 200000,
       status: 'rejected',
       createdAt: new Date(currentYear, currentMonth, 8, 9, 10, 0),
-      message: "Data tidak lengkap, jumlah peserta tidak sesuai dengan daftar hadir"
+      message: "Data tidak lengkap, jumlah peserta tidak sesuai dengan daftar hadir",
+      total: 200000
     },
     
     // Bulan sebelumnya - menunggu persetujuan
     {
       id: 7,
       tanggal: new Date(previousYear, previousMonth, 28),
-      tuanRumah: "Gunawan Wibisono",
+      kolekte1: 200000,
+      kolekte2: 120000,
+      ucapanSyukur: 55000,
+      keterangan: "",
       jumlahHadir: 27,
-      biaya: 375000,
       status: 'pending',
       createdAt: new Date(previousYear, previousMonth, 29, 15, 45, 0),
+      total: 375000
     },
     
     // Bulan sebelumnya - sudah disetujui
     {
       id: 8,
       tanggal: new Date(previousYear, previousMonth, 15),
-      tuanRumah: "Hendra Setiawan",
+      kolekte1: 200000,
+      kolekte2: 90000,
+      ucapanSyukur: 30000,
+      keterangan: "Pelaksanaan lancar",
       jumlahHadir: 24,
-      biaya: 320000,
       status: 'approved',
       createdAt: new Date(previousYear, previousMonth, 16, 10, 30, 0),
-      message: "Terima kasih atas pelaksanaan kegiatan yang lancar"
+      message: "Terima kasih atas pelaksanaan kegiatan yang lancar",
+      total: 320000
     },
     {
       id: 9,
       tanggal: new Date(previousYear, previousMonth, 21),
-      tuanRumah: "Indra Jaya",
+      kolekte1: 120000,
+      kolekte2: 100000,
+      ucapanSyukur: 40000,
+      keterangan: "",
       jumlahHadir: 19,
-      biaya: 260000,
       status: 'approved',
       createdAt: new Date(previousYear, previousMonth, 22, 13, 15, 0),
+      total: 260000
     },
     
     // Bulan sebelumnya - ditolak
     {
       id: 10,
       tanggal: new Date(previousYear, previousMonth, 8),
-      tuanRumah: "Joko Susilo",
+      kolekte1: 80000,
+      kolekte2: 70000,
+      ucapanSyukur: 30000,
+      keterangan: "Bukti pengeluaran tidak valid",
       jumlahHadir: 12,
-      biaya: 180000,
       status: 'rejected',
       createdAt: new Date(previousYear, previousMonth, 9, 11, 45, 0),
-      message: "Bukti pengeluaran tidak valid"
+      message: "Bukti pengeluaran tidak valid",
+      total: 180000
     },
     
     // Bulan berikutnya - sudah dijadwalkan
     {
       id: 11,
       tanggal: new Date(nextYear, nextMonth, 5),
-      tuanRumah: "Kartini Sari",
+      kolekte1: 200000,
+      kolekte2: 150000,
+      ucapanSyukur: 35000,
+      keterangan: "Pengajuan untuk bulan depan",
       jumlahHadir: 28,
-      biaya: 385000,
       status: 'pending',
       createdAt: new Date(currentYear, currentMonth, 25, 9, 0, 0),
-      message: "Pengajuan ini untuk kegiatan bulan depan"
+      message: "Pengajuan ini untuk kegiatan bulan depan",
+      total: 385000
     },
     {
       id: 12,
       tanggal: new Date(nextYear, nextMonth, 12),
-      tuanRumah: "Lukman Hakim",
+      kolekte1: 120000,
+      kolekte2: 150000,
+      ucapanSyukur: 40000,
+      keterangan: "",
       jumlahHadir: 23,
-      biaya: 310000,
       status: 'pending',
       createdAt: new Date(currentYear, currentMonth, 26, 10, 30, 0),
+      total: 310000
     },
   ];
 }

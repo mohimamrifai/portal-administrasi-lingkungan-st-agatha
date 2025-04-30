@@ -74,30 +74,28 @@ export async function sendNotification(notification: Notification): Promise<bool
  * @returns Promise yang menyelesaikan setelah notifikasi dikirim
  */
 export async function sendApprovalNotification(dolingData: any, message?: string): Promise<boolean> {
-  const bendaharaId = administrators.find(admin => admin.role === 'bendahara')?.id
-  
-  if (!bendaharaId) {
-    console.error('Bendahara tidak ditemukan')
-    return false
+  // Kirim ke semua role: ketua, wakil_ketua, sekretaris, bendahara
+  const roles = ['bendahara', 'sekretaris', 'ketua', 'wakil_ketua'];
+  let allSuccess = true;
+  for (const role of roles) {
+    const admin = administrators.find(admin => admin.role === role);
+    if (!admin) continue;
+    let notificationMessage = `Data pemasukan (Kolekte I/II/Ucapan Syukur) pada tanggal ${dolingData.tanggal.toLocaleDateString('id-ID')} telah disetujui dan direkam ke Kas Lingkungan.`;
+    if (message) {
+      notificationMessage += ` Pesan: ${message}`;
+    }
+    const notification = createNotification(
+      'Persetujuan Doling',
+      notificationMessage,
+      'success',
+      admin.id,
+      dolingData.id,
+      'doling'
+    );
+    const success = await sendNotification(notification);
+    if (!success) allSuccess = false;
   }
-  
-  let notificationMessage = `Detil Doling untuk "${dolingData.tuanRumah}" pada tanggal ${dolingData.tanggal.toLocaleDateString('id-ID')} telah disetujui dan siap diintegrasikan ke Kas Lingkungan.`;
-  
-  // Tambahkan pesan jika ada
-  if (message) {
-    notificationMessage += ` Pesan: ${message}`;
-  }
-  
-  const notification = createNotification(
-    'Persetujuan Doling',
-    notificationMessage,
-    'success',
-    bendaharaId,
-    dolingData.id,
-    'doling'
-  )
-  
-  return sendNotification(notification)
+  return allSuccess;
 }
 
 /**

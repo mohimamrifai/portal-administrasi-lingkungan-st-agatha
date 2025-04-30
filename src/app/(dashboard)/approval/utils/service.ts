@@ -34,30 +34,26 @@ export async function approveItem(item: ApprovalItem, message?: string): Promise
     const dolingItem = {
       id: item.id,
       tanggal: item.tanggal,
-      tuanRumah: item.tuanRumah,
-      jumlahHadir: item.jumlahHadir,
-      biaya: item.biaya,
-      message: message
+      kolekte1: item.kolekte1,
+      kolekte2: item.kolekte2,
+      ucapanSyukur: item.ucapanSyukur,
+      keterangan: item.keterangan,
+      jumlahHadir: item.jumlahHadir
     }
-    
     const integrationSuccess = await integrateToKasLingkungan(dolingItem)
     if (!integrationSuccess) {
       throw new Error("Gagal mengintegrasikan data ke Kas Lingkungan")
     }
-    
     // 2. Kirim notifikasi ke pengurus
     await sendApprovalNotification(dolingItem)
-    
     // 3. Update cache data
     if (approvalDataCache) {
       approvalDataCache = approvalDataCache.map(i => 
         i.id === item.id ? { ...i, status: 'approved' as const, message } : i
       );
     }
-    
     // 4. Simulasi update data di database
     await new Promise(resolve => setTimeout(resolve, 300))
-    
     return true
   } catch (error) {
     console.error("Error saat proses persetujuan:", error)
@@ -127,7 +123,7 @@ export function calculateApprovalStats(items: ApprovalItem[]) {
   
   const totalAmount = items.reduce((sum, item) => {
     if (item.status === 'approved') {
-      return sum + item.biaya
+      return sum + (item.kolekte1 + item.kolekte2 + item.ucapanSyukur)
     }
     return sum
   }, 0)
@@ -144,7 +140,7 @@ export function calculateApprovalStats(items: ApprovalItem[]) {
   const thisMonthApproved = thisMonthItems.filter(item => item.status === 'approved').length;
   const thisMonthAmount = thisMonthItems.reduce((sum, item) => {
     if (item.status === 'approved') {
-      return sum + item.biaya
+      return sum + (item.kolekte1 + item.kolekte2 + item.ucapanSyukur)
     }
     return sum
   }, 0);

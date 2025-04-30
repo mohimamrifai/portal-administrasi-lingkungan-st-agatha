@@ -53,21 +53,20 @@ export default function ApprovalContent() {
     if (approvalData.length === 0) return
     
     const filterData = () => {
-      const [year, month] = selectedMonth.split('-').map(n => parseInt(n))
-      
-      let filtered = approvalData.filter(item => {
-        const itemYear = item.tanggal.getFullYear()
-        const itemMonth = item.tanggal.getMonth() + 1
-        return itemYear === year && itemMonth === month
-      })
-      
+      let filtered = approvalData;
+      if (selectedMonth !== 'all') {
+        const [year, month] = selectedMonth.split('-').map(n => parseInt(n))
+        filtered = filtered.filter(item => {
+          const itemYear = item.tanggal.getFullYear()
+          const itemMonth = item.tanggal.getMonth() + 1
+          return itemYear === year && itemMonth === month
+        })
+      }
       if (statusFilter !== "all") {
         filtered = filtered.filter(item => item.status === statusFilter as 'pending' | 'approved' | 'rejected')
       }
-      
       setFilteredData(filtered)
     }
-    
     filterData()
   }, [selectedMonth, statusFilter, approvalData])
 
@@ -197,31 +196,8 @@ export default function ApprovalContent() {
 
         <TabsContent value="riwayat" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Riwayat Persetujuan</CardTitle>
-              <CardDescription>
-                Daftar permohonan yang telah disetujui atau ditolak
-              </CardDescription>
-            </CardHeader>
             <CardContent>
-              {/* Filter Bulan untuk Riwayat */}
-              <div className="mb-6">
-                <div className="flex items-center space-x-2">
-                  <label htmlFor="historyMonth" className="text-sm font-medium">
-                    Pilih Bulan:
-                  </label>
-                  <input
-                    id="historyMonth"
-                    type="month"
-                    value={selectedMonth}
-                    onChange={handleMonthChange}
-                    className="p-2 border rounded"
-                  />
-                </div>
-              </div>
-
-              {/* History Component */}
-              <ApprovalHistory selectedMonth={selectedMonth} />
+              <ApprovalHistory selectedMonth={selectedMonth} approvalData={approvalData} />
             </CardContent>
           </Card>
         </TabsContent>

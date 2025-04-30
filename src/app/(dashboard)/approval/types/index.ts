@@ -2,13 +2,18 @@
 export interface ApprovalItem {
   id: number
   tanggal: Date
-  tuanRumah: string
+  kolekte1: number
+  kolekte2: number
+  ucapanSyukur: number
+  keterangan?: string
   jumlahHadir: number
-  biaya: number
   status: 'pending' | 'approved' | 'rejected'
   createdAt: Date
   reason?: string
   message?: string
+  // Opsional: total pemasukan
+  total?: number
+  approvedBy?: string
 }
 
 // Tipe data untuk kepala keluarga

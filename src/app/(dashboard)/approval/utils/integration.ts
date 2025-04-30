@@ -4,9 +4,11 @@
 export interface ApprovedDolingItem {
   id: number
   tanggal: Date
-  tuanRumah: string
+  kolekte1: number
+  kolekte2: number
+  ucapanSyukur: number
+  keterangan?: string
   jumlahHadir: number
-  biaya: number
 }
 
 /**
@@ -16,24 +18,46 @@ export interface ApprovedDolingItem {
  */
 export async function integrateToKasLingkungan(dolingData: ApprovedDolingItem): Promise<boolean> {
   try {
-    // Dalam implementasi nyata, ini akan melakukan API call ke endpoint kas lingkungan
-    // untuk membuat transaksi baru
-    
     // Simulasi delay integrasi
     await new Promise(resolve => setTimeout(resolve, 800))
-    
-    // Format data untuk kas lingkungan
-    const kasData = {
-      date: dolingData.tanggal,
-      description: `Penyelenggaraan Doling - ${dolingData.tuanRumah}`,
-      type: "credit", // pengeluaran
-      subtype: "kegiatan",
-      amount: dolingData.biaya,
-      fromIkata: false,
+
+    // Format data untuk kas lingkungan (masing-masing pemasukan)
+    const kasTransaksi: any[] = [];
+    if (dolingData.kolekte1 > 0) {
+      kasTransaksi.push({
+        date: dolingData.tanggal,
+        description: `Kolekte I - ${dolingData.keterangan || ''}`,
+        type: "debit", // pemasukan
+        subtype: "Kolekte I",
+        amount: dolingData.kolekte1,
+        fromIkata: false,
+      });
     }
-    
-    console.log('Data berhasil diintegrasikan ke Kas Lingkungan:', kasData)
-    
+    if (dolingData.kolekte2 > 0) {
+      kasTransaksi.push({
+        date: dolingData.tanggal,
+        description: `Kolekte II - ${dolingData.keterangan || ''}`,
+        type: "debit",
+        subtype: "Kolekte II",
+        amount: dolingData.kolekte2,
+        fromIkata: false,
+      });
+    }
+    if (dolingData.ucapanSyukur > 0) {
+      kasTransaksi.push({
+        date: dolingData.tanggal,
+        description: `Ucapan Syukur - ${dolingData.keterangan || ''}`,
+        type: "debit",
+        subtype: "Ucapan Syukur",
+        amount: dolingData.ucapanSyukur,
+        fromIkata: false,
+      });
+    }
+
+    kasTransaksi.forEach(trx => {
+      console.log('Data pemasukan berhasil diintegrasikan ke Kas Lingkungan:', trx)
+    });
+
     return true
   } catch (error) {
     console.error('Gagal mengintegrasikan data ke Kas Lingkungan:', error)

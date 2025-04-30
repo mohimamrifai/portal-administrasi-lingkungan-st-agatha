@@ -74,14 +74,11 @@ export function ConfirmationDialog({
               <div className="font-semibold">Tanggal:</div>
               <div>{format(selectedItem.tanggal, "dd/MM/yyyy", { locale: id })}</div>
               
-              <div className="font-semibold">Tuan Rumah:</div>
-              <div>{selectedItem.tuanRumah}</div>
-              
               <div className="font-semibold">Jumlah Hadir:</div>
               <div>{selectedItem.jumlahHadir} orang</div>
               
-              <div className="font-semibold">Biaya:</div>
-              <div>Rp {selectedItem.biaya.toLocaleString('id-ID')}</div>
+              <div className="font-semibold">Total Biaya:</div>
+              <div>Rp {(selectedItem.kolekte1 + selectedItem.kolekte2 + selectedItem.ucapanSyukur).toLocaleString('id-ID')}</div>
             </div>
             
             {confirmAction === 'reject' && (
