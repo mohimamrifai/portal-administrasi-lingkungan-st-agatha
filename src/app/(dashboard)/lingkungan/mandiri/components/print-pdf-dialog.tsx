@@ -27,6 +27,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { InfoIcon } from "lucide-react"
 
 interface PrintPdfDialogProps {
   open: boolean;
@@ -74,37 +76,43 @@ export function PrintPdfDialog({
     },
   });
   
-  // Document type options
-  const documentTypes = [
-    { value: "payment_receipt", label: "Bukti Pembayaran" },
-    { value: "yearly_report", label: "Laporan Tahunan" },
-    { value: "debt_report", label: "Laporan Tunggakan" },
-  ];
-  
   // Document category options
   const documentCategories = [
     { value: "bukti_terima_uang", label: "Bukti Terima Uang" },
     { value: "setor_ke_paroki", label: "Setor ke Paroki" },
   ];
   
-  // Watch documentType to conditionally show month selector
-  const documentType = form.watch("documentType");
-  const showMonthSelection = documentType === "payment_receipt";
+  // Watch form fields to conditionally show elements and provide info
+  const documentCategory = form.watch("documentCategory");
+  const selectedYear = form.watch("year");
+  const selectedMonth = form.watch("month");
+  
+  // Generate info message based on selections
+  const getInfoMessage = () => {
+    const monthName = selectedMonth 
+      ? monthOptions.find(m => m.value === selectedMonth)?.label 
+      : "";
+    
+    const categoryName = documentCategories.find(c => c.value === documentCategory)?.label || "";
+    
+    return `Anda akan melihat Bukti Pembayaran ${categoryName} untuk bulan ${monthName} ${selectedYear}.`;
+  };
   
   // Handle form submission
   const handleSubmit = (values: PrintPdfFormValues) => {
     values.fileFormat = "pdf";
+    values.documentType = "payment_receipt";
     onSubmit(values);
     onOpenChange(false);
   };
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[450px]">
         <DialogHeader>
-          <DialogTitle>Print PDF</DialogTitle>
+          <DialogTitle>Print PDF Bukti Pembayaran</DialogTitle>
           <DialogDescription>
-            Pilih jenis dokumen, kategori, bulan dan tahun yang ingin dicetak.
+            Pilih kategori, bulan dan tahun untuk meminimalkan data sebelum mencetak.
           </DialogDescription>
         </DialogHeader>
         
@@ -112,45 +120,17 @@ export function PrintPdfDialog({
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="documentType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Jenis Dokumen</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Pilih jenis dokumen" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {documentTypes.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
               name="documentCategory"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Kategori Data</FormLabel>
+                  <FormLabel>Jenis Data</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
                   >
                     <FormControl>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Pilih kategori data" />
+                        <SelectValue placeholder="Pilih jenis data" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -166,35 +146,33 @@ export function PrintPdfDialog({
               )}
             />
             
-            {showMonthSelection && (
-              <FormField
-                control={form.control}
-                name="month"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Bulan</FormLabel>
-                    <Select
-                      onValueChange={(value) => field.onChange(parseInt(value))}
-                      defaultValue={field.value?.toString()}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Pilih bulan" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {monthOptions.map((month) => (
-                          <SelectItem key={month.value} value={month.value.toString()}>
-                            {month.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+            <FormField
+              control={form.control}
+              name="month"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Bulan</FormLabel>
+                  <Select
+                    onValueChange={(value) => field.onChange(parseInt(value))}
+                    defaultValue={field.value?.toString()}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Pilih bulan" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {monthOptions.map((month) => (
+                        <SelectItem key={month.value} value={month.value.toString()}>
+                          {month.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             
             <FormField
               control={form.control}
@@ -223,6 +201,13 @@ export function PrintPdfDialog({
                 </FormItem>
               )}
             />
+            
+            {getInfoMessage() && (
+              <Alert variant="default" className="bg-muted">
+                <InfoIcon className="h-4 w-4 mr-2" />
+                <AlertDescription>{getInfoMessage()}</AlertDescription>
+              </Alert>
+            )}
             
             <DialogFooter>
               <Button type="submit" className="w-full">Print PDF</Button>

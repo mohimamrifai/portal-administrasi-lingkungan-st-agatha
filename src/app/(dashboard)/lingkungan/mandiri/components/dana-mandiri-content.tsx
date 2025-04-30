@@ -206,7 +206,7 @@ export default function DanaMandiriContent() {
   const handlePrintPdf = (values: PrintPdfFormValues) => {
     // Show PDF preview with selected data
     setPdfPreviewData({
-      documentType: values.documentType,
+      documentType: "payment_receipt",
       documentCategory: values.documentCategory as "bukti_terima_uang" | "setor_ke_paroki",
       month: values.month,
       year: values.year
@@ -215,23 +215,7 @@ export default function DanaMandiriContent() {
     // Open PDF preview
     setPdfPreviewOpen(true)
     
-    // Notifikasi berhasil unduh akan ditampilkan saat user mengunduh dokumen
-    // dan dihandle oleh komponen pdf-viewer, bukan saat membuka preview
-    // printPdf(
-    //   values.documentType, 
-    //   values.documentCategory as string,
-    //   values.month,
-    //   values.year,
-    //   values.fileFormat
-    // )
-    
-    // Mark related transactions as locked if yearly report
-    if (values.documentType === "yearly_report" && values.year) {
-      const updatedTransactions = transactions.map(tx => 
-        tx.year === values.year ? { ...tx, isLocked: true } : tx
-      )
-      setTransactions(updatedTransactions)
-    }
+    // Notifikasi akan ditampilkan saat user mengunduh PDF dari preview
   }
   
   // Handle set dues
@@ -270,7 +254,7 @@ export default function DanaMandiriContent() {
   return (
     <div className="space-y-6 p-2">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold hidden md:block">Dana Mandiri</h2>
+        <h2 className="text-xl font-bold md:block">Dana Mandiri</h2>
       </div>
       
       {/* Summary Cards */}

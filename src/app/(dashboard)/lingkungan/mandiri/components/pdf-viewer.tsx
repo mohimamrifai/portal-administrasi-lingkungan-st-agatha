@@ -2,10 +2,11 @@ import React from 'react';
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Download, Lock } from 'lucide-react';
+import { Download, FileSearch, AlertTriangle } from 'lucide-react';
 import { DanaMandiriTransaction } from '../types';
 import BuktiTerimaUangPDF from './bukti-terima-uang-pdf';
 import SetorKeParokiPDF from './setor-ke-paroki-pdf';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface PDFViewerComponentProps {
   documentType: string;
@@ -44,21 +45,6 @@ export default function PDFViewerComponent({
 
   // Handle document download success
   const handleDownloadSuccess = () => {
-    let documentName = "";
-    switch (documentType) {
-      case "payment_receipt":
-        documentName = "Bukti Pembayaran";
-        break;
-      case "yearly_report":
-        documentName = "Laporan Tahunan";
-        break;
-      case "debt_report":
-        documentName = "Laporan Tunggakan";
-        break;
-      default:
-        documentName = "Dokumen";
-    }
-    
     let categoryName = "";
     switch (documentCategory) {
       case "bukti_terima_uang":
@@ -71,21 +57,12 @@ export default function PDFViewerComponent({
         categoryName = "";
     }
     
-    const formattedYear = year ? ` tahun ${year}` : "";
-    const formattedMonth = month ? ` bulan ${new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(new Date(year, month - 1, 1))}` : "";
+    const formattedMonth = month 
+      ? ` bulan ${new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(new Date(year, month - 1, 1))}` 
+      : "";
     
     // Tampilkan notifikasi berhasil unduh
-    toast.success(`${documentName} ${categoryName}${formattedMonth}${formattedYear} berhasil diunduh`);
-    
-    // Jika dokumen adalah laporan tahunan, tambahkan notifikasi tentang status lock
-    if (documentType === "yearly_report") {
-      toast.info(
-        `Transaksi Dana Mandiri${formattedYear} telah dikunci secara otomatis`,
-        {
-          icon: <Lock className="h-4 w-4" />
-        }
-      );
-    }
+    toast.success(`Bukti Pembayaran ${categoryName}${formattedMonth} tahun ${year} berhasil diunduh`);
   };
   
   const getPdfDocument = () => {
@@ -109,11 +86,9 @@ export default function PDFViewerComponent({
   };
   
   const getFileName = () => {
-    const docPrefix = documentType === "payment_receipt" ? "Bukti_Pembayaran" : 
-                     (documentType === "yearly_report" ? "Laporan_Tahunan" : "Laporan_Tunggakan");
     const categoryPrefix = documentCategory === "bukti_terima_uang" ? "BTU" : "SKP";
     const monthStr = month ? `_Bulan_${month}` : "";
-    return `${docPrefix}_${categoryPrefix}${monthStr}_Tahun_${year}.pdf`;
+    return `Bukti_Pembayaran_${categoryPrefix}${monthStr}_Tahun_${year}.pdf`;
   };
   
   // Check if document has transactions
@@ -121,10 +96,11 @@ export default function PDFViewerComponent({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex justify-between mb-2">
-        <div className="text-sm text-muted-foreground">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2 mb-3">
+        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <FileSearch className="h-4 w-4" />
           {hasTransactions ? 
-            `${filteredTransactions.length} transaksi ditemukan` : 
+            `${filteredTransactions.length} transaksi ditemukan untuk periode yang dipilih` : 
             'Tidak ada transaksi dalam periode yang dipilih'}
         </div>
         {hasTransactions ? (
@@ -152,10 +128,29 @@ export default function PDFViewerComponent({
           </Button>
         )}
       </div>
-      <div className="overflow-auto flex-1" style={{ height: "calc(100% - 50px)" }}>
-        <PDFViewer style={{ width: '100%', height: '100%' }}>
-          {getPdfDocument()}
-        </PDFViewer>
+      
+      {!hasTransactions && (
+        <Alert variant="default" className="bg-muted mb-4">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            Tidak ditemukan transaksi untuk periode yang dipilih. Silakan pilih periode lain atau tambahkan transaksi terlebih dahulu.
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      <div className="overflow-auto flex-1" style={{ height: "calc(100% - 70px)" }}>
+        {hasTransactions ? (
+          <PDFViewer style={{ width: '100%', height: '100%' }}>
+            {getPdfDocument()}
+          </PDFViewer>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center border rounded-lg bg-muted/20">
+            <div className="text-center text-muted-foreground">
+              <FileSearch className="h-12 w-12 mx-auto mb-3 opacity-20" />
+              <p>Tidak ada data untuk ditampilkan</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

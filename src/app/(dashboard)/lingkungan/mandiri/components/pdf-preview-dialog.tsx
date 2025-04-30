@@ -4,7 +4,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button";
 import { DanaMandiriTransaction } from '../types';
 import PDFViewerComponent from './pdf-viewer';
 
@@ -27,23 +29,27 @@ export function PDFPreviewDialog({
   month,
   year,
 }: PDFPreviewDialogProps) {
-  // Menentukan judul dialog berdasarkan jenis dokumen
+  // Menentukan judul dialog berdasarkan kategori
   const getDialogTitle = () => {
-    let title = "Pratinjau Dokumen";
+    let catTitle = "";
     
-    switch (documentType) {
-      case "payment_receipt":
-        title = "Pratinjau Bukti Pembayaran";
+    // Tambahkan kategori dokumen
+    switch (documentCategory) {
+      case "bukti_terima_uang":
+        catTitle = "Bukti Terima Uang";
         break;
-      case "yearly_report":
-        title = "Pratinjau Laporan Tahunan";
-        break;
-      case "debt_report":
-        title = "Pratinjau Laporan Tunggakan";
+      case "setor_ke_paroki":
+        catTitle = "Setor ke Paroki";
         break;
     }
     
-    return title;
+    // Format bulan jika ada
+    const monthName = month 
+      ? new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(new Date(year, month - 1, 1))
+      : "";
+    
+    // Bentuk judul lengkap
+    return `Bukti Pembayaran - ${catTitle} - ${monthName} ${year}`;
   };
 
   return (
@@ -64,6 +70,11 @@ export function PDFPreviewDialog({
             year={year}
           />
         </div>
+        <DialogFooter className="mt-3">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Tutup
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
