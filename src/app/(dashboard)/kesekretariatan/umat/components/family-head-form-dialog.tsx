@@ -29,7 +29,13 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { FamilyHead, FamilyHeadFormValues, familyHeadFormSchema, familyHeadStatuses } from "../types";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface FamilyHeadFormDialogProps {
   open: boolean;
@@ -46,22 +52,54 @@ export function FamilyHeadFormDialog({
 }: FamilyHeadFormDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const defaultValues: FamilyHeadFormValues = {
+    name: "",
+    address: "",
+    phoneNumber: "",
+    joinDate: new Date(),
+    childrenCount: 0,
+    relativesCount: 0,
+    familyMembersCount: 1,
+    status: "active",
+  };
+
   const form = useForm<FamilyHeadFormValues>({
     resolver: zodResolver(familyHeadFormSchema),
-    defaultValues: familyHead
-      ? {
+    defaultValues,
+  });
+
+  // Reset form when dialog is opened/closed or familyHead changes
+  useEffect(() => {
+    if (open) {
+      if (familyHead) {
+        // Editing existing family head
+        form.reset({
           name: familyHead.name,
           address: familyHead.address,
           phoneNumber: familyHead.phoneNumber,
+          joinDate: familyHead.joinDate,
+          childrenCount: familyHead.childrenCount,
+          relativesCount: familyHead.relativesCount,
+          familyMembersCount: familyHead.familyMembersCount,
           status: familyHead.status,
-        }
-      : {
-          name: "",
-          address: "",
-          phoneNumber: "",
-          status: "active",
-        },
-  });
+          deceasedMemberName: familyHead.deceasedMemberName,
+        });
+      } else {
+        // Adding new family head
+        form.reset(defaultValues);
+      }
+    }
+  }, [open, familyHead, form]);
+
+  // Mengawasi perubahan status
+  const statusValue = form.watch("status");
+  
+  // Atur deceasedMemberName menjadi undefined jika status bukan deceased
+  useEffect(() => {
+    if (statusValue !== "deceased") {
+      form.setValue("deceasedMemberName", undefined);
+    }
+  }, [statusValue, form]);
 
   const handleSubmit = async (values: FamilyHeadFormValues) => {
     try {
@@ -80,9 +118,18 @@ export function FamilyHeadFormDialog({
     }
   };
 
+  // Function to handle dialog close
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      // Reset form when dialog is closed without submitting
+      setTimeout(() => form.reset(defaultValues), 100);
+    }
+    onOpenChange(open);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+    <Dialog open={open} onOpenChange={handleDialogClose}>
+      <DialogContent className="sm:max-w-[500px] w-[95vw] max-w-[95vw] sm:w-auto">
         <DialogHeader>
           <DialogTitle>
             {familyHead ? "Edit Kepala Keluarga" : "Tambah Kepala Keluarga"}
@@ -108,6 +155,47 @@ export function FamilyHeadFormDialog({
                 </FormItem>
               )}
             />
+            
+            <FormField
+              control={form.control}
+              name="joinDate"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Tanggal Bergabung</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "dd MMM yyyy", { locale: id })
+                          ) : (
+                            <span>Pilih tanggal</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        initialFocus
+                        locale={id}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
             <FormField
               control={form.control}
               name="address"
@@ -121,6 +209,72 @@ export function FamilyHeadFormDialog({
                 </FormItem>
               )}
             />
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <FormField
+                control={form.control}
+                name="childrenCount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Jumlah Anak Tertanggung</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min={0}
+                        placeholder="0" 
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} 
+                        value={field.value || 0}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="relativesCount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Jumlah Kerabat Tertanggung</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min={0}
+                        placeholder="0" 
+                        {...field} 
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        value={field.value || 0}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="familyMembersCount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Jumlah Anggota Keluarga</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min={1}
+                        placeholder="1" 
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)} 
+                        value={field.value || 1}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            
             <FormField
               control={form.control}
               name="phoneNumber"
@@ -134,6 +288,7 @@ export function FamilyHeadFormDialog({
                 </FormItem>
               )}
             />
+            
             <FormField
               control={form.control}
               name="status"
@@ -142,7 +297,7 @@ export function FamilyHeadFormDialog({
                   <FormLabel>Status</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    value={field.value}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -161,15 +316,37 @@ export function FamilyHeadFormDialog({
                 </FormItem>
               )}
             />
-            <DialogFooter>
+            
+            {statusValue === "deceased" && (
+              <FormField
+                control={form.control}
+                name="deceasedMemberName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nama Anggota Keluarga yang Meninggal</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nama anggota keluarga yang meninggal" {...field} value={field.value || ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            
+            <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0 mt-5">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={() => handleDialogClose(false)}
+                className="w-full sm:w-auto"
               >
                 Batal
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="w-full sm:w-auto"
+              >
                 {isSubmitting ? "Menyimpan..." : "Simpan"}
               </Button>
             </DialogFooter>
