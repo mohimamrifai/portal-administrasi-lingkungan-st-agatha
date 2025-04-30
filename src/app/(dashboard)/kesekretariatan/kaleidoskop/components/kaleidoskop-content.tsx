@@ -1,483 +1,395 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useState, useMemo, useCallback } from "react";
+import { PeriodeSelector } from "./periode-selector";
+import { dolingData } from "../data/mock-data";
+import { filterDataByPeriode } from "../utils/data-utils";
+import { ChartBarIcon, Calendar, Users2, Filter } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  UsersIcon, 
-  CalendarIcon, 
-  HomeIcon, 
-  BookIcon, 
-  BarChart2,
-  TrendingUpIcon,
-  TrendingDownIcon,
-  PieChartIcon
-} from "lucide-react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useState } from "react";
-import { useAuth } from "@/contexts/auth-context";
-import { ROLES } from "@/contexts/auth-context";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { DolingData } from "../types";
 
-// Definisi tipe
-export interface KaleidoskopData {
-  totalKegiatan: number;
-  rataRataKehadiran: number;
-  totalKKAktif: number;
-}
-
-export function KaleidoskopContent() {
-  const { userRole } = useAuth();
-  const [selectedYear, setSelectedYear] = useState("2024");
+// Komponen utama untuk halaman Kaleidoskop
+export function KaleidoskopContent({
+  periodRange,
+  activityData,
+  isLoading,
+}: {
+  periodRange: string;
+  activityData: DolingData[];
+  isLoading: boolean;
+}) {
+  // State untuk filter periode
+  const currentDate = new Date();
+  const [bulanAwal, setBulanAwal] = useState("0"); // Januari
+  const [tahunAwal, setTahunAwal] = useState("2024");
+  const [bulanAkhir, setBulanAkhir] = useState(currentDate.getMonth().toString()); // Bulan saat ini
+  const [tahunAkhir, setTahunAkhir] = useState(currentDate.getFullYear().toString());
   
-  // Memeriksa apakah pengguna memiliki akses
-  const hasAccess = [
-    ROLES.SUPER_USER,
-    ROLES.SEKRETARIS,
-    ROLES.WAKIL_SEKRETARIS,
-  ].includes(userRole);
+  // State untuk menyimpan data terfilter saat ini
+  const [filteredData, setFilteredData] = useState(() => 
+    filterDataByPeriode(dolingData, bulanAwal, tahunAwal, bulanAkhir, tahunAkhir)
+  );
   
-  // Data untuk simulasi
-  const data: KaleidoskopData = {
-    totalKegiatan: 48,
-    rataRataKehadiran: 83,
-    totalKKAktif: 42
-  };
+  // State untuk menampilkan filter
+  const [showFilter, setShowFilter] = useState(false);
   
-  // Mock data untuk visualisasi dan tabel
-  const yearOptions = ["2024", "2023", "2022"];
-  
-  // Data per bulan untuk grafik
-  const bulanData = [
-    { bulan: "Jan", kehadiran: 85, kegiatan: 4 },
-    { bulan: "Feb", kehadiran: 78, kegiatan: 4 },
-    { bulan: "Mar", kehadiran: 82, kegiatan: 5 },
-    { bulan: "Apr", kehadiran: 88, kegiatan: 4 },
-    { bulan: "Mei", kehadiran: 92, kegiatan: 4 },
-    { bulan: "Jun", kehadiran: 80, kegiatan: 4 },
-    { bulan: "Jul", kehadiran: 75, kegiatan: 3 },
-    { bulan: "Agt", kehadiran: 70, kegiatan: 4 },
-    { bulan: "Sep", kehadiran: 82, kegiatan: 4 },
-    { bulan: "Okt", kehadiran: 88, kegiatan: 4 },
-    { bulan: "Nov", kehadiran: 90, kegiatan: 4 },
-    { bulan: "Des", kehadiran: 95, kegiatan: 4 },
-  ];
-  
-  // Data 10 KK paling aktif
-  const topKK = [
-    { nama: "Budi Santoso", hadir: 48, persentase: 100 },
-    { nama: "Joko Susilo", hadir: 46, persentase: 96 },
-    { nama: "Ahmad Fauzi", hadir: 45, persentase: 94 },
-    { nama: "Herman Wijaya", hadir: 43, persentase: 90 },
-    { nama: "Bambang Dwi", hadir: 42, persentase: 88 },
-    { nama: "Sutrisno", hadir: 40, persentase: 83 },
-    { nama: "Agus Handoko", hadir: 38, persentase: 79 },
-    { nama: "Rudi Hartono", hadir: 36, persentase: 75 },
-    { nama: "Dedi Purwanto", hadir: 35, persentase: 73 },
-    { nama: "Eko Setiawan", hadir: 34, persentase: 71 },
-  ];
-  
-  // Data 5 KK paling tidak aktif
-  const bottomKK = [
-    { nama: "Hadi Nugroho", hadir: 5, persentase: 10 },
-    { nama: "Gunawan", hadir: 8, persentase: 17 },
-    { nama: "Tono Santoso", hadir: 10, persentase: 21 },
-    { nama: "Widodo Prayitno", hadir: 12, persentase: 25 },
-    { nama: "Andi Susanto", hadir: 14, persentase: 29 },
-  ];
-  
-  // Data lokasi doa lingkungan
-  const lokasiDoling = [
-    { nama: "Budi Santoso", alamat: "Jl. Merdeka No. 123", frekuensi: 4 },
-    { nama: "Joko Susilo", alamat: "Jl. Diponegoro No. 45", frekuensi: 3 },
-    { nama: "Ani Wijaya", alamat: "Jl. Sudirman No. 67", frekuensi: 3 },
-    { nama: "Siti Rahayu", alamat: "Jl. Pahlawan No. 89", frekuensi: 2 },
-    { nama: "Hadi Pratama", alamat: "Jl. Veteran No. 12", frekuensi: 2 },
-  ];
-  
-  // Fungsi untuk menghitung tingkat hadir rata-rata
-  const calculateAverageAttendance = () => {
-    const total = bulanData.reduce((sum, item) => sum + item.kehadiran, 0);
-    return (total / bulanData.length).toFixed(1);
-  };
-  
-  // Jika pengguna tidak memiliki akses, tampilkan pesan
-  if (!hasAccess) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[50vh]">
-        <h2 className="text-2xl font-bold mb-2">Akses Terbatas</h2>
-        <p className="text-muted-foreground text-center">
-          Maaf, Anda tidak memiliki akses untuk melihat halaman Kaleidoskop.
-          <br />
-          Hanya SuperUser, Sekretaris, dan Wakil Sekretaris yang dapat mengakses halaman ini.
-        </p>
-      </div>
+  // Handler untuk tombol "Filter Sekarang"
+  const handleFilter = useCallback(() => {
+    const newFilteredData = filterDataByPeriode(
+      dolingData,
+      bulanAwal,
+      tahunAwal,
+      bulanAkhir,
+      tahunAkhir
     );
-  }
+    setFilteredData(newFilteredData);
+    setShowFilter(false);
+  }, [bulanAwal, tahunAwal, bulanAkhir, tahunAkhir]);
+
+  // Membuat label periode
+  const getPeriodeLabel = () => {
+    const months = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ];
+    
+    const bulanAwalText = months[parseInt(bulanAwal)];
+    const bulanAkhirText = months[parseInt(bulanAkhir)];
+    
+    if (tahunAwal === tahunAkhir && bulanAwal === bulanAkhir) {
+      return `${bulanAwalText} ${tahunAwal}`;
+    } else if (tahunAwal === tahunAkhir) {
+      return `${bulanAwalText} - ${bulanAkhirText} ${tahunAwal}`;
+    } else {
+      return `${bulanAwalText} ${tahunAwal} - ${bulanAkhirText} ${tahunAkhir}`;
+    }
+  };
   
+  // Mengelompokkan data berdasarkan jenis ibadat dan sub ibadat
+  const groupedIbadatData = useMemo(() => {
+    const result: Record<string, Record<string, number>> = {};
+    
+    filteredData.forEach((item) => {
+      const jenisIbadat = item.jenisIbadat;
+      const subIbadat = item.subIbadat;
+      
+      if (!result[jenisIbadat]) {
+        result[jenisIbadat] = {};
+      }
+      
+      if (!result[jenisIbadat][subIbadat]) {
+        result[jenisIbadat][subIbadat] = 0;
+      }
+      
+      result[jenisIbadat][subIbadat]++;
+    });
+    
+    return result;
+  }, [filteredData]);
+  
+  // Mendapatkan unik jenis ibadat dan total pertemuan
+  const ibadatStats = useMemo(() => {
+    const jenisIbadatList = Object.keys(groupedIbadatData);
+    
+    // Hitung total pertemuan untuk setiap jenis ibadat
+    const totals = jenisIbadatList.map(jenis => {
+      const subIbadats = groupedIbadatData[jenis];
+      const total = Object.values(subIbadats).reduce((sum, count) => sum + count, 0);
+      const uniqueSubIbadat = Object.keys(subIbadats).length;
+      
+      return {
+        jenisIbadat: jenis,
+        totalPertemuan: total,
+        uniqueSubIbadat
+      };
+    });
+    
+    // Urutkan berdasarkan totalPertemuan (terbanyak dulu)
+    return totals.sort((a, b) => b.totalPertemuan - a.totalPertemuan);
+  }, [groupedIbadatData]);
+  
+  // Mendapatkan total statistik
+  const totalStats = useMemo(() => {
+    const totalPertemuan = filteredData.length;
+    const uniqueJenisIbadat = Object.keys(groupedIbadatData).length;
+    
+    let uniqueSubIbadat = 0;
+    Object.values(groupedIbadatData).forEach(subMap => {
+      uniqueSubIbadat += Object.keys(subMap).length;
+    });
+    
+    return {
+      totalPertemuan,
+      uniqueJenisIbadat,
+      uniqueSubIbadat
+    };
+  }, [filteredData, groupedIbadatData]);
+  
+  // Mendapatkan warna berdasarkan jenisIbadat
+  const getColor = (jenisIbadat: string) => {
+    const colors = {
+      "Doa Bersama": "bg-blue-100 text-blue-700 border-blue-200",
+      "Doa Keluarga": "bg-purple-100 text-purple-700 border-purple-200",
+      "Makan Malam": "bg-amber-100 text-amber-700 border-amber-200",
+    };
+    
+    return colors[jenisIbadat as keyof typeof colors] || "bg-gray-100 text-gray-700 border-gray-200";
+  };
+  
+  // Mendapatkan background color
+  const getBgColor = (colorClass: string) => {
+    return colorClass.split(' ')[0];
+  };
+  
+  // Mendapatkan text color
+  const getTextColor = (colorClass: string) => {
+    return colorClass.split(' ')[1];
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="container mx-auto px-2 py-3 max-w-7xl">
+      {/* Header Section */}
+      <div className="mb-4 flex flex-col gap-4">
         <div>
-          <h2 className="text-2xl font-bold">Kaleidoskop Doa Lingkungan</h2>
-          <p className="text-muted-foreground">Rekapitulasi kegiatan doa lingkungan secara menyeluruh</p>
+          <div className="flex items-center gap-2 mb-1">
+            <ChartBarIcon className="h-6 w-6 text-primary" />
+            <h1 className="text-lg font-bold tracking-tight">Kaleidoskop Doa Lingkungan</h1>
+          </div>
+          <p className="text-muted-foreground text-xs md:textsm">
+            Rekap frekuensi kegiatan doa lingkungan berdasarkan jenis dan sub ibadat
+          </p>
         </div>
-        <Select value={selectedYear} onValueChange={setSelectedYear}>
-          <SelectTrigger className="w-[120px]">
-            <SelectValue placeholder="Pilih Tahun" />
-          </SelectTrigger>
-          <SelectContent>
-            {yearOptions.map(year => (
-              <SelectItem key={year} value={year}>
-                Tahun {year}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      
-      {/* Datacard */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Kegiatan</CardTitle>
-            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data.totalKegiatan}</div>
-            <p className="text-xs text-muted-foreground">
-              Kegiatan dalam setahun
-            </p>
-            <div className="mt-2 text-sm flex items-center">
-              <Badge variant="outline" className="gap-1 px-2 py-1">
-                <TrendingUpIcon className="h-3 w-3 text-green-500" />
-                <span>+4% dari tahun lalu</span>
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Rata-rata Kehadiran</CardTitle>
-            <UsersIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data.rataRataKehadiran}%</div>
-            <p className="text-xs text-muted-foreground">
-              Tingkat partisipasi umat
-            </p>
-            <div className="mt-2 text-sm flex items-center">
-              <Badge variant="outline" className="gap-1 px-2 py-1">
-                <TrendingUpIcon className="h-3 w-3 text-green-500" />
-                <span>+2.5% dari bulan lalu</span>
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total KK Aktif</CardTitle>
-            <HomeIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data.totalKKAktif}</div>
-            <p className="text-xs text-muted-foreground">
-              Dari 68 total kepala keluarga
-            </p>
-            <div className="mt-2 text-sm flex items-center">
-              <Badge variant="outline" className="gap-1 px-2 py-1">
-                <TrendingDownIcon className="h-3 w-3 text-red-500" />
-                <span>-3 dari bulan lalu</span>
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tuan Rumah Aktif</CardTitle>
-            <BookIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">23</div>
-            <p className="text-xs text-muted-foreground">
-              KK yang pernah menjadi tuan rumah
-            </p>
-            <div className="mt-2 text-sm flex items-center">
-              <Badge variant="outline" className="gap-1 px-2 py-1">
-                <TrendingUpIcon className="h-3 w-3 text-green-500" />
-                <span>+2 dari bulan lalu</span>
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      
-      {/* Tabs */}
-      <Tabs defaultValue="partisipasi" className="w-full">
-        <TabsList className="grid grid-cols-1 md:grid-cols-4 w-full">
-          <TabsTrigger value="partisipasi">Partisipasi</TabsTrigger>
-          <TabsTrigger value="top-kk">KK Teraktif</TabsTrigger>
-          <TabsTrigger value="bottom-kk">KK Terinaktif</TabsTrigger>
-          <TabsTrigger value="lokasi">Lokasi Doling</TabsTrigger>
-        </TabsList>
         
-        {/* Tab Partisipasi */}
-        <TabsContent value="partisipasi" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Grafik Partisipasi Umat Tahun {selectedYear}</CardTitle>
-              <CardDescription>
-                Persentase kehadiran umat di kegiatan doa lingkungan per bulan
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="px-2">
-              <div className="h-[300px] w-full">
-                {/* Chart akan diimplementasikan menggunakan library chart seperti recharts */}
-                <div className="h-full w-full flex items-end justify-between px-4">
-                  {bulanData.map((item, index) => (
-                    <div key={index} className="flex flex-col items-center">
-                      <div 
-                        className="w-12 bg-primary rounded-t-md"
-                        style={{ height: `${item.kehadiran * 2.5}px` }}
-                      >
-                        <div className="text-xs text-white text-center p-1">
-                          {item.kehadiran}%
+        <div className="flex flex-col md:flex-row gap-2">
+          <Badge variant="outline" className="px-3 py-1 text-sm font-medium flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5" />
+            <span>{getPeriodeLabel()}</span>
+          </Badge>
+          
+          <button
+            className="flex items-center gap-1.5 text-sm px-3 py-1 border rounded-md bg-amber-300 cursor-pointer hover:bg-amber-400 transition-colors"
+            onClick={() => setShowFilter(!showFilter)}
+          >
+            <Filter className="h-3.5 w-3.5" />
+            Filter Periode
+          </button>
+        </div>
+      </div>
+      
+      {/* Filter Section */}
+      {showFilter && (
+        <div className="mb-6 bg-muted/20 border rounded-lg p-4">
+          <div className="mb-2 flex justify-between items-center">
+            <h2 className="text-lg font-semibold">Filter Periode</h2>
+            <button 
+              className="text-sm text-muted-foreground"
+              onClick={() => setShowFilter(false)}
+            >
+              Tutup
+            </button>
+          </div>
+          <PeriodeSelector
+            bulanAwal={bulanAwal}
+            setBulanAwal={setBulanAwal}
+            tahunAwal={tahunAwal}
+            setTahunAwal={setTahunAwal}
+            bulanAkhir={bulanAkhir}
+            setBulanAkhir={setBulanAkhir}
+            tahunAkhir={tahunAkhir}
+            setTahunAkhir={setTahunAkhir}
+            onFilter={handleFilter}
+          />
+        </div>
+      )}
+      
+      {/* Summary Cards */}
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-3 mb-6">
+        <div className="bg-blue-50 border border-blue-100 rounded-lg shadow-sm">
+          <div className="p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-medium text-blue-600 mb-1">Total Kegiatan</p>
+                <h3 className="text-3xl font-bold text-blue-800">{totalStats.totalPertemuan}</h3>
+                <p className="text-xs text-blue-600 mt-1">Pertemuan dalam periode {getPeriodeLabel()}</p>
+              </div>
+              <div className="bg-blue-100 p-2 rounded-full">
+                <Calendar className="h-5 w-5 text-blue-700" />
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-purple-50 border border-purple-100 rounded-lg shadow-sm">
+          <div className="p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-medium text-purple-600 mb-1">Jenis Ibadat</p>
+                <h3 className="text-3xl font-bold text-purple-800">{totalStats.uniqueJenisIbadat}</h3>
+                <p className="text-xs text-purple-600 mt-1">Kategori ibadat yang dilaksanakan</p>
+              </div>
+              <div className="bg-purple-100 p-2 rounded-full">
+                <ChartBarIcon className="h-5 w-5 text-purple-700" />
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-amber-50 border border-amber-100 rounded-lg shadow-sm">
+          <div className="p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-medium text-amber-600 mb-1">Sub Ibadat</p>
+                <h3 className="text-3xl font-bold text-amber-800">{totalStats.uniqueSubIbadat}</h3>
+                <p className="text-xs text-amber-600 mt-1">Variasi kegiatan dalam ibadat</p>
+              </div>
+              <div className="bg-amber-100 p-2 rounded-full">
+                <Users2 className="h-5 w-5 text-amber-700" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Main Content */}
+      <div>
+        <Tabs defaultValue="kegiatan" className="w-full">
+          <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-2">
+            <TabsList>
+              <TabsTrigger value="kegiatan">Ringkasan Kegiatan</TabsTrigger>
+              <TabsTrigger value="detail">Detail Kegiatan</TabsTrigger>
+            </TabsList>
+            
+            <p className="text-xs text-muted-foreground italic">
+              Data periode: {getPeriodeLabel()}
+            </p>
+          </div>
+          
+          <TabsContent value="kegiatan" className="mt-0">
+            <div className="space-y-4">
+              {totalStats.totalPertemuan === 0 ? (
+                <Alert variant="default" className="bg-blue-50 text-blue-800 border-blue-100">
+                  <Info className="h-4 w-4 text-blue-500" />
+                  <AlertTitle>Tidak ada data</AlertTitle>
+                  <AlertDescription>
+                    Tidak ada data kegiatan untuk periode {getPeriodeLabel()}. Silakan ubah filter periode atau tambahkan kegiatan baru.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <>
+                  <Alert variant="default" className="bg-blue-50 text-blue-800 border-blue-100">
+                    <Info className="h-4 w-4 text-blue-500" />
+                    <AlertTitle>Ringkasan Kegiatan</AlertTitle>
+                    <AlertDescription>
+                      Terdapat {totalStats.totalPertemuan} kegiatan dari {totalStats.uniqueJenisIbadat} jenis ibadat dengan {totalStats.uniqueSubIbadat} variasi sub ibadat.
+                    </AlertDescription>
+                  </Alert>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {ibadatStats.map((stat) => (
+                      <div key={stat.jenisIbadat} className="overflow-hidden border rounded-lg shadow-sm">
+                        <div className="bg-muted/10 py-3 px-4 border-b">
+                          <div className="flex justify-between items-center">
+                            <div className="text-base font-semibold flex items-center gap-2">
+                              <div className={`w-3 h-3 rounded-full ${getBgColor(getColor(stat.jenisIbadat))}`}></div>
+                              {stat.jenisIbadat}
+                            </div>
+                            <Badge variant="outline" className={getColor(stat.jenisIbadat)}>
+                              {stat.totalPertemuan} kegiatan
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="p-0">
+                          <div className="p-3 border-b bg-muted/5">
+                            <div className="flex justify-between items-center text-xs mb-1.5">
+                              <span className="text-muted-foreground">{Math.round((stat.totalPertemuan / totalStats.totalPertemuan) * 100)}% dari total kegiatan</span>
+                              <span className="font-medium">{stat.totalPertemuan}/{totalStats.totalPertemuan}</span>
+                            </div>
+                            <Progress value={(stat.totalPertemuan / totalStats.totalPertemuan) * 100} className="h-1.5" />
+                          </div>
+                          
+                          <div className="divide-y">
+                            {Object.entries(groupedIbadatData[stat.jenisIbadat] || {})
+                              .sort(([, countA], [, countB]) => countB - countA)
+                              .map(([subIbadat, count]) => (
+                                <div key={subIbadat} className="py-2.5 px-4 flex items-center justify-between hover:bg-muted/5">
+                                  <div className="text-sm">{subIbadat}</div>
+                                  <Badge variant="outline" className={getColor(stat.jenisIbadat)}>
+                                    {count} pertemuan
+                                  </Badge>
+                                </div>
+                              ))
+                            }
+                          </div>
                         </div>
                       </div>
-                      <div className="text-xs font-medium mt-2">{item.bulan}</div>
-                      <div className="text-xs text-muted-foreground">{item.kegiatan}x</div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="detail" className="mt-0">
+            <div className="space-y-4">
+              {totalStats.totalPertemuan === 0 ? (
+                <Alert variant="default" className="bg-blue-50 text-blue-800 border-blue-100">
+                  <Info className="h-4 w-4 text-blue-500" />
+                  <AlertTitle>Tidak ada data</AlertTitle>
+                  <AlertDescription>
+                    Tidak ada data kegiatan untuk periode {getPeriodeLabel()}. Silakan ubah filter periode atau tambahkan kegiatan baru.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                  {ibadatStats.map((stat) => (
+                    <div key={stat.jenisIbadat} className="overflow-hidden border rounded-lg shadow-sm">
+                      <div className={`py-3 px-4 ${getBgColor(getColor(stat.jenisIbadat))} border-b`}>
+                        <div className="text-base font-semibold flex items-center gap-2">
+                          <ChartBarIcon className={`h-4 w-4 ${getTextColor(getColor(stat.jenisIbadat))}`} />
+                          <span className={getTextColor(getColor(stat.jenisIbadat))}>{stat.jenisIbadat}</span>
+                        </div>
+                      </div>
+                      <div className="p-0">
+                        <ScrollArea className="h-[250px]">
+                          <div className="divide-y">
+                            {Object.entries(groupedIbadatData[stat.jenisIbadat] || {})
+                              .sort(([, countA], [, countB]) => countB - countA)
+                              .map(([subIbadat, count]) => (
+                                <div key={subIbadat} className="py-3 px-4 flex items-center justify-between">
+                                  <div>
+                                    <div className="text-sm font-medium">{subIbadat}</div>
+                                    <div className="mt-1 flex items-center gap-2">
+                                      <Progress 
+                                        value={(count / stat.totalPertemuan) * 100} 
+                                        className="h-1 w-[100px]" 
+                                      />
+                                      <span className="text-xs text-muted-foreground">
+                                        {Math.round((count / stat.totalPertemuan) * 100)}%
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <Badge variant="outline">
+                                    {count} pertemuan
+                                  </Badge>
+                                </div>
+                              ))
+                            }
+                          </div>
+                        </ScrollArea>
+                      </div>
                     </div>
                   ))}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Analisis Tingkat Partisipasi</CardTitle>
-                <CardDescription>Temuan penting dari data kehadiran</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-medium">Bulan dengan Partisipasi Tertinggi</div>
-                      <Badge variant="outline">Desember</Badge>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Tingkat kehadiran sebesar 95% (46 dari 48 KK hadir)
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-medium">Bulan dengan Partisipasi Terendah</div>
-                      <Badge variant="outline">Agustus</Badge>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Tingkat kehadiran sebesar 70% (34 dari 48 KK hadir)
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-medium">Rata-rata Kehadiran Tahunan</div>
-                      <Badge variant="outline">{calculateAverageAttendance()}%</Badge>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Mengalami kenaikan 3.5% dari tahun sebelumnya
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Tren dan Pola Kehadiran</CardTitle>
-                <CardDescription>Insight berdasarkan analisis data</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium">Tren Tahunan</div>
-                    <div className="text-sm text-muted-foreground">
-                      Terjadi peningkatan partisipasi pada bulan-bulan menjelang akhir tahun, 
-                      terutama di November dan Desember.
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium">Pola Musiman</div>
-                    <div className="text-sm text-muted-foreground">
-                      Kehadiran cenderung menurun pada bulan liburan sekolah (Juli-Agustus) 
-                      dan meningkat setelahnya.
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium">Faktor Pengaruh</div>
-                    <div className="text-sm text-muted-foreground">
-                      Pertemuan dengan tema khusus (perayaan) memiliki tingkat kehadiran 
-                      15% lebih tinggi dibanding pertemuan reguler.
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-        
-        {/* Tab KK Teraktif */}
-        <TabsContent value="top-kk">
-          <Card>
-            <CardHeader>
-              <CardTitle>KK dengan Tingkat Kehadiran Tertinggi</CardTitle>
-              <CardDescription>
-                10 Kepala Keluarga dengan partisipasi terbaik selama tahun {selectedYear}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="relative overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs uppercase bg-muted/50">
-                    <tr>
-                      <th scope="col" className="px-4 py-3">No</th>
-                      <th scope="col" className="px-4 py-3">Nama</th>
-                      <th scope="col" className="px-4 py-3">Kehadiran</th>
-                      <th scope="col" className="px-4 py-3">Persentase</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {topKK.map((kk, index) => (
-                      <tr key={index} className="border-b">
-                        <td className="px-4 py-2">{index + 1}</td>
-                        <td className="px-4 py-2 font-medium">{kk.nama}</td>
-                        <td className="px-4 py-2">{kk.hadir} / 48</td>
-                        <td className="px-4 py-2">
-                          <div className="flex items-center">
-                            <span className="mr-2">{kk.persentase}%</span>
-                            <div className="w-[100px] bg-muted rounded-full h-2 mr-2">
-                              <div
-                                className="bg-primary h-2 rounded-full"
-                                style={{ width: `${kk.persentase}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        {/* Tab KK Terinaktif */}
-        <TabsContent value="bottom-kk">
-          <Card>
-            <CardHeader>
-              <CardTitle>KK dengan Tingkat Kehadiran Terendah</CardTitle>
-              <CardDescription>
-                5 Kepala Keluarga dengan partisipasi terendah selama tahun {selectedYear}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="relative overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs uppercase bg-muted/50">
-                    <tr>
-                      <th scope="col" className="px-4 py-3">No</th>
-                      <th scope="col" className="px-4 py-3">Nama</th>
-                      <th scope="col" className="px-4 py-3">Kehadiran</th>
-                      <th scope="col" className="px-4 py-3">Persentase</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {bottomKK.map((kk, index) => (
-                      <tr key={index} className="border-b">
-                        <td className="px-4 py-2">{index + 1}</td>
-                        <td className="px-4 py-2 font-medium">{kk.nama}</td>
-                        <td className="px-4 py-2">{kk.hadir} / 48</td>
-                        <td className="px-4 py-2">
-                          <div className="flex items-center">
-                            <span className="mr-2">{kk.persentase}%</span>
-                            <div className="w-[100px] bg-muted rounded-full h-2 mr-2">
-                              <div
-                                className="bg-destructive h-2 rounded-full"
-                                style={{ width: `${kk.persentase}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="mt-4 p-4 bg-muted/50 rounded-md">
-                <h4 className="font-medium mb-2">Rekomendasi Tindak Lanjut</h4>
-                <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
-                  <li>Melakukan kunjungan pastoral oleh ketua lingkungan</li>
-                  <li>Mengundang secara personal untuk kegiatan selanjutnya</li>
-                  <li>Menanyakan kebutuhan dan kendala yang dihadapi</li>
-                  <li>Mempertimbangkan lokasi yang lebih mudah dijangkau</li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        {/* Tab Lokasi */}
-        <TabsContent value="lokasi">
-          <Card>
-            <CardHeader>
-              <CardTitle>Lokasi Pelaksanaan Doa Lingkungan</CardTitle>
-              <CardDescription>
-                KK yang paling sering menjadi tuan rumah selama tahun {selectedYear}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="relative overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs uppercase bg-muted/50">
-                    <tr>
-                      <th scope="col" className="px-4 py-3">No</th>
-                      <th scope="col" className="px-4 py-3">Nama</th>
-                      <th scope="col" className="px-4 py-3">Alamat</th>
-                      <th scope="col" className="px-4 py-3">Frekuensi</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lokasiDoling.map((lokasi, index) => (
-                      <tr key={index} className="border-b">
-                        <td className="px-4 py-2">{index + 1}</td>
-                        <td className="px-4 py-2 font-medium">{lokasi.nama}</td>
-                        <td className="px-4 py-2">{lokasi.alamat}</td>
-                        <td className="px-4 py-2">{lokasi.frekuensi}x</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="mt-4">
-                <div className="text-sm font-medium mb-2">Distribusi Lokasi</div>
-                <div className="text-sm text-muted-foreground">
-                  <p>Dari total 48 kegiatan doa lingkungan:</p>
-                  <ul className="list-disc pl-5 mt-1 space-y-1">
-                    <li>23 kepala keluarga (34%) telah menjadi tuan rumah minimal 1 kali</li>
-                    <li>5 kepala keluarga (7%) menjadi tuan rumah lebih dari 2 kali</li>
-                    <li>45 kepala keluarga (66%) belum pernah menjadi tuan rumah</li>
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 } 

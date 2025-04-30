@@ -1,5 +1,3 @@
-"use client";
-
 import { Suspense } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { KaleidoskopContent } from "./components/kaleidoskop-content";
@@ -19,7 +17,7 @@ export default function KaleidoskopPage() {
   return (
     <div className="p-2 px-4">
       <Suspense fallback={<LoadingSkeleton />}>
-        <KaleidoskopContent />
+        <KaleidoskopContent periodRange="2024-01-01 - 2024-12-31" activityData={[]} isLoading={false} />
       </Suspense>
     </div>
   )
