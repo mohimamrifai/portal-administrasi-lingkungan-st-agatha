@@ -578,15 +578,16 @@ export function TransactionsTable({
       
       {/* Pagination Controls */}
       {transactions.length > 0 && (
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-2">
-          <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
-            <p className="text-sm text-muted-foreground text-center sm:text-left">
+        <div className="flex flex-col space-y-4 px-2">
+          {/* Tampilan mobile */}
+          <div className="md:hidden flex flex-col items-center justify-center text-center space-y-2">
+            <p className="text-sm text-muted-foreground">
               Menampilkan {startIndex + 1}-{endIndex} dari {totalItems} transaksi
               {(searchTerm || typeFilter || dateRange) && 
                 ` (difilter dari ${transactions.length} total)`}
             </p>
-            <div className="flex items-center space-x-2">
-              <p className="text-sm text-muted-foreground hidden sm:block">Tampilkan</p>
+            <div className="flex items-center justify-center space-x-2">
+              <p className="text-sm text-muted-foreground">Tampilkan</p>
               <Select 
                 value={pageSize.toString()} 
                 onValueChange={handlePageSizeChange}
@@ -606,20 +607,17 @@ export function TransactionsTable({
             </div>
           </div>
           
-          <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
-            <span className="text-sm mb-2 sm:mb-0 sm:mr-2 order-1 sm:order-none">
-              Halaman {currentPage} dari {totalPages}
-            </span>
-            
-            <div className="flex items-center space-x-1 sm:space-x-2 order-2 sm:order-none">
+          {/* Navigasi halaman untuk mobile */}
+          <div className="md:hidden flex flex-col items-center justify-center space-y-2">
+            <div className="flex items-center justify-center space-x-2">
               <Button 
                 variant="outline" 
                 size="icon" 
                 onClick={goToFirstPage} 
                 disabled={currentPage === 1}
-                className="h-7 w-7 sm:h-8 sm:w-8"
+                className="h-8 w-8"
               >
-                <ChevronsLeftIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                <ChevronsLeftIcon className="h-4 w-4" />
                 <span className="sr-only">First Page</span>
               </Button>
               <Button 
@@ -627,20 +625,24 @@ export function TransactionsTable({
                 size="icon" 
                 onClick={goToPreviousPage} 
                 disabled={currentPage === 1}
-                className="h-7 w-7 sm:h-8 sm:w-8"
+                className="h-8 w-8"
               >
-                <ChevronLeftIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                <ChevronLeftIcon className="h-4 w-4" />
                 <span className="sr-only">Previous Page</span>
               </Button>
+              
+              <span className="text-sm mx-2">
+                Halaman {currentPage} dari {totalPages}
+              </span>
               
               <Button 
                 variant="outline" 
                 size="icon" 
                 onClick={goToNextPage} 
                 disabled={currentPage === totalPages}
-                className="h-7 w-7 sm:h-8 sm:w-8"
+                className="h-8 w-8"
               >
-                <ChevronRightIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                <ChevronRightIcon className="h-4 w-4" />
                 <span className="sr-only">Next Page</span>
               </Button>
               <Button 
@@ -648,9 +650,87 @@ export function TransactionsTable({
                 size="icon" 
                 onClick={goToLastPage} 
                 disabled={currentPage === totalPages}
-                className="h-7 w-7 sm:h-8 sm:w-8"
+                className="h-8 w-8"
               >
-                <ChevronsRightIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                <ChevronsRightIcon className="h-4 w-4" />
+                <span className="sr-only">Last Page</span>
+              </Button>
+            </div>
+          </div>
+          
+          {/* Tampilan desktop */}
+          <div className="hidden md:flex md:items-center md:justify-between">
+            <div className="flex items-center space-x-2">
+              <p className="text-sm text-muted-foreground">
+                Menampilkan {startIndex + 1}-{endIndex} dari {totalItems} transaksi
+                {(searchTerm || typeFilter || dateRange) && 
+                  ` (difilter dari ${transactions.length} total)`}
+              </p>
+              <div className="flex items-center space-x-2">
+                <p className="text-sm text-muted-foreground">Tampilkan</p>
+                <Select 
+                  value={pageSize.toString()} 
+                  onValueChange={handlePageSizeChange}
+                >
+                  <SelectTrigger className="h-8 w-[70px]">
+                    <SelectValue placeholder={pageSize.toString()} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground">per halaman</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={goToFirstPage} 
+                disabled={currentPage === 1}
+                className="h-8 w-8"
+              >
+                <ChevronsLeftIcon className="h-4 w-4" />
+                <span className="sr-only">First Page</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={goToPreviousPage} 
+                disabled={currentPage === 1}
+                className="h-8 w-8"
+              >
+                <ChevronLeftIcon className="h-4 w-4" />
+                <span className="sr-only">Previous Page</span>
+              </Button>
+              
+              <span className="text-sm mx-2">
+                Halaman {currentPage} dari {totalPages}
+              </span>
+              
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={goToNextPage} 
+                disabled={currentPage === totalPages}
+                className="h-8 w-8"
+              >
+                <ChevronRightIcon className="h-4 w-4" />
+                <span className="sr-only">Next Page</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={goToLastPage} 
+                disabled={currentPage === totalPages}
+                className="h-8 w-8"
+              >
+                <ChevronsRightIcon className="h-4 w-4" />
                 <span className="sr-only">Last Page</span>
               </Button>
             </div>
