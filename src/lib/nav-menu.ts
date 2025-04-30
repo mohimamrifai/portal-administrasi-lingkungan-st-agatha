@@ -11,6 +11,7 @@ import {
     Home,
     Banknote,
     Trash2,
+    BarChart2,
 } from 'lucide-react'
 
 export const navMain: Record<string, MenuItem[]> = {
@@ -38,6 +39,7 @@ export const navMain: Record<string, MenuItem[]> = {
             children: [
                 { label: 'Data Umat', path: '/kesekretariatan/umat' },
                 { label: 'Doa Lingkungan', path: '/kesekretariatan/doling' },
+                { label: 'Kaleidoskop', path: '/kesekretariatan/kaleidoskop' },
                 { label: 'Agenda', path: '/kesekretariatan/agenda' },
             ],
         },
@@ -139,6 +141,7 @@ export const navMain: Record<string, MenuItem[]> = {
             children: [
                 { label: 'Data Umat', path: '/kesekretariatan/umat' },
                 { label: 'Doa Lingkungan', path: '/kesekretariatan/doling' },
+                { label: 'Kaleidoskop', path: '/kesekretariatan/kaleidoskop' },
                 { label: 'Agenda', path: '/kesekretariatan/agenda' },
             ],
         },
@@ -160,6 +163,7 @@ export const navMain: Record<string, MenuItem[]> = {
             children: [
                 { label: 'Data Umat', path: '/kesekretariatan/umat' },
                 { label: 'Doa Lingkungan', path: '/kesekretariatan/doling' },
+                { label: 'Kaleidoskop', path: '/kesekretariatan/kaleidoskop' },
                 { label: 'Agenda', path: '/kesekretariatan/agenda' },
             ],
         },

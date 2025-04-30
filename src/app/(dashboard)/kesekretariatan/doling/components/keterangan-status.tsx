@@ -15,12 +15,14 @@ interface KeteranganStatusSectionProps {
   keterangan?: string;
   status: DetilDoling['status'];
   onStatusChange: (value: DetilDoling['status']) => void;
+  onKeteranganChange?: (value: string) => void;
 }
 
 export function KeteranganStatusSection({
   keterangan,
   status,
   onStatusChange,
+  onKeteranganChange,
 }: KeteranganStatusSectionProps) {
   return (
     <div className="space-y-4 rounded-lg border p-4">
@@ -31,7 +33,8 @@ export function KeteranganStatusSection({
           <Textarea
             id="keterangan"
             name="keterangan"
-            defaultValue={keterangan || ""}
+            value={keterangan || ""}
+            onChange={(e) => onKeteranganChange?.(e.target.value)}
             rows={3}
           />
         </div>

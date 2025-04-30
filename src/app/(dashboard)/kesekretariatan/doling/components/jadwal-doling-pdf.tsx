@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { JadwalDoling } from "../types";
-import { Document, Page, Text, View, StyleSheet, PDFViewer } from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet, PDFViewer, PDFDownloadLink } from "@react-pdf/renderer";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
+import { Button } from "@/components/ui/button";
+import { DownloadIcon } from "lucide-react";
 
 // Create styles
 const styles = StyleSheet.create({
@@ -99,13 +102,14 @@ interface JadwalDolingPDFProps {
   endYear: number;
 }
 
-export function JadwalDolingPDF({
+// Buat komponen PDF dokumen terpisah agar bisa dipakai di PDFViewer dan PDFDownloadLink
+const PDFDocument = ({
   jadwal,
   startMonth,
   startYear,
   endMonth,
   endYear,
-}: JadwalDolingPDFProps) {
+}: JadwalDolingPDFProps) => {
   // Filter jadwal berdasarkan rentang tanggal
   const filteredJadwal = jadwal.filter((item) => {
     const itemDate = item.tanggal;
@@ -129,73 +133,120 @@ export function JadwalDolingPDF({
   };
 
   return (
-    <PDFViewer style={{ width: "100%", height: "700px" }}>
-      <Document>
-        <Page size="A4" style={styles.page}>
-          <Text style={styles.templateLabel}>TEMPLATE JADWAL DOLING</Text>
-          <Text style={styles.title}>JADWAL TUAN RUMAH DOA LINGKUNGAN ST. AGATHA</Text>
-          <Text style={styles.subtitle}>
-            {formatPeriode()}
-          </Text>
+    <Document>
+      <Page size="A4" style={styles.page}>
+        <Text style={styles.templateLabel}>TEMPLATE JADWAL DOLING</Text>
+        <Text style={styles.title}>JADWAL TUAN RUMAH DOA LINGKUNGAN ST. AGATHA</Text>
+        <Text style={styles.subtitle}>
+          {formatPeriode()}
+        </Text>
 
-          <View style={styles.table}>
+        <View style={styles.table}>
+          <View style={styles.tableRow}>
+            <View style={styles.tableColHeader}>
+              <Text style={styles.tableCellHeader}>Calon Tuan Rumah</Text>
+            </View>
+            <View style={styles.tableColHeader}>
+              <Text style={styles.tableCellHeader}>Tanggal Di Jadwalkan</Text>
+            </View>
+            <View style={styles.tableColHeader}>
+              <Text style={styles.tableCellHeader}>Alamat</Text>
+            </View>
+            <View style={styles.tableColHeader}>
+              <Text style={styles.tableCellHeader}>Keterangan</Text>
+            </View>
+          </View>
+
+          {filteredJadwal.length > 0 ? (
+            filteredJadwal.map((item, index) => (
+              <View key={index} style={styles.tableRow}>
+                <View style={styles.tableCol}>
+                  <Text style={styles.tableCell}>{item.tuanRumah}</Text>
+                </View>
+                <View style={styles.tableCol}>
+                  <Text style={styles.tableCell}>
+                    {format(item.tanggal, "dd MMMM yyyy", { locale: id })} {item.waktu} WIB
+                  </Text>
+                </View>
+                <View style={styles.tableCol}>
+                  <Text style={styles.tableCell}>{item.alamat}</Text>
+                </View>
+                <View style={styles.tableCol}>
+                  <Text style={styles.tableCell}>{item.catatan || "-"}</Text>
+                </View>
+              </View>
+            ))
+          ) : (
             <View style={styles.tableRow}>
-              <View style={styles.tableColHeader}>
-                <Text style={styles.tableCellHeader}>Calon Tuan Rumah</Text>
-              </View>
-              <View style={styles.tableColHeader}>
-                <Text style={styles.tableCellHeader}>Tanggal Di Jadwalkan</Text>
-              </View>
-              <View style={styles.tableColHeader}>
-                <Text style={styles.tableCellHeader}>Alamat</Text>
-              </View>
-              <View style={styles.tableColHeader}>
-                <Text style={styles.tableCellHeader}>Keterangan</Text>
+              <View style={[styles.tableCol, { width: "100%" }]}>
+                <Text style={styles.tableCell}>Tidak ada jadwal di periode ini</Text>
               </View>
             </View>
+          )}
+        </View>
 
-            {filteredJadwal.length > 0 ? (
-              filteredJadwal.map((item, index) => (
-                <View key={index} style={styles.tableRow}>
-                  <View style={styles.tableCol}>
-                    <Text style={styles.tableCell}>{item.tuanRumah}</Text>
-                  </View>
-                  <View style={styles.tableCol}>
-                    <Text style={styles.tableCell}>
-                      {format(item.tanggal, "dd MMMM yyyy", { locale: id })} {item.waktu} WIB
-                    </Text>
-                  </View>
-                  <View style={styles.tableCol}>
-                    <Text style={styles.tableCell}>{item.alamat}</Text>
-                  </View>
-                  <View style={styles.tableCol}>
-                    <Text style={styles.tableCell}>{item.catatan || "-"}</Text>
-                  </View>
-                </View>
-              ))
-            ) : (
-              <View style={styles.tableRow}>
-                <View style={[styles.tableCol, { width: "100%" }]}>
-                  <Text style={styles.tableCell}>Tidak ada jadwal di periode ini</Text>
-                </View>
-              </View>
-            )}
+        <View style={styles.signatureSection}>
+          <View style={styles.signatureCol}>
+            <Text style={styles.signatureLabel}>Disusun Oleh,</Text>
+            <View style={styles.signatureLine} />
+            <Text style={styles.signatureText}>Ketua / Wakil Ketua Lingkungan</Text>
           </View>
+          <View style={styles.signatureCol}>
+            <Text style={styles.signatureLabel}>Dipublikasikan Oleh,</Text>
+            <View style={styles.signatureLine} />
+            <Text style={styles.signatureText}>Sekretaris/Wakil Sekretaris Lingkungan</Text>
+          </View>
+        </View>
+      </Page>
+    </Document>
+  );
+};
 
-          <View style={styles.signatureSection}>
-            <View style={styles.signatureCol}>
-              <Text style={styles.signatureLabel}>Disusun Oleh,</Text>
-              <View style={styles.signatureLine} />
-              <Text style={styles.signatureText}>Ketua / Wakil Ketua Lingkungan</Text>
-            </View>
-            <View style={styles.signatureCol}>
-              <Text style={styles.signatureLabel}>Dipublikasikan Oleh,</Text>
-              <View style={styles.signatureLine} />
-              <Text style={styles.signatureText}>Sekretaris/Wakil Sekretaris Lingkungan</Text>
-            </View>
-          </View>
-        </Page>
-      </Document>
-    </PDFViewer>
+export function JadwalDolingPDF(props: JadwalDolingPDFProps) {
+  const [isDownloadReady, setIsDownloadReady] = useState(false);
+
+  // Format nama file download
+  const getFileName = () => {
+    const { startMonth, startYear, endMonth, endYear } = props;
+    const startMonthName = format(new Date(startYear, startMonth - 1, 1), "MMM", { locale: id });
+    const endMonthName = format(new Date(endYear, endMonth - 1, 1), "MMM", { locale: id });
+    
+    if (startYear === endYear && startMonth === endMonth) {
+      return `Jadwal_Doling_${startMonthName}_${startYear}.pdf`;
+    } else if (startYear === endYear) {
+      return `Jadwal_Doling_${startMonthName}-${endMonthName}_${startYear}.pdf`;
+    } else {
+      return `Jadwal_Doling_${startMonthName}${startYear}-${endMonthName}${endYear}.pdf`;
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Tombol Download */}
+      <div className="text-right">
+        <PDFDownloadLink 
+          document={<PDFDocument {...props} />} 
+          fileName={getFileName()}
+          className="inline-flex"
+        >
+          {({ loading, error }) => 
+            <Button 
+              variant="outline" 
+              disabled={loading} 
+              className="gap-2"
+              onMouseEnter={() => setIsDownloadReady(true)}
+            >
+              <DownloadIcon className="h-4 w-4" />
+              {loading ? "Menyiapkan..." : "Download PDF"}
+            </Button>
+          }
+        </PDFDownloadLink>
+      </div>
+
+      {/* PDF Preview */}
+      <PDFViewer style={{ width: "100%", height: "70vh", maxHeight: "600px" }}>
+        <PDFDocument {...props} />
+      </PDFViewer>
+    </div>
   );
 } 

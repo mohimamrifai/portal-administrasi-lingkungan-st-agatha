@@ -43,6 +43,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface JadwalDolingTableProps {
   jadwal: JadwalDoling[];
@@ -55,6 +61,8 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete }: JadwalDolingTabl
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [selectedJadwal, setSelectedJadwal] = useState<JadwalDoling | null>(null);
   const itemsPerPage = 5;
   
   // Hitung tanggal saat ini untuk memfilter jadwal yang segera datang
@@ -125,19 +133,25 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete }: JadwalDolingTabl
         return null;
     }
   };
+  
+  // Buka dialog detail
+  const openDetailDialog = (item: JadwalDoling) => {
+    setSelectedJadwal(item);
+    setShowDetailDialog(true);
+  };
 
   return (
     <div className="space-y-6">
       {/* Upcoming Events Card */}
       {upcomingJadwal.length > 0 && (
-        <Card className="border-primary/20 bg-primary/5">
-          <CardHeader>
+        <Card className="border-primary/20 bg-primary/5 gap-2 p-2">
+          <CardHeader className="px-0">
             <CardTitle className="flex items-center text-base text-primary">
               <CalendarIcon className="h-4 w-4 mr-2" />
               Akan Datang dalam 2 Minggu
             </CardTitle>
           </CardHeader>
-          <CardContent className="pb-4">
+          <CardContent className="px-0">
             <div className="grid gap-4">
               {upcomingJadwal.slice(0, 3).map((item) => (
                 <div 
@@ -159,7 +173,7 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete }: JadwalDolingTabl
                       variant="outline"
                       size="sm"
                       className="h-8"
-                      onClick={() => onEdit(item)}
+                      onClick={() => openDetailDialog(item)}
                     >
                       Detail
                     </Button>
@@ -170,6 +184,68 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete }: JadwalDolingTabl
           </CardContent>
         </Card>
       )}
+      
+      {/* Dialog Detail Jadwal */}
+      <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Detail Jadwal Doa Lingkungan</DialogTitle>
+          </DialogHeader>
+          
+          {selectedJadwal && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="text-sm font-semibold">Tanggal</h4>
+                  <p>{format(selectedJadwal.tanggal, "dd MMMM yyyy", { locale: id })}</p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold">Waktu</h4>
+                  <p>{selectedJadwal.waktu} WIB</p>
+                </div>
+              </div>
+              
+              <div>
+                <h4 className="text-sm font-semibold">Tuan Rumah</h4>
+                <p>{selectedJadwal.tuanRumah}</p>
+              </div>
+              
+              <div>
+                <h4 className="text-sm font-semibold">Alamat</h4>
+                <p>{selectedJadwal.alamat}</p>
+              </div>
+              
+              {selectedJadwal.noTelepon && (
+                <div>
+                  <h4 className="text-sm font-semibold">Nomor Telepon</h4>
+                  <p>{selectedJadwal.noTelepon}</p>
+                </div>
+              )}
+              
+              <div>
+                <h4 className="text-sm font-semibold">Status</h4>
+                <div className="mt-1">{getStatusBadge(selectedJadwal.status)}</div>
+              </div>
+              
+              {selectedJadwal.catatan && (
+                <div>
+                  <h4 className="text-sm font-semibold">Catatan</h4>
+                  <p>{selectedJadwal.catatan}</p>
+                </div>
+              )}
+              
+              <div className="flex justify-center pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowDetailDialog(false)}
+                >
+                  Tutup
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
       
       {/* Filter Controls */}
       <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 justify-between items-start sm:items-center">

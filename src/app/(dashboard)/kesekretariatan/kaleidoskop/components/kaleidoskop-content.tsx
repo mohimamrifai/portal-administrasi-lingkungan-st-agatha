@@ -2,7 +2,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { KaleidoskopData } from "../types";
 import { 
   UsersIcon, 
   CalendarIcon, 
@@ -22,18 +21,38 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useState } from "react";
+import { useAuth } from "@/contexts/auth-context";
+import { ROLES } from "@/contexts/auth-context";
 
-interface KaleidoskopContentProps {
-  data: KaleidoskopData;
+// Definisi tipe
+export interface KaleidoskopData {
+  totalKegiatan: number;
+  rataRataKehadiran: number;
+  totalKKAktif: number;
 }
 
-export function KaleidoskopContent({ data }: KaleidoskopContentProps) {
+export function KaleidoskopContent() {
+  const { userRole } = useAuth();
   const [selectedYear, setSelectedYear] = useState("2024");
+  
+  // Memeriksa apakah pengguna memiliki akses
+  const hasAccess = [
+    ROLES.SUPER_USER,
+    ROLES.SEKRETARIS,
+    ROLES.WAKIL_SEKRETARIS,
+  ].includes(userRole);
+  
+  // Data untuk simulasi
+  const data: KaleidoskopData = {
+    totalKegiatan: 48,
+    rataRataKehadiran: 83,
+    totalKKAktif: 42
+  };
   
   // Mock data untuk visualisasi dan tabel
   const yearOptions = ["2024", "2023", "2022"];
   
-  // Data per bulan untuk grafik (akan digantikan dengan data dari API)
+  // Data per bulan untuk grafik
   const bulanData = [
     { bulan: "Jan", kehadiran: 85, kegiatan: 4 },
     { bulan: "Feb", kehadiran: 78, kegiatan: 4 },
@@ -86,6 +105,20 @@ export function KaleidoskopContent({ data }: KaleidoskopContentProps) {
     const total = bulanData.reduce((sum, item) => sum + item.kehadiran, 0);
     return (total / bulanData.length).toFixed(1);
   };
+  
+  // Jika pengguna tidak memiliki akses, tampilkan pesan
+  if (!hasAccess) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[50vh]">
+        <h2 className="text-2xl font-bold mb-2">Akses Terbatas</h2>
+        <p className="text-muted-foreground text-center">
+          Maaf, Anda tidak memiliki akses untuk melihat halaman Kaleidoskop.
+          <br />
+          Hanya SuperUser, Sekretaris, dan Wakil Sekretaris yang dapat mengakses halaman ini.
+        </p>
+      </div>
+    );
+  }
   
   return (
     <div className="space-y-6">
@@ -248,16 +281,16 @@ export function KaleidoskopContent({ data }: KaleidoskopContentProps) {
                       <Badge variant="outline">Agustus</Badge>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      Tingkat kehadiran sebesar 70% (33 dari 47 KK hadir)
+                      Tingkat kehadiran sebesar 70% (34 dari 48 KK hadir)
                     </div>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <div className="text-sm font-medium">Rata-rata Tingkat Kehadiran</div>
+                      <div className="text-sm font-medium">Rata-rata Kehadiran Tahunan</div>
                       <Badge variant="outline">{calculateAverageAttendance()}%</Badge>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      Total kegiatan yang dilaksanakan sebanyak 48 kali
+                      Mengalami kenaikan 3.5% dari tahun sebelumnya
                     </div>
                   </div>
                 </div>
@@ -265,45 +298,30 @@ export function KaleidoskopContent({ data }: KaleidoskopContentProps) {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Distribusi Kehadiran</CardTitle>
-                <CardDescription>Sebaran tingkat kehadiran KK</CardDescription>
+                <CardTitle>Tren dan Pola Kehadiran</CardTitle>
+                <CardDescription>Insight berdasarkan analisis data</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-medium">Hadir &gt;80%</div>
-                      <Badge variant="success">20 KK</Badge>
-                    </div>
-                    <div className="w-full h-2 rounded-full bg-gray-100">
-                      <div className="h-2 rounded-full bg-green-500" style={{ width: "30%" }}></div>
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium">Tren Tahunan</div>
+                    <div className="text-sm text-muted-foreground">
+                      Terjadi peningkatan partisipasi pada bulan-bulan menjelang akhir tahun, 
+                      terutama di November dan Desember.
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-medium">Hadir 60-80%</div>
-                      <Badge variant="default">15 KK</Badge>
-                    </div>
-                    <div className="w-full h-2 rounded-full bg-gray-100">
-                      <div className="h-2 rounded-full bg-blue-500" style={{ width: "22%" }}></div>
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium">Pola Musiman</div>
+                    <div className="text-sm text-muted-foreground">
+                      Kehadiran cenderung menurun pada bulan liburan sekolah (Juli-Agustus) 
+                      dan meningkat setelahnya.
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-medium">Hadir 40-60%</div>
-                      <Badge variant="outline">10 KK</Badge>
-                    </div>
-                    <div className="w-full h-2 rounded-full bg-gray-100">
-                      <div className="h-2 rounded-full bg-yellow-500" style={{ width: "15%" }}></div>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-medium">Hadir &lt;40%</div>
-                      <Badge variant="destructive">5 KK</Badge>
-                    </div>
-                    <div className="w-full h-2 rounded-full bg-gray-100">
-                      <div className="h-2 rounded-full bg-red-500" style={{ width: "7%" }}></div>
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium">Faktor Pengaruh</div>
+                    <div className="text-sm text-muted-foreground">
+                      Pertemuan dengan tema khusus (perayaan) memiliki tingkat kehadiran 
+                      15% lebih tinggi dibanding pertemuan reguler.
                     </div>
                   </div>
                 </div>
@@ -316,32 +334,38 @@ export function KaleidoskopContent({ data }: KaleidoskopContentProps) {
         <TabsContent value="top-kk">
           <Card>
             <CardHeader>
-              <CardTitle>10 Kepala Keluarga Paling Aktif</CardTitle>
+              <CardTitle>KK dengan Tingkat Kehadiran Tertinggi</CardTitle>
               <CardDescription>
-                Berdasarkan tingkat kehadiran dalam kegiatan doa lingkungan
+                10 Kepala Keluarga dengan partisipasi terbaik selama tahun {selectedYear}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-muted/50">
-                      <th className="p-2 text-left font-medium">No</th>
-                      <th className="p-2 text-left font-medium">Nama Kepala Keluarga</th>
-                      <th className="p-2 text-left font-medium">Kehadiran</th>
-                      <th className="p-2 text-left font-medium">Persentase</th>
+              <div className="relative overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs uppercase bg-muted/50">
+                    <tr>
+                      <th scope="col" className="px-4 py-3">No</th>
+                      <th scope="col" className="px-4 py-3">Nama</th>
+                      <th scope="col" className="px-4 py-3">Kehadiran</th>
+                      <th scope="col" className="px-4 py-3">Persentase</th>
                     </tr>
                   </thead>
                   <tbody>
                     {topKK.map((kk, index) => (
-                      <tr key={index} className="border-t hover:bg-muted/50">
-                        <td className="p-2">{index + 1}</td>
-                        <td className="p-2 font-medium">{kk.nama}</td>
-                        <td className="p-2">{kk.hadir} dari 48</td>
-                        <td className="p-2">
-                          <Badge variant={kk.persentase >= 80 ? "success" : kk.persentase >= 60 ? "default" : kk.persentase >= 40 ? "outline" : "destructive"}>
-                            {kk.persentase}%
-                          </Badge>
+                      <tr key={index} className="border-b">
+                        <td className="px-4 py-2">{index + 1}</td>
+                        <td className="px-4 py-2 font-medium">{kk.nama}</td>
+                        <td className="px-4 py-2">{kk.hadir} / 48</td>
+                        <td className="px-4 py-2">
+                          <div className="flex items-center">
+                            <span className="mr-2">{kk.persentase}%</span>
+                            <div className="w-[100px] bg-muted rounded-full h-2 mr-2">
+                              <div
+                                className="bg-primary h-2 rounded-full"
+                                style={{ width: `${kk.persentase}%` }}
+                              ></div>
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -356,37 +380,52 @@ export function KaleidoskopContent({ data }: KaleidoskopContentProps) {
         <TabsContent value="bottom-kk">
           <Card>
             <CardHeader>
-              <CardTitle>5 Kepala Keluarga Paling Tidak Aktif</CardTitle>
+              <CardTitle>KK dengan Tingkat Kehadiran Terendah</CardTitle>
               <CardDescription>
-                Berdasarkan tingkat ketidakhadiran dalam kegiatan doa lingkungan
+                5 Kepala Keluarga dengan partisipasi terendah selama tahun {selectedYear}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-muted/50">
-                      <th className="p-2 text-left font-medium">No</th>
-                      <th className="p-2 text-left font-medium">Nama Kepala Keluarga</th>
-                      <th className="p-2 text-left font-medium">Kehadiran</th>
-                      <th className="p-2 text-left font-medium">Persentase</th>
+              <div className="relative overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs uppercase bg-muted/50">
+                    <tr>
+                      <th scope="col" className="px-4 py-3">No</th>
+                      <th scope="col" className="px-4 py-3">Nama</th>
+                      <th scope="col" className="px-4 py-3">Kehadiran</th>
+                      <th scope="col" className="px-4 py-3">Persentase</th>
                     </tr>
                   </thead>
                   <tbody>
                     {bottomKK.map((kk, index) => (
-                      <tr key={index} className="border-t hover:bg-muted/50">
-                        <td className="p-2">{index + 1}</td>
-                        <td className="p-2 font-medium">{kk.nama}</td>
-                        <td className="p-2">{kk.hadir} dari 48</td>
-                        <td className="p-2">
-                          <Badge variant={kk.persentase >= 80 ? "success" : kk.persentase >= 60 ? "default" : kk.persentase >= 40 ? "outline" : "destructive"}>
-                            {kk.persentase}%
-                          </Badge>
+                      <tr key={index} className="border-b">
+                        <td className="px-4 py-2">{index + 1}</td>
+                        <td className="px-4 py-2 font-medium">{kk.nama}</td>
+                        <td className="px-4 py-2">{kk.hadir} / 48</td>
+                        <td className="px-4 py-2">
+                          <div className="flex items-center">
+                            <span className="mr-2">{kk.persentase}%</span>
+                            <div className="w-[100px] bg-muted rounded-full h-2 mr-2">
+                              <div
+                                className="bg-destructive h-2 rounded-full"
+                                style={{ width: `${kk.persentase}%` }}
+                              ></div>
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+              <div className="mt-4 p-4 bg-muted/50 rounded-md">
+                <h4 className="font-medium mb-2">Rekomendasi Tindak Lanjut</h4>
+                <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
+                  <li>Melakukan kunjungan pastoral oleh ketua lingkungan</li>
+                  <li>Mengundang secara personal untuk kegiatan selanjutnya</li>
+                  <li>Menanyakan kebutuhan dan kendala yang dihadapi</li>
+                  <li>Mempertimbangkan lokasi yang lebih mudah dijangkau</li>
+                </ul>
               </div>
             </CardContent>
           </Card>
@@ -396,37 +435,44 @@ export function KaleidoskopContent({ data }: KaleidoskopContentProps) {
         <TabsContent value="lokasi">
           <Card>
             <CardHeader>
-              <CardTitle>Lokasi Doa Lingkungan Terbanyak</CardTitle>
+              <CardTitle>Lokasi Pelaksanaan Doa Lingkungan</CardTitle>
               <CardDescription>
-                Berdasarkan frekuensi penggunaan rumah sebagai tempat doa lingkungan
+                KK yang paling sering menjadi tuan rumah selama tahun {selectedYear}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-muted/50">
-                      <th className="p-2 text-left font-medium">No</th>
-                      <th className="p-2 text-left font-medium">Nama Tuan Rumah</th>
-                      <th className="p-2 text-left font-medium">Alamat</th>
-                      <th className="p-2 text-left font-medium">Frekuensi</th>
+              <div className="relative overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs uppercase bg-muted/50">
+                    <tr>
+                      <th scope="col" className="px-4 py-3">No</th>
+                      <th scope="col" className="px-4 py-3">Nama</th>
+                      <th scope="col" className="px-4 py-3">Alamat</th>
+                      <th scope="col" className="px-4 py-3">Frekuensi</th>
                     </tr>
                   </thead>
                   <tbody>
                     {lokasiDoling.map((lokasi, index) => (
-                      <tr key={index} className="border-t hover:bg-muted/50">
-                        <td className="p-2">{index + 1}</td>
-                        <td className="p-2 font-medium">{lokasi.nama}</td>
-                        <td className="p-2">{lokasi.alamat}</td>
-                        <td className="p-2">
-                          <Badge variant="outline">
-                            {lokasi.frekuensi} kali
-                          </Badge>
-                        </td>
+                      <tr key={index} className="border-b">
+                        <td className="px-4 py-2">{index + 1}</td>
+                        <td className="px-4 py-2 font-medium">{lokasi.nama}</td>
+                        <td className="px-4 py-2">{lokasi.alamat}</td>
+                        <td className="px-4 py-2">{lokasi.frekuensi}x</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+              <div className="mt-4">
+                <div className="text-sm font-medium mb-2">Distribusi Lokasi</div>
+                <div className="text-sm text-muted-foreground">
+                  <p>Dari total 48 kegiatan doa lingkungan:</p>
+                  <ul className="list-disc pl-5 mt-1 space-y-1">
+                    <li>23 kepala keluarga (34%) telah menjadi tuan rumah minimal 1 kali</li>
+                    <li>5 kepala keluarga (7%) menjadi tuan rumah lebih dari 2 kali</li>
+                    <li>45 kepala keluarga (66%) belum pernah menjadi tuan rumah</li>
+                  </ul>
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -41,7 +41,7 @@ export function FilterSection({
   onShowSudahTerpilihChange,
 }: FilterSectionProps) {
   return (
-    <Card>
+    <Card className="gap-0">
       <CardHeader>
         <CardTitle className="text-md font-medium">Filter & Pencarian</CardTitle>
       </CardHeader>

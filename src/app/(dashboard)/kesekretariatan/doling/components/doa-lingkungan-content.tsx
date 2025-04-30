@@ -6,7 +6,6 @@ import { JadwalDolingTable } from "./jadwal-doling-table";
 import { DetilDolingTable } from "./detil-doling-table";
 import { AbsensiDolingTable } from "./absensi-doling-table";
 import { RiwayatDolingContent } from "./riwayat-doling-content";
-import { KaleidoskopContent } from "./kaleidoskop-content";
 import { JadwalDolingFormDialog } from "./jadwal-doling-form-dialog";
 import { DetilDolingFormDialog } from "./detail-dolling-form-dialog";
 import { AbsensiDolingFormDialog } from "./absensi-doling-form-dialog";
@@ -34,7 +33,6 @@ import {
     kepalaKeluargaData,
     riwayatDolingData,
     rekapitulasiData,
-    kaleidoskopData
 } from "../utils/mock-data";
 
 import { setupReminderNotifications } from "../utils/reminder-notifications";
@@ -272,24 +270,21 @@ export function DoaLingkunganContent() {
         }
     };
 
+    // Render tab menu
     return (
         <div className="space-y-6">
-            {/* Header and action buttons */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <h1 className="text-2xl font-bold">Doa Lingkungan (Doling)</h1>
-            </div>
-
-            {/* Summary cards */}
+            <h2 className="text-2xl font-bold">Doa Lingkungan</h2>
+            
+            {/* Summary Cards */}
             <JadwalDolingCards jadwalState={jadwalState} />
-
-            {/* Main content tabs */}
+            
+            {/* Main Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                <TabsList className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 h-auto flex-wrap">
+                <TabsList className="">
                     <TabsTrigger value="jadwal-doling" className="text-xs sm:text-sm py-2">Jadwal</TabsTrigger>
                     <TabsTrigger value="detil-doling" className="text-xs sm:text-sm py-2">Detil</TabsTrigger>
                     <TabsTrigger value="absensi-doling" className="text-xs sm:text-sm py-2">Absensi</TabsTrigger>
                     <TabsTrigger value="riwayat-doling" className="text-xs sm:text-sm py-2">Riwayat</TabsTrigger>
-                    <TabsTrigger value="kaleidoskop" className="text-xs sm:text-sm py-2">Kaleidoskop</TabsTrigger>
                 </TabsList>
 
                 {/* Jadwal Doling Tab */}
@@ -339,21 +334,15 @@ export function DoaLingkunganContent() {
                         absensiDolingData={absensiState}
                     />
                 </TabsContent>
-
-                {/* Kaleidoskop Tab */}
-                <TabsContent value="kaleidoskop">
-                    <KaleidoskopContent data={kaleidoskopData} />
-                </TabsContent>
             </Tabs>
 
-            {/* Dialogs */}
+            {/* Dialog Forms */}
             <JadwalDolingFormDialog
                 open={jadwalFormOpen}
                 onOpenChange={setJadwalFormOpen}
                 jadwal={editingJadwal}
                 onSubmit={handleSubmitJadwal}
             />
-
             <DetilDolingFormDialog
                 open={detilFormOpen}
                 onOpenChange={setDetilFormOpen}
@@ -361,7 +350,6 @@ export function DoaLingkunganContent() {
                 onSubmit={handleSubmitDetil}
                 jadwalDoling={jadwalState}
             />
-
             <AbsensiDolingFormDialog
                 open={absensiFormOpen}
                 onOpenChange={setAbsensiFormOpen}
@@ -369,17 +357,14 @@ export function DoaLingkunganContent() {
                 onSubmit={handleSubmitAbsensi}
                 detilDoling={detilState}
             />
-
             <PrintJadwalDialog
                 open={printJadwalOpen}
                 onOpenChange={setPrintJadwalOpen}
                 jadwal={jadwalState}
                 onPrint={handleGeneratePDF}
             />
-
-            {/* PDF Preview Dialog */}
             <Dialog open={showPDFPreview} onOpenChange={setShowPDFPreview}>
-                <DialogContent className="max-w-5xl max-h-screen">
+                <DialogContent className="max-w-5xl max-h-screen overflow-auto">
                     <DialogHeader>
                         <DialogTitle>Preview PDF Jadwal Doling</DialogTitle>
                     </DialogHeader>

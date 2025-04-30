@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/card";
 import { JadwalDoling } from "../types";
 import { ReactNode } from "react";
+import { Calendar, CheckCircle, Clock } from "lucide-react";
 
 interface SummaryCardProps {
   title: string;
@@ -58,21 +59,24 @@ export function JadwalDolingCards({ jadwalState, className = "" }: JadwalDolingC
         title="Total Jadwal"
         value={jadwalState.length}
         subtitle="Semua periode"
-        className="bg-blue-50"
+        icon={<Calendar className="h-4 w-4 text-blue-600" />}
+        className="bg-blue-50 gap-0"
       />
 
       <SummaryCard
         title="Jadwal Selesai"
         value={jadwalState.filter(j => j.status === "selesai").length}
         subtitle={`Dari total ${jadwalState.length} jadwal`}
-        className="bg-green-50"
+        icon={<CheckCircle className="h-4 w-4 text-green-600" />}
+        className="bg-green-50 gap-0"
       />
 
       <SummaryCard
         title="Jadwal Mendatang"
         value={jadwalState.filter(j => j.status === "terjadwal").length}
         subtitle="Jadwal yang akan dilaksanakan"
-        className="bg-yellow-50"
+        icon={<Clock className="h-4 w-4 text-yellow-600" />}
+        className="bg-yellow-50 gap-0"
       />
     </div>
   );

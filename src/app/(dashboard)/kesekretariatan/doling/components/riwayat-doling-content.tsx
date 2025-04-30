@@ -173,7 +173,7 @@ export function RiwayatDolingContent({
       </div>
       
       {/* Visualisasi Trend Kehadiran */}
-      <Card>
+      <Card className="pb-0">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUpIcon className="h-5 w-5 text-primary" />
@@ -182,7 +182,7 @@ export function RiwayatDolingContent({
           <CardDescription>Persentase kehadiran anggota dalam 6 bulan terakhir</CardDescription>
         </CardHeader>
         <CardContent className="p-2 sm:p-6">
-          <div className="h-60 sm:h-80 w-full">
+          <div className="w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={chartData}
@@ -255,167 +255,154 @@ export function RiwayatDolingContent({
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="grid grid-cols-6 gap-2 text-center mt-1">
-            {chartData.map((item, index) => (
-              <div key={index} className="text-xs text-muted-foreground">
-                <span className="font-medium">{item.jumlahKegiatan}x</span>
-              </div>
-            ))}
+        </CardContent>
+      </Card>
+      
+      {/* Rekapitulasi Kehadiran */}
+      <Card className="overflow-hidden gap-0">
+        <CardHeader className="px-3">
+          <div className="flex justify-between items-center">
+            <CardTitle>Rekapitulasi Kehadiran</CardTitle>
+            <div className="flex gap-2">
+              <Select
+                value={sortBy}
+                onValueChange={setSortBy}
+              >
+                <SelectTrigger className="w-[100px] sm:w-[120px]">
+                  <SelectValue placeholder="Urutkan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nama">Nama</SelectItem>
+                  <SelectItem value="kehadiran">Total Hadir</SelectItem>
+                  <SelectItem value="persentase">Persentase</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                className="h-8 w-8 sm:h-9 sm:w-9"
+              >
+                {sortOrder === "asc" ? "↑" : "↓"}
+              </Button>
+            </div>
+          </div>
+          
+          <div className="relative mt-2 mb-3">
+            <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Cari anggota..."
+              className="pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <Button
+                variant="ghost"
+                className="absolute right-0 top-0 h-9 w-9 p-0"
+                onClick={() => setSearchTerm("")}
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Clear search</span>
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="p-2 md:p-6">
+          <div className="overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nama</TableHead>
+                  <TableHead className="text-center">Total Hadir</TableHead>
+                  <TableHead className="text-center">Persentase</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedRiwayat.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-2 text-muted-foreground">
+                      Tidak ada data yang sesuai dengan pencarian
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  sortedRiwayat.map((item, index) => (
+                    <TableRow key={index}>
+                      <TableCell className="font-medium">{item.nama}</TableCell>
+                      <TableCell className="text-center">{item.totalHadir}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={getBadgeVariant(item.persentase)}>
+                          {item.persentase}%
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Rekapitulasi Kehadiran */}
-        <div className="space-y-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex justify-between items-center">
-                <CardTitle>Rekapitulasi Kehadiran</CardTitle>
-                <div className="flex gap-2">
-                  <Select
-                    value={sortBy}
-                    onValueChange={setSortBy}
-                  >
-                    <SelectTrigger className="w-[120px]">
-                      <SelectValue placeholder="Urutkan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="nama">Nama</SelectItem>
-                      <SelectItem value="kehadiran">Total Hadir</SelectItem>
-                      <SelectItem value="persentase">Persentase</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                    className="h-9 w-9"
-                  >
-                    {sortOrder === "asc" ? "↑" : "↓"}
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="relative mt-2">
-                <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Cari anggota..."
-                  className="pl-8"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                {searchTerm && (
-                  <Button
-                    variant="ghost"
-                    className="absolute right-0 top-0 h-9 w-9 p-0"
-                    onClick={() => setSearchTerm("")}
-                  >
-                    <X className="h-4 w-4" />
-                    <span className="sr-only">Clear search</span>
-                  </Button>
+      {/* Rekapitulasi Kegiatan */}
+      <Card className="overflow-hidden gap-0">
+        <CardHeader className="pb-0 px-3 pt-3 md:p-6">
+          <div className="flex justify-between items-center">
+            <CardTitle>Rekapitulasi Kegiatan</CardTitle>
+            <Select
+              value={selectedPeriode}
+              onValueChange={setSelectedPeriode}
+            >
+              <SelectTrigger className="w-[120px] sm:w-[150px]">
+                <SelectValue placeholder="Pilih Periode" />
+              </SelectTrigger>
+              <SelectContent>
+                {periodeOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent className="p-2 md:p-6">
+          <div className="overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Bulan</TableHead>
+                  <TableHead className="text-center">Jumlah Kegiatan</TableHead>
+                  <TableHead className="text-center">Rata-rata Hadir</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredRekapitulasi.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-2 text-muted-foreground">
+                      Tidak ada data untuk periode ini
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredRekapitulasi.map((item, index) => (
+                    <TableRow key={index}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                          {item.bulan}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">{item.jumlahKegiatan}</TableCell>
+                      <TableCell className="text-center">{item.rataRataHadir}</TableCell>
+                    </TableRow>
+                  ))
                 )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nama</TableHead>
-                      <TableHead className="text-center">Total Hadir</TableHead>
-                      <TableHead className="text-center">Persentase</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sortedRiwayat.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center py-6 text-muted-foreground">
-                          Tidak ada data yang sesuai dengan pencarian
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      sortedRiwayat.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell className="font-medium">{item.nama}</TableCell>
-                          <TableCell className="text-center">{item.totalHadir}</TableCell>
-                          <TableCell className="text-center">
-                            <Badge variant={getBadgeVariant(item.persentase)}>
-                              {item.persentase}%
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-        
-        {/* Rekapitulasi Kegiatan */}
-        <div className="space-y-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex justify-between items-center">
-                <CardTitle>Rekapitulasi Kegiatan</CardTitle>
-                <Select
-                  value={selectedPeriode}
-                  onValueChange={setSelectedPeriode}
-                >
-                  <SelectTrigger className="w-[150px]">
-                    <SelectValue placeholder="Pilih Periode" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {periodeOptions.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Bulan</TableHead>
-                      <TableHead className="text-center">Jumlah Kegiatan</TableHead>
-                      <TableHead className="text-center">Rata-rata Hadir</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredRekapitulasi.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center py-6 text-muted-foreground">
-                          Tidak ada data untuk periode ini
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredRekapitulasi.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                              {item.bulan}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center">{item.jumlahKegiatan}</TableCell>
-                          <TableCell className="text-center">{item.rataRataHadir}</TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
       
       {/* Dialog Cetak PDF */}
       <PrintRiwayatDialog 

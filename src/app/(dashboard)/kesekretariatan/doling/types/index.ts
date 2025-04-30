@@ -30,20 +30,29 @@ export interface DetilDoling {
   createdAt: Date
   updatedAt: Date
   // Data kehadiran
+  jumlahKKHadir?: number // Jumlah KK yang hadir
   jumlahBapak?: number
   jumlahIbu?: number
   jumlahOMK?: number
-  jumlahBIA?: number
+  jumlahBIAKecil?: number  // BIA (0-6 tahun)
+  jumlahBIABesar?: number  // BIA (7-13 tahun)
   jumlahBIR?: number
+  jumlahPeserta?: number   // Jumlah peserta (khusus Misa)
   // Data kolekte
   kolekte1?: number
   kolekte2?: number
   ucapanSyukur?: number
-  // Data petugas
+  // Data petugas untuk Doa Lingkungan
   pemimpinLiturgi?: string
   petugasRosario?: string
+  pembawaRenungan?: string  // Tambahan sesuai brief
   petugasLagu?: string
+  petugasDoaUmat?: string   // Tambahan sesuai brief
   petugasBacaan?: string
+  // Data petugas untuk Misa
+  pemimpinMisa?: string     // Tambahan sesuai brief
+  bacaanPertama?: string    // Tambahan sesuai brief
+  pemazmur?: string         // Tambahan sesuai brief
 }
 
 export interface AbsensiDoling {

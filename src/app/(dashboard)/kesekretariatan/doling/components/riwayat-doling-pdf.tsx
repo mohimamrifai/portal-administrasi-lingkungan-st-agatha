@@ -1,8 +1,11 @@
 "use client";
 
-import { Document, Page, Text, View, StyleSheet, PDFViewer } from "@react-pdf/renderer";
+import { useState } from "react";
+import { Document, Page, Text, View, StyleSheet, PDFViewer, PDFDownloadLink } from "@react-pdf/renderer";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
+import { Button } from "@/components/ui/button";
+import { DownloadIcon } from "lucide-react";
 
 // Create styles
 const styles = StyleSheet.create({
@@ -172,7 +175,8 @@ interface RiwayatDolingPDFProps {
   };
 }
 
-export function RiwayatDolingPDF({ data }: RiwayatDolingPDFProps) {
+// Komponen dokumen PDF
+const PDFDocument = ({ data }: RiwayatDolingPDFProps) => {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -186,184 +190,220 @@ export function RiwayatDolingPDF({ data }: RiwayatDolingPDFProps) {
   };
 
   return (
-    <PDFViewer style={{ width: "100%", height: "580px" }}>
-      <Document>
-        {/* Halaman 1: Lembar Administrasi */}
-        <Page size="A4" style={styles.page}>
-          <Text style={styles.pageLabel}>HALAMAN 1</Text>
+    <Document>
+      {/* Halaman 1: Lembar Administrasi */}
+      <Page size="A4" style={styles.page}>
+        <Text style={styles.pageLabel}>HALAMAN 1</Text>
+        
+        <Text style={styles.title}>LEMBAR ADMINISTRASI DOA LINGKUNGAN ST. AGATHA</Text>
+        
+        <View style={styles.formContainer}>
+          <View style={styles.formRow}>
+            <Text style={styles.formNumber}>1.</Text>
+            <Text style={styles.formLabel}>Tanggal</Text>
+            <Text style={styles.formValue}>: {formatDate(data.tanggal)}</Text>
+          </View>
+          <View style={styles.formRow}>
+            <Text style={styles.formNumber}>2.</Text>
+            <Text style={styles.formLabel}>Jenis Ibadat</Text>
+            <Text style={styles.formValue}>: {data.jenisIbadat}</Text>
+          </View>
+          <View style={styles.formRow}>
+            <Text style={styles.formNumber}>3.</Text>
+            <Text style={styles.formLabel}>Sub Ibadat</Text>
+            <Text style={styles.formValue}>: {data.subIbadat}</Text>
+          </View>
+          <View style={styles.formRow}>
+            <Text style={styles.formNumber}>4.</Text>
+            <Text style={styles.formLabel}>Tema Ibadat</Text>
+            <Text style={styles.formValue}>: {data.temaIbadat}</Text>
+          </View>
+          <View style={styles.formRow}>
+            <Text style={styles.formNumber}>5.</Text>
+            <Text style={styles.formLabel}>Tuan Rumah</Text>
+            <Text style={styles.formValue}>: {data.tuanRumah}</Text>
+          </View>
           
-          <Text style={styles.title}>LEMBAR ADMINISTRASI DOA LINGKUNGAN ST. AGATHA</Text>
+          <View style={styles.formSection}>
+            <View style={styles.formRow}>
+              <Text style={styles.formNumber}>6.</Text>
+              <Text style={styles.formLabel}>Statistik Umat</Text>
+            </View>
+            <View style={styles.formSubRow}>
+              <Text style={styles.formSubLabel}>a. Jumlah KK Hadir</Text>
+              <Text style={styles.formSubValue}>: {data.jumlahKK}</Text>
+            </View>
+            <View style={styles.formSubRow}>
+              <Text style={styles.formSubLabel}>b. Bapak</Text>
+              <Text style={styles.formSubValue}>: {data.jumlahBapak}</Text>
+            </View>
+            <View style={styles.formSubRow}>
+              <Text style={styles.formSubLabel}>c. Ibu</Text>
+              <Text style={styles.formSubValue}>: {data.jumlahIbu}</Text>
+            </View>
+            <View style={styles.formSubRow}>
+              <Text style={styles.formSubLabel}>d. OMK</Text>
+              <Text style={styles.formSubValue}>: {data.jumlahOMK}</Text>
+            </View>
+            <View style={styles.formSubRow}>
+              <Text style={styles.formSubLabel}>e. BIR</Text>
+              <Text style={styles.formSubValue}>: {data.jumlahBIR}</Text>
+            </View>
+            <View style={styles.formSubRow}>
+              <Text style={styles.formSubLabel}>f. BIA (0 s.d. 6 tahun)</Text>
+              <Text style={styles.formSubValue}>: {data.jumlahBIA}</Text>
+            </View>
+            <View style={styles.formSubRow}>
+              <Text style={styles.formSubLabel}>g. BIA (7-13 tahun)</Text>
+              <Text style={styles.formSubValue}>: {data.jumlahBIA713}</Text>
+            </View>
+          </View>
           
-          <View style={styles.formContainer}>
+          <View style={styles.formSection}>
             <View style={styles.formRow}>
-              <Text style={styles.formNumber}>1.</Text>
-              <Text style={styles.formLabel}>Tanggal</Text>
-              <Text style={styles.formValue}>: {formatDate(data.tanggal)}</Text>
+              <Text style={styles.formNumber}>7.</Text>
+              <Text style={styles.formLabel}>Penerimaan</Text>
             </View>
+            <View style={styles.formSubRow}>
+              <Text style={styles.formSubLabel}>a. Kolekte I</Text>
+              <Text style={styles.formSubValue}>: {formatCurrency(data.kolekte1)}</Text>
+            </View>
+            <View style={styles.formSubRow}>
+              <Text style={styles.formSubLabel}>b. Kolekte II</Text>
+              <Text style={styles.formSubValue}>: {formatCurrency(data.kolekte2)}</Text>
+            </View>
+            <View style={styles.formSubRow}>
+              <Text style={styles.formSubLabel}>c. Ucapan Syukur</Text>
+              <Text style={styles.formSubValue}>: {formatCurrency(data.ucapanSyukur)}</Text>
+            </View>
+          </View>
+          
+          <View style={styles.formSection}>
             <View style={styles.formRow}>
-              <Text style={styles.formNumber}>2.</Text>
-              <Text style={styles.formLabel}>Jenis Ibadat</Text>
-              <Text style={styles.formValue}>: {data.jenisIbadat}</Text>
+              <Text style={styles.formNumber}>8.</Text>
+              <Text style={styles.formLabel}>Keibadatan</Text>
             </View>
-            <View style={styles.formRow}>
-              <Text style={styles.formNumber}>3.</Text>
-              <Text style={styles.formLabel}>Sub Ibadat</Text>
-              <Text style={styles.formValue}>: {data.subIbadat}</Text>
+            <View style={styles.formSubRow}>
+              <Text style={styles.formSubLabel}>a. Pemimpin Ibadat</Text>
+              <Text style={styles.formSubValue}>: ______________________</Text>
             </View>
-            <View style={styles.formRow}>
-              <Text style={styles.formNumber}>4.</Text>
-              <Text style={styles.formLabel}>Tema Ibadat</Text>
-              <Text style={styles.formValue}>: {data.temaIbadat}</Text>
+            <View style={styles.formSubRow}>
+              <Text style={styles.formSubLabel}>b. Pemimpin Rosario</Text>
+              <Text style={styles.formSubValue}>: ______________________</Text>
             </View>
-            <View style={styles.formRow}>
-              <Text style={styles.formNumber}>5.</Text>
-              <Text style={styles.formLabel}>Tuan Rumah</Text>
-              <Text style={styles.formValue}>: {data.tuanRumah}</Text>
+            <View style={styles.formSubRow}>
+              <Text style={styles.formSubLabel}>c. Pembawa Renungan</Text>
+              <Text style={styles.formSubValue}>: ______________________</Text>
             </View>
-            
-            <View style={styles.formSection}>
-              <View style={styles.formRow}>
-                <Text style={styles.formNumber}>6.</Text>
-                <Text style={styles.formLabel}>Statistik Umat</Text>
-              </View>
-              <View style={styles.formSubRow}>
-                <Text style={styles.formSubLabel}>a. Jumlah KK Hadir</Text>
-                <Text style={styles.formSubValue}>: {data.jumlahKK}</Text>
-              </View>
-              <View style={styles.formSubRow}>
-                <Text style={styles.formSubLabel}>b. Bapak</Text>
-                <Text style={styles.formSubValue}>: {data.jumlahBapak}</Text>
-              </View>
-              <View style={styles.formSubRow}>
-                <Text style={styles.formSubLabel}>c. Ibu</Text>
-                <Text style={styles.formSubValue}>: {data.jumlahIbu}</Text>
-              </View>
-              <View style={styles.formSubRow}>
-                <Text style={styles.formSubLabel}>d. OMK</Text>
-                <Text style={styles.formSubValue}>: {data.jumlahOMK}</Text>
-              </View>
-              <View style={styles.formSubRow}>
-                <Text style={styles.formSubLabel}>e. BIR</Text>
-                <Text style={styles.formSubValue}>: {data.jumlahBIR}</Text>
-              </View>
-              <View style={styles.formSubRow}>
-                <Text style={styles.formSubLabel}>f. BIA (0 s.d. 6 tahun)</Text>
-                <Text style={styles.formSubValue}>: {data.jumlahBIA}</Text>
-              </View>
-              <View style={styles.formSubRow}>
-                <Text style={styles.formSubLabel}>g. BIA (7-13 tahun)</Text>
-                <Text style={styles.formSubValue}>: {data.jumlahBIA713}</Text>
-              </View>
+            <View style={styles.formSubRow}>
+              <Text style={styles.formSubLabel}>d. Pembawa Lagu</Text>
+              <Text style={styles.formSubValue}>: ______________________</Text>
             </View>
-            
-            <View style={styles.formSection}>
-              <View style={styles.formRow}>
-                <Text style={styles.formNumber}>7.</Text>
-                <Text style={styles.formLabel}>Penerimaan</Text>
-              </View>
-              <View style={styles.formSubRow}>
-                <Text style={styles.formSubLabel}>a. Kolekte I</Text>
-                <Text style={styles.formSubValue}>: {formatCurrency(data.kolekte1)}</Text>
-              </View>
-              <View style={styles.formSubRow}>
-                <Text style={styles.formSubLabel}>b. Kolekte II</Text>
-                <Text style={styles.formSubValue}>: {formatCurrency(data.kolekte2)}</Text>
-              </View>
-              <View style={styles.formSubRow}>
-                <Text style={styles.formSubLabel}>c. Ucapan Syukur</Text>
-                <Text style={styles.formSubValue}>: {formatCurrency(data.ucapanSyukur)}</Text>
-              </View>
+            <View style={styles.formSubRow}>
+              <Text style={styles.formSubLabel}>e. Doa Umat</Text>
+              <Text style={styles.formSubValue}>: ______________________</Text>
             </View>
-            
-            <View style={styles.formSection}>
-              <View style={styles.formRow}>
-                <Text style={styles.formNumber}>8.</Text>
-                <Text style={styles.formLabel}>Keibadatan</Text>
-              </View>
-              <View style={styles.formSubRow}>
-                <Text style={styles.formSubLabel}>a. Pemimpin Ibadat</Text>
-                <Text style={styles.formSubValue}>: ______________________</Text>
-              </View>
-              <View style={styles.formSubRow}>
-                <Text style={styles.formSubLabel}>b. Pemimpin Rosario</Text>
-                <Text style={styles.formSubValue}>: ______________________</Text>
-              </View>
-              <View style={styles.formSubRow}>
-                <Text style={styles.formSubLabel}>c. Pembawa Renungan</Text>
-                <Text style={styles.formSubValue}>: ______________________</Text>
-              </View>
-              <View style={styles.formSubRow}>
-                <Text style={styles.formSubLabel}>d. Pembawa Lagu</Text>
-                <Text style={styles.formSubValue}>: ______________________</Text>
-              </View>
-              <View style={styles.formSubRow}>
-                <Text style={styles.formSubLabel}>e. Doa Umat</Text>
-                <Text style={styles.formSubValue}>: ______________________</Text>
-              </View>
-              <View style={styles.formSubRow}>
-                <Text style={styles.formSubLabel}>f. Pemimpin Misa</Text>
-                <Text style={styles.formSubValue}>: ______________________</Text>
-              </View>
-              <View style={styles.formSubRow}>
-                <Text style={styles.formSubLabel}>g. Bacaan I</Text>
-                <Text style={styles.formSubValue}>: ______________________</Text>
-              </View>
-              <View style={styles.formSubRow}>
-                <Text style={styles.formSubLabel}>h. Pemazmur</Text>
-                <Text style={styles.formSubValue}>: ______________________</Text>
-              </View>
+            <View style={styles.formSubRow}>
+              <Text style={styles.formSubLabel}>f. Pemimpin Misa</Text>
+              <Text style={styles.formSubValue}>: ______________________</Text>
+            </View>
+            <View style={styles.formSubRow}>
+              <Text style={styles.formSubLabel}>g. Bacaan I</Text>
+              <Text style={styles.formSubValue}>: ______________________</Text>
+            </View>
+            <View style={styles.formSubRow}>
+              <Text style={styles.formSubLabel}>h. Pemazmur</Text>
+              <Text style={styles.formSubValue}>: ______________________</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.signatureSection}>
+          <View style={styles.signatureCol}>
+            <Text style={styles.signatureLabel}>Disusun Oleh,</Text>
+            <View style={styles.signatureLine} />
+            <Text style={styles.signatureText}>Sekretaris / Wakil Sekretaris Lingkungan</Text>
+          </View>
+          <View style={styles.signatureCol}>
+            <Text style={styles.signatureLabel}>Disetujui Oleh,</Text>
+            <View style={styles.signatureLine} />
+            <Text style={styles.signatureText}>Ketua/Wakil Ketua Lingkungan</Text>
+          </View>
+        </View>
+      </Page>
+
+      {/* Halaman 2: Lampiran Absensi */}
+      <Page size="A4" style={styles.page}>
+        <Text style={styles.pageLabel}>HALAMAN 2</Text>
+        
+        <Text style={styles.tableTitle}>LAMPIRAN LEMBAR ADMINISTRASI</Text>
+        <Text style={styles.tableSubtitle}>DOA LINGKUNGAN ST. AGATHA (ABSENSI)</Text>
+        
+        <View style={styles.table}>
+          <View style={styles.tableRow}>
+            <View style={styles.tableColHeader}>
+              <Text style={styles.tableCellHeader}>NAMA KEPALA KELUARGA</Text>
+            </View>
+            <View style={styles.tableColHeader}>
+              <Text style={styles.tableCellHeader}>KEHADIRAN (SUAMI + ISTRI)</Text>
             </View>
           </View>
 
-          <View style={styles.signatureSection}>
-            <View style={styles.signatureCol}>
-              <Text style={styles.signatureLabel}>Disusun Oleh,</Text>
-              <View style={styles.signatureLine} />
-              <Text style={styles.signatureText}>Sekretaris / Wakil Sekretaris Lingkungan</Text>
+          {data.kepalaKeluarga.map((kk, index) => (
+            <View key={index} style={styles.tableRow}>
+              <View style={styles.tableCol}>
+                <Text style={styles.tableCell}>{kk.nama}</Text>
+              </View>
+              <View style={styles.tableCol}>
+                <Text style={styles.tableCell}>
+                  {kk.status === 'hadir' ? 'Suami + istri hadir' : 
+                   kk.status === 'hanya_suami' ? 'Hanya Suami' : 
+                   kk.status === 'hanya_istri' ? 'Hanya Istri' : 
+                   'Tidak Hadir'}
+                </Text>
+              </View>
             </View>
-            <View style={styles.signatureCol}>
-              <Text style={styles.signatureLabel}>Disetujui Oleh,</Text>
-              <View style={styles.signatureLine} />
-              <Text style={styles.signatureText}>Ketua/Wakil Ketua Lingkungan</Text>
-            </View>
-          </View>
-        </Page>
+          ))}
+        </View>
+      </Page>
+    </Document>
+  );
+};
 
-        {/* Halaman 2: Lampiran Absensi */}
-        <Page size="A4" style={styles.page}>
-          <Text style={styles.pageLabel}>HALAMAN 2</Text>
-          
-          <Text style={styles.tableTitle}>LAMPIRAN LEMBAR ADMINISTRASI</Text>
-          <Text style={styles.tableSubtitle}>DOA LINGKUNGAN ST. AGATHA (ABSENSI)</Text>
-          
-          <View style={styles.table}>
-            <View style={styles.tableRow}>
-              <View style={styles.tableColHeader}>
-                <Text style={styles.tableCellHeader}>NAMA KEPALA KELUARGA</Text>
-              </View>
-              <View style={styles.tableColHeader}>
-                <Text style={styles.tableCellHeader}>KEHADIRAN (SUAMI + ISTRI)</Text>
-              </View>
-            </View>
-
-            {data.kepalaKeluarga.map((kk, index) => (
-              <View key={index} style={styles.tableRow}>
-                <View style={styles.tableCol}>
-                  <Text style={styles.tableCell}>{kk.nama}</Text>
-                </View>
-                <View style={styles.tableCol}>
-                  <Text style={styles.tableCell}>
-                    {kk.status === 'hadir' ? 'Suami + istri hadir' : 
-                     kk.status === 'hanya_suami' ? 'Hanya Suami' : 
-                     kk.status === 'hanya_istri' ? 'Hanya Istri' : 
-                     'Tidak Hadir'}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        </Page>
-      </Document>
-    </PDFViewer>
+export function RiwayatDolingPDF({ data }: RiwayatDolingPDFProps) {
+  const [isDownloadReady, setIsDownloadReady] = useState(false);
+  
+  const getFileName = () => {
+    return `Administrasi_Doling_${format(data.tanggal, "ddMMyyyy")}.pdf`;
+  };
+  
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Tombol Download */}
+      <div className="text-right">
+        <PDFDownloadLink 
+          document={<PDFDocument data={data} />} 
+          fileName={getFileName()}
+          className="inline-flex"
+        >
+          {({ loading, error }) => 
+            <Button 
+              variant="outline" 
+              disabled={loading} 
+              className="gap-2"
+              onMouseEnter={() => setIsDownloadReady(true)}
+            >
+              <DownloadIcon className="h-4 w-4" />
+              {loading ? "Menyiapkan..." : "Download PDF"}
+            </Button>
+          }
+        </PDFDownloadLink>
+      </div>
+      
+      {/* PDF Viewer */}
+      <PDFViewer style={{ width: "100%", height: "70vh", maxHeight: "500px" }}>
+        <PDFDocument data={data} />
+      </PDFViewer>
+    </div>
   );
 } 

@@ -5,10 +5,12 @@ import { Input } from "@/components/ui/input";
 
 interface KehadiranData {
   totalHadir: number;
+  jumlahKKHadir?: number;
   bapak: number;
   ibu: number;
   omk: number;
-  bia: number;
+  biaKecil: number; // BIA (0-6 tahun)
+  biaBesar: number; // BIA (7-13 tahun)
   bir: number;
 }
 
@@ -34,6 +36,17 @@ export function DataKehadiranSection({
             value={jumlahKehadiran.totalHadir}
             onChange={(e) => onKehadiranChange(e, "totalHadir")}
             required
+          />
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="jumlahKKHadir">Jumlah KK Hadir</Label>
+          <Input
+            id="jumlahKKHadir"
+            name="jumlahKKHadir"
+            type="number"
+            value={jumlahKehadiran.jumlahKKHadir || 0}
+            onChange={(e) => onKehadiranChange(e, "jumlahKKHadir")}
           />
         </div>
         
@@ -71,13 +84,24 @@ export function DataKehadiranSection({
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="jumlahBIA">Jumlah BIA</Label>
+          <Label htmlFor="jumlahBIAKecil">Jumlah BIA (0-6 tahun)</Label>
           <Input
-            id="jumlahBIA"
-            name="jumlahBIA"
+            id="jumlahBIAKecil"
+            name="jumlahBIAKecil"
             type="number"
-            value={jumlahKehadiran.bia}
-            onChange={(e) => onKehadiranChange(e, "bia")}
+            value={jumlahKehadiran.biaKecil}
+            onChange={(e) => onKehadiranChange(e, "biaKecil")}
+          />
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="jumlahBIABesar">Jumlah BIA (7-13 tahun)</Label>
+          <Input
+            id="jumlahBIABesar"
+            name="jumlahBIABesar"
+            type="number"
+            value={jumlahKehadiran.biaBesar}
+            onChange={(e) => onKehadiranChange(e, "biaBesar")}
           />
         </div>
         

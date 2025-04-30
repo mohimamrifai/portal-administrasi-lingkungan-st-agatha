@@ -95,8 +95,8 @@ export function PrintRiwayatDialog({
       jumlahIbu: selectedDetil.jumlahIbu || 0,
       jumlahOMK: selectedDetil.jumlahOMK || 0,
       jumlahBIR: selectedDetil.jumlahBIR || 0,
-      jumlahBIA: selectedDetil.jumlahBIA || 0,
-      jumlahBIA713: 0, // Data ini tidak ada di model DetilDoling
+      jumlahBIA: selectedDetil.jumlahBIAKecil || 0, // BIA usia 0-6 tahun
+      jumlahBIA713: selectedDetil.jumlahBIABesar || 0, // BIA usia 7-13 tahun
       // Penerimaan
       kolekte1: selectedDetil.kolekte1 || 0,
       kolekte2: selectedDetil.kolekte2 || 0,

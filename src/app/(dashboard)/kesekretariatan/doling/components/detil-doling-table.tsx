@@ -9,7 +9,6 @@ import { id } from "date-fns/locale"
 import { Badge } from "@/components/ui/badge"
 import { 
   CheckIcon, 
-  PrinterIcon, 
   SearchIcon, 
   X, 
   EditIcon, 
@@ -61,15 +60,13 @@ interface DetilDolingTableProps {
   onEdit: (detil: DetilDoling) => void
   onDelete: (id: number) => void
   onApprove?: (id: number) => void
-  onPrint?: (id: number) => void
 }
 
 export function DetilDolingTable({ 
   detil, 
   onEdit, 
   onDelete,
-  onApprove,
-  onPrint
+  onApprove
 }: DetilDolingTableProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
@@ -100,15 +97,6 @@ export function DetilDolingTable({
     }
   };
 
-  // Handle print click
-  const handlePrintClick = (id: number) => {
-    if (onPrint) {
-      onPrint(id);
-    } else {
-      toast.info("Fitur cetak laporan masih dalam pengembangan");
-    }
-  };
-  
   // Filter data based on search and filters
   const filteredData = detil.filter(item => {
     const matchesSearch = 
@@ -262,308 +250,205 @@ export function DetilDolingTable({
               setCurrentPage(1);
             }}
           >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Status Approval" />
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Approval" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Semua</SelectItem>
-              <SelectItem value="approved">Sudah Diapprove</SelectItem>
-              <SelectItem value="notApproved">Belum Diapprove</SelectItem>
+              <SelectItem value="approved">Sudah Disetujui</SelectItem>
+              <SelectItem value="notApproved">Belum Disetujui</SelectItem>
             </SelectContent>
           </Select>
+          
+          {/* Reset button */}
+          {(searchTerm || statusFilter !== null || approveFilter !== null) && (
+            <Button variant="outline" onClick={clearAllFilters} size="sm">
+              Reset
+            </Button>
+          )}
         </div>
       </div>
       
-      {/* Active Filters */}
-      {(searchTerm || statusFilter !== null || approveFilter !== null) && (
-        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <span>Filter aktif:</span>
-          {searchTerm && (
-            <Badge variant="outline" className="gap-1 px-2 py-1">
-              <span>Pencarian: {searchTerm}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="ml-1 h-4 w-4 p-0"
-                onClick={() => setSearchTerm("")}
-              >
-                <X className="h-3 w-3" />
-                <span className="sr-only">Clear search</span>
-              </Button>
-            </Badge>
-          )}
-          
-          {statusFilter !== null && (
-            <Badge variant="outline" className="gap-1 px-2 py-1">
-              <span>Status: {statusFilter === "selesai" ? "Selesai" : "Dibatalkan"}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="ml-1 h-4 w-4 p-0"
-                onClick={() => setStatusFilter(null)}
-              >
-                <X className="h-3 w-3" />
-                <span className="sr-only">Clear status</span>
-              </Button>
-            </Badge>
-          )}
-          
-          {approveFilter !== null && (
-            <Badge variant="outline" className="gap-1 px-2 py-1">
-              <span>Approval: {approveFilter === "approved" ? "Sudah Diapprove" : "Belum Diapprove"}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="ml-1 h-4 w-4 p-0"
-                onClick={() => setApproveFilter(null)}
-              >
-                <X className="h-3 w-3" />
-                <span className="sr-only">Clear approval filter</span>
-              </Button>
-            </Badge>
-          )}
-          
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="ml-auto h-7 text-xs"
-            onClick={clearAllFilters}
-          >
-            Reset Semua
-          </Button>
-        </div>
-      )}
-
-      <div className="rounded-md border overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[100px]">Tanggal</TableHead>
-                <TableHead>Tuan Rumah</TableHead>
-                <TableHead>Jenis Ibadat</TableHead>
-                <TableHead>Kehadiran</TableHead>
-                <TableHead className="hidden md:table-cell">Kolekte</TableHead>
-                <TableHead>Status Kegiatan</TableHead>
-                <TableHead>Status Approval</TableHead>
-                <TableHead className="text-right sticky right-0 bg-white shadow-[-8px_0_10px_-6px_rgba(0,0,0,0.1)] z-10">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {currentData.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-10">
-                    <div className="flex flex-col items-center justify-center space-y-2">
-                      {filteredData.length === 0 ? (
-                        detil.length > 0 ? (
-                          <>
-                            <p className="text-muted-foreground">Tidak ada data kegiatan yang sesuai dengan filter</p>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={clearAllFilters}
-                            >
-                              Reset Filter
-                            </Button>
-                          </>
-                        ) : (
-                          <p className="text-muted-foreground">Tidak ada data kegiatan tersedia</p>
-                        )
-                      ) : (
-                        <p className="text-muted-foreground">Tidak ada data kegiatan pada halaman ini</p>
-                      )}
+      {/* Table */}
+      <div className="overflow-x-auto rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[100px]">Tanggal</TableHead>
+              <TableHead className="w-[180px]">Tuan Rumah</TableHead>
+              <TableHead className="w-[120px]">Jenis</TableHead>
+              <TableHead className="min-w-[100px]">Tema</TableHead>
+              <TableHead className="w-[120px]">Kolekte</TableHead>
+              <TableHead className="w-[80px]">Hadir</TableHead>
+              <TableHead className="w-[120px]">Status</TableHead>
+              <TableHead className="w-[80px] sticky right-0 bg-white shadow-sm">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {currentData.length > 0 ? (
+              currentData.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="whitespace-nowrap">
+                    {format(item.tanggal, "dd MMM yyyy", { locale: id })}
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {item.tuanRumah}
+                  </TableCell>
+                  <TableCell>
+                    {getJenisIbadatBadge(item.jenisIbadat)}
+                  </TableCell>
+                  <TableCell>
+                    {item.temaIbadat || "-"}
+                  </TableCell>
+                  <TableCell>
+                    {item.koleksi ? formatRupiah(item.koleksi) : "-"}
+                  </TableCell>
+                  <TableCell>
+                    {item.jumlahHadir} orang
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-1">
+                      {getStatusBadge(item.status)}
+                      {getApprovalStatus(item.sudahDiapprove)}
                     </div>
                   </TableCell>
+                  <TableCell className="sticky right-0 bg-white shadow-sm">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Buka menu</span>
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => onEdit(item)}>
+                          <PencilIcon className="mr-2 h-4 w-4" />
+                          <span>Edit</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                              <Trash2Icon className="mr-2 h-4 w-4" />
+                              <span>Hapus</span>
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Apakah Anda yakin ingin menghapus detail doling ini? 
+                                Tindakan ini tidak dapat dibatalkan.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Batal</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => onDelete(item.id)}>
+                                Hapus
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                        {!item.sudahDiapprove && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleApproveClick(item.id)}>
+                              <CheckIcon className="mr-2 h-4 w-4" />
+                              <span>Setujui</span>
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
                 </TableRow>
-              ) : (
-                currentData.map((item) => (
-                  <TableRow key={item.id} className={item.sudahDiapprove ? "bg-green-50" : ""}>
-                    <TableCell className="font-medium">
-                      {format(item.tanggal, "dd MMM yyyy", { locale: id })}
-                    </TableCell>
-                    <TableCell>
-                      {item.tuanRumah}
-                    </TableCell>
-                    <TableCell>
-                      {getJenisIbadatBadge(item.jenisIbadat)}
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {item.subIbadat}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-medium">{item.jumlahHadir}</span>
-                      <span className="text-xs text-muted-foreground ml-1">orang</span>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      {(item.kolekte1 || item.kolekte2 || item.ucapanSyukur) ? (
-                        <div className="space-y-1">
-                          {item.kolekte1 ? (
-                            <div className="text-xs">
-                              <span className="text-muted-foreground">Kolekte 1:</span> {formatRupiah(item.kolekte1)}
-                            </div>
-                          ) : null}
-                          {item.kolekte2 ? (
-                            <div className="text-xs">
-                              <span className="text-muted-foreground">Kolekte 2:</span> {formatRupiah(item.kolekte2)}
-                            </div>
-                          ) : null}
-                          {item.ucapanSyukur ? (
-                            <div className="text-xs">
-                              <span className="text-muted-foreground">Ucapan Syukur:</span> {formatRupiah(item.ucapanSyukur)}
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(item.status)}
-                    </TableCell>
-                    <TableCell>
-                      {getApprovalStatus(item.sudahDiapprove)}
-                    </TableCell>
-                    <TableCell className="text-right sticky right-0 bg-white shadow-[-8px_0_10px_-6px_rgba(0,0,0,0.1)] z-10">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Buka menu</span>
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <DropdownMenuItem onClick={() => onEdit(item)}>
-                                  <span>Edit</span>
-                                </DropdownMenuItem>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Edit detil doling ini</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          
-                          <DropdownMenuSeparator />
-                          
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}>
-                                <span>Hapus</span>
-                              </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Apakah Anda yakin ingin menghapus detil doling pada 
-                                  {format(item.tanggal, " dd MMMM yyyy", { locale: id })} 
-                                  di rumah {item.tuanRumah}?
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Batal</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => onDelete(item.id)}
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
-                                  Hapus
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={8} className="h-24 text-center">
+                  Tidak ada data yang ditemukan
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </div>
       
-      {/* Pagination Controls */}
-      {detil.length > 0 && (
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-2">
-          <div className="flex flex-col md:flex-row items-center gap-2 md:space-x-2 w-full md:w-auto text-center md:text-left">
-            <p className="text-sm text-muted-foreground">
-              Menampilkan {totalItems > 0 ? startIndex + 1 : 0}-{endIndex} dari {totalItems} kegiatan
-              {(searchTerm || statusFilter !== null || approveFilter !== null) && 
-                ` (difilter dari ${detil.length} total)`}
-            </p>
-            <div className="flex items-center gap-2 mt-2 md:mt-0">
-              <p className="text-sm text-muted-foreground">Tampilkan</p>
-              <Select 
-                value={pageSize.toString()} 
-                onValueChange={handlePageSizeChange}
-              >
-                <SelectTrigger className="h-8 w-[70px]">
-                  <SelectValue placeholder={pageSize.toString()} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">5</SelectItem>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="20">20</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-muted-foreground">per halaman</p>
-            </div>
+      {/* Pagination */}
+      <div className="flex flex-col items-center justify-between gap-3 pt-2">
+        {/* Tombol Navigasi */}
+        <div className="flex items-center justify-center w-full gap-1 border rounded-md p-1.5 bg-gray-50">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-7 w-7"
+            onClick={goToFirstPage}
+            disabled={currentPage === 1}
+          >
+            <ChevronsLeftIcon className="h-3.5 w-3.5" />
+            <span className="sr-only">Halaman pertama</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-7 w-7"
+            onClick={goToPreviousPage}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeftIcon className="h-3.5 w-3.5" />
+            <span className="sr-only">Halaman sebelumnya</span>
+          </Button>
+          <div className="text-xs px-3 py-1 bg-white rounded border min-w-[60px] text-center">
+            {currentPage}/{totalPages}
           </div>
-          
-          <div className="flex items-center justify-center mt-4 md:mt-0 w-full md:w-auto">
-            <div className="flex items-center space-x-2">
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={goToFirstPage} 
-                disabled={currentPage === 1}
-                className="h-8 w-8"
-              >
-                <ChevronsLeftIcon className="h-4 w-4" />
-                <span className="sr-only">Halaman Pertama</span>
-              </Button>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={goToPreviousPage} 
-                disabled={currentPage === 1}
-                className="h-8 w-8"
-              >
-                <ChevronLeftIcon className="h-4 w-4" />
-                <span className="sr-only">Halaman Sebelumnya</span>
-              </Button>
-              
-              <span className="text-sm mx-2 min-w-[90px] text-center">
-                Halaman {currentPage} dari {totalPages}
-              </span>
-              
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={goToNextPage} 
-                disabled={currentPage === totalPages}
-                className="h-8 w-8"
-              >
-                <ChevronRightIcon className="h-4 w-4" />
-                <span className="sr-only">Halaman Berikutnya</span>
-              </Button>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={goToLastPage} 
-                disabled={currentPage === totalPages}
-                className="h-8 w-8"
-              >
-                <ChevronsRightIcon className="h-4 w-4" />
-                <span className="sr-only">Halaman Terakhir</span>
-              </Button>
-            </div>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-7 w-7"
+            onClick={goToNextPage}
+            disabled={currentPage === totalPages}
+          >
+            <ChevronRightIcon className="h-3.5 w-3.5" />
+            <span className="sr-only">Halaman berikutnya</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-7 w-7"
+            onClick={goToLastPage}
+            disabled={currentPage === totalPages}
+          >
+            <ChevronsRightIcon className="h-3.5 w-3.5" />
+            <span className="sr-only">Halaman terakhir</span>
+          </Button>
+        </div>
+        
+        {/* Info Pages */}
+        <div className="flex items-center justify-center text-xs text-muted-foreground w-full">
+          <div className="flex items-center gap-1.5">
+            <span className="whitespace-nowrap">
+              {filteredData.length === 0 ? 0 : startIndex + 1}-{endIndex} dari {totalItems} data
+            </span>
+            <span className="mx-1">•</span>
+            <Select
+              value={pageSize.toString()}
+              onValueChange={handlePageSizeChange}
+            >
+              <SelectTrigger className="h-6 w-[54px] text-xs border-dashed">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent side="top">
+                {[5, 10, 20, 50, 100].map((size) => (
+                  <SelectItem key={size} value={size.toString()} className="text-xs">
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="whitespace-nowrap">per halaman</span>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 } 
