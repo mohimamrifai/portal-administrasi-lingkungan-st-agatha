@@ -18,6 +18,9 @@ export interface DetilDoling {
   tanggal: Date
   tuanRumah: string
   jumlahHadir: number
+  jenisIbadat?: string
+  subIbadat?: string
+  temaIbadat?: string
   kegiatan: string
   biaya?: number
   koleksi?: number
@@ -26,6 +29,21 @@ export interface DetilDoling {
   sudahDiapprove?: boolean
   createdAt: Date
   updatedAt: Date
+  // Data kehadiran
+  jumlahBapak?: number
+  jumlahIbu?: number
+  jumlahOMK?: number
+  jumlahBIA?: number
+  jumlahBIR?: number
+  // Data kolekte
+  kolekte1?: number
+  kolekte2?: number
+  ucapanSyukur?: number
+  // Data petugas
+  pemimpinLiturgi?: string
+  petugasRosario?: string
+  petugasLagu?: string
+  petugasBacaan?: string
 }
 
 export interface AbsensiDoling {

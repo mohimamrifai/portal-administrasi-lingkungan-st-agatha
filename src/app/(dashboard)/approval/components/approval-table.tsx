@@ -18,7 +18,8 @@ import {
   CheckIcon,
   XIcon,
   RotateCcwIcon,
-  AlertCircleIcon
+  AlertCircleIcon,
+  PencilIcon
 } from "lucide-react"
 import {
   Dialog,
@@ -175,7 +176,7 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
                         ? 'Menunggu'
                         : item.status === 'approved'
                         ? 'Disetujui'
-                        : 'Ditolak'}
+                        : 'Diedit'}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -216,8 +217,8 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
                               <span>Setujui</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => onReject(item)}>
-                              <XIcon className="mr-2 h-4 w-4 text-red-600" />
-                              <span>Tolak</span>
+                              <PencilIcon className="mr-2 h-4 w-4 text-blue-600" />
+                              <span>Edit</span>
                             </DropdownMenuItem>
                           </>
                         )}
@@ -231,7 +232,7 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleChangeStatus(item, 'reject')}>
                               <XIcon className="mr-2 h-4 w-4 text-red-600" />
-                              <span>Ubah Jadi Ditolak</span>
+                              <span>Ubah Jadi Diedit</span>
                             </DropdownMenuItem>
                           </>
                         )}
@@ -240,7 +241,7 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
                           <>
                             <DropdownMenuItem onClick={() => handleResetStatus(item)}>
                               <RotateCcwIcon className="mr-2 h-4 w-4 text-amber-600" />
-                              <span>Batalkan Penolakan</span>
+                              <span>Batalkan Edit</span>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleChangeStatus(item, 'approve')}>
@@ -341,7 +342,7 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
           <DialogHeader>
             <DialogTitle>Pesan</DialogTitle>
             <DialogDescription>
-              {selectedItem?.status === 'rejected' ? 'Alasan penolakan:' : 'Catatan:'}
+              {selectedItem?.status === 'rejected' ? 'Alasan edit:' : 'Catatan:'}
             </DialogDescription>
           </DialogHeader>
           <div className="p-4 rounded-md bg-gray-50">
@@ -367,7 +368,7 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
                 ? 'Apakah Anda yakin ingin membatalkan status persetujuan ini?'
                 : actionType === 'approve'
                 ? 'Apakah Anda yakin ingin mengubah status menjadi disetujui?'
-                : 'Apakah Anda yakin ingin mengubah status menjadi ditolak?'}
+                : 'Apakah Anda yakin ingin mengubah status menjadi diedit?'}
             </DialogDescription>
           </DialogHeader>
           <div className="p-4 rounded-md bg-amber-50 flex items-start space-x-2">

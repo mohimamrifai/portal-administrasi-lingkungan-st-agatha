@@ -107,15 +107,18 @@ export function AgendaTable({
   };
 
   const canProcess = (agenda: Agenda, role: string | undefined) => {
-    return role === 'pengurus' && agenda.status === 'open';
+    // Pengurus (selain role umat) dapat memproses agenda yang statusnya open
+    return role !== 'umat' && agenda.status === 'open';
   };
 
   const canUpdateStatus = (agenda: Agenda, role: string | undefined) => {
-    return role === 'pengurus' && ['processing_lingkungan', 'processing_stasi', 'processing_paroki'].includes(agenda.status);
+    // Pengurus (selain role umat) dapat mengupdate status agenda yang sedang diproses
+    return role !== 'umat' && ['processing_lingkungan', 'processing_stasi', 'processing_paroki'].includes(agenda.status);
   };
 
   const canFinalResult = (agenda: Agenda, role: string | undefined) => {
-    return role === 'pengurus' && agenda.status === 'forwarded_to_paroki';
+    // Pengurus (selain role umat) dapat memberikan hasil akhir dari agenda yang diteruskan ke paroki
+    return role !== 'umat' && agenda.status === 'forwarded_to_paroki';
   };
 
   const isCreator = (agenda: Agenda) => {
@@ -125,7 +128,15 @@ export function AgendaTable({
   };
 
   const canDelete = (agenda: Agenda, role: string | undefined) => {
-    return role === 'pengurus' || isCreator(agenda);
+    // SuperUser dan pembuat agenda yang open dapat menghapus
+    if (role === 'SuperUser') return true;
+    if (role === 'umat' && isCreator(agenda) && agenda.status === 'open') return true;
+    return role !== 'umat' && agenda.status === 'open';
+  };
+
+  const canReject = (agenda: Agenda, role: string | undefined) => {
+    // Hanya pengurus (selain role umat) yang dapat menolak agenda
+    return role !== 'umat' && agenda.status === 'open';
   };
 
   return (
@@ -213,7 +224,7 @@ export function AgendaTable({
                             </DropdownMenuItem>
                           )}
 
-                          {canProcess(agenda, userRole) && (
+                          {canReject(agenda, userRole) && (
                             <DropdownMenuItem onClick={() => onReject(agenda.id)}>
                               Tolak
                             </DropdownMenuItem>

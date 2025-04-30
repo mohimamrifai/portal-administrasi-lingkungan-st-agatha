@@ -10,30 +10,30 @@ type RouteAccess = {
 }
 
 const routeAccessMap: RouteAccess = {
-  '/dashboard': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'adminLingkungan', 'umat'],
+  '/dashboard': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'umat'],
   
-  '/lingkungan': ['SuperUser', 'wakilKetua', 'bendahara', 'adminLingkungan'],
-  '/lingkungan/kas': ['SuperUser', 'wakilKetua', 'bendahara', 'adminLingkungan'],
-  '/lingkungan/mandiri': ['SuperUser', 'wakilKetua', 'bendahara', 'adminLingkungan'],
+  '/lingkungan': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'bendahara'],
+  '/lingkungan/kas': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'bendahara'],
+  '/lingkungan/mandiri': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'bendahara'],
   
-  '/ikata': ['SuperUser', 'wakilKetua', 'wakilBendahara', 'adminLingkungan'],
-  '/ikata/kas': ['SuperUser', 'wakilKetua', 'wakilBendahara', 'adminLingkungan'],
-  '/ikata/monitoring': ['SuperUser', 'wakilKetua', 'wakilBendahara', 'adminLingkungan'],
+  '/ikata': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'wakilBendahara'],
+  '/ikata/kas': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'wakilBendahara'],
+  '/ikata/monitoring': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'wakilBendahara'],
   
-  '/kesekretariatan': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'adminLingkungan', 'umat'],
-  '/kesekretariatan/umat': ['SuperUser', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'adminLingkungan'],
-  '/kesekretariatan/doling': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'umat'],
-  '/kesekretariatan/agenda': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'adminLingkungan'],
+  '/kesekretariatan': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'umat'],
+  '/kesekretariatan/umat': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris'],
+  '/kesekretariatan/doling': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris'],
+  '/kesekretariatan/agenda': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'umat'],
   
-  '/publikasi': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'adminLingkungan'],
+  '/publikasi': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara'],
   
-  '/approval': ['SuperUser', 'bendahara'],
+  '/approval': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'bendahara'],
   
   '/histori-pembayaran': ['SuperUser', 'umat'],
   
-  '/pengaturan': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'adminLingkungan', 'umat'],
-  '/pengaturan/profil': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'adminLingkungan', 'umat'],
-  '/pengaturan/password': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'adminLingkungan', 'umat'],
+  '/pengaturan': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'umat'],
+  '/pengaturan/profil': ['SuperUser', 'umat'],
+  '/pengaturan/password': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'umat'],
   '/pengaturan/wipe': ['SuperUser'],
 }
 

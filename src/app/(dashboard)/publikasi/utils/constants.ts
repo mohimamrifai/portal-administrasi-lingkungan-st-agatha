@@ -7,7 +7,7 @@ export const ROLES = [
   { id: "wakilSekretaris", label: "Wakil Sekretaris" },
   { id: "bendahara", label: "Bendahara" },
   { id: "wakilBendahara", label: "Wakil Bendahara" },
-  { id: "adminLingkungan", label: "Admin Lingkungan" },
+  { id: "wakilKetua", label: "Wakil Ketua" },
   { id: "superUser", label: "SuperUser" }
 ];
 

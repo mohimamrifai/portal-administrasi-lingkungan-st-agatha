@@ -23,7 +23,7 @@ export function RoleSelector() {
     { id: ROLES.WAKIL_SEKRETARIS, label: "Wakil Sekretaris" },
     { id: ROLES.BENDAHARA, label: "Bendahara" },
     { id: ROLES.WAKIL_BENDAHARA, label: "Wakil Bendahara" },
-    { id: ROLES.ADMIN_LINGKUNGAN, label: "Admin Lingkungan" },
+    { id: ROLES.WAKIL_KETUA, label: "Wakil Ketua" },
     { id: ROLES.UMAT, label: "Umat" },
   ]
 

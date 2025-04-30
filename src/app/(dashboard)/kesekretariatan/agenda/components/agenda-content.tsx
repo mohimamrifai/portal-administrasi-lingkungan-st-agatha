@@ -13,9 +13,11 @@ import { Agenda, AgendaFormValues, ProcessTarget, RejectionFormValues } from "..
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Plus, Search } from "lucide-react";
 import { useMockData } from "../utils/use-mock-data";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function AgendaContent() {
   const { mockAgendas, mockUser } = useMockData();
+  const { userRole } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
@@ -24,7 +26,10 @@ export default function AgendaContent() {
   const [isRejectionDialogOpen, setIsRejectionDialogOpen] = useState(false);
   const [selectedAgenda, setSelectedAgenda] = useState<Agenda | undefined>();
   const [agendas, setAgendas] = useState<Agenda[]>(mockAgendas);
-  
+
+  // Cek apakah pengguna adalah umat atau pengurus
+  const isUmatRole = userRole === 'umat';
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -41,8 +46,8 @@ export default function AgendaContent() {
       const now = new Date();
       if (now.getDay() === 0 && now.getHours() === 0 && now.getMinutes() === 0) {
         // It's Sunday at 00:00
-        setAgendas(prevAgendas => 
-          prevAgendas.filter(agenda => 
+        setAgendas(prevAgendas =>
+          prevAgendas.filter(agenda =>
             !['completed', 'rejected'].includes(agenda.status)
           )
         );
@@ -65,7 +70,7 @@ export default function AgendaContent() {
         if (dayOfYear % 3 === 0) {
           // Count open agendas
           const openAgendas = agendas.filter(agenda => agenda.status === 'open').length;
-          
+
           if (openAgendas > 0) {
             toast.info(`Anda memiliki ${openAgendas} agenda yang menunggu tindak lanjut.`, {
               duration: 10000,
@@ -125,7 +130,7 @@ export default function AgendaContent() {
     }
   };
 
-  const handleFinalResultAgenda = (id: number) => {
+  const handleFinalResultAgenda = (id: number): void => {
     const agenda = agendas.find(a => a.id === id);
     if (agenda) {
       setSelectedAgenda(agenda);
@@ -143,48 +148,48 @@ export default function AgendaContent() {
 
   const handleProcessSubmit = (processTarget: ProcessTarget) => {
     if (!selectedAgenda) return;
-    
+
     const status = `processing_${processTarget}` as Agenda['status'];
-    
+
     const updatedAgendas = agendas.map((agenda) =>
       agenda.id === selectedAgenda.id
         ? {
-            ...agenda,
-            status,
-            updatedAt: new Date()
-          }
+          ...agenda,
+          status,
+          updatedAt: new Date()
+        }
         : agenda
     );
 
     setAgendas(updatedAgendas);
-    
+
     // Send notification to the agenda creator
     toast.info(`Agenda "${selectedAgenda.title}" diproses di ${processTarget === 'lingkungan' ? 'Lingkungan' : processTarget === 'stasi' ? 'Stasi' : 'Paroki'}`);
   };
 
   const handleUpdateStatusSubmit = (status: 'forwarded_to_paroki' | 'completed' | 'rejected') => {
     if (!selectedAgenda) return;
-    
+
     if (status === 'rejected') {
       // If rejected, we'll open the rejection dialog
       setIsUpdateStatusDialogOpen(false);
       setIsRejectionDialogOpen(true);
       return;
     }
-    
+
     const updatedAgendas = agendas.map((agenda) =>
       agenda.id === selectedAgenda.id
         ? {
-            ...agenda,
-            status,
-            updatedAt: new Date(),
-            completedAt: status === 'completed' ? new Date() : undefined
-          }
+          ...agenda,
+          status,
+          updatedAt: new Date(),
+          completedAt: status === 'completed' ? new Date() : undefined
+        }
         : agenda
     );
 
     setAgendas(updatedAgendas);
-    
+
     // Send notification to the agenda creator
     if (status === 'forwarded_to_paroki') {
       toast.info(`Agenda "${selectedAgenda.title}" telah diteruskan ke Paroki`);
@@ -195,47 +200,47 @@ export default function AgendaContent() {
 
   const handleFinalResultSubmit = (result: 'completed' | 'rejected') => {
     if (!selectedAgenda) return;
-    
+
     if (result === 'rejected') {
       // If rejected, we'll open the rejection dialog
       setIsFinalResultDialogOpen(false);
       setIsRejectionDialogOpen(true);
       return;
     }
-    
+
     const updatedAgendas = agendas.map((agenda) =>
       agenda.id === selectedAgenda.id
         ? {
-            ...agenda,
-            status: result,
-            updatedAt: new Date(),
-            completedAt: new Date()
-          }
+          ...agenda,
+          status: result,
+          updatedAt: new Date(),
+          completedAt: new Date()
+        }
         : agenda
     );
 
     setAgendas(updatedAgendas);
-    
+
     // Send notification to the agenda creator
     toast.success(`Agenda "${selectedAgenda.title}" telah selesai diproses`);
   };
 
   const handleRejectionSubmit = (values: RejectionFormValues) => {
     if (!selectedAgenda) return;
-    
+
     const updatedAgendas = agendas.map((agenda) =>
       agenda.id === selectedAgenda.id
         ? {
-            ...agenda,
-            status: 'rejected' as const,
-            rejectionReason: values.reason,
-            updatedAt: new Date()
-          }
+          ...agenda,
+          status: 'rejected' as const,
+          rejectionReason: values.reason,
+          updatedAt: new Date()
+        }
         : agenda
     );
 
     setAgendas(updatedAgendas);
-    
+
     // Send notification to the agenda creator
     toast.error(`Agenda "${selectedAgenda.title}" ditolak dengan alasan: ${values.reason}`);
   };
@@ -248,34 +253,28 @@ export default function AgendaContent() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-2xl font-bold">Agenda</h2>
-        {mockUser.role === 'umat' && (
-          <Button
-            onClick={() => {
-              setSelectedAgenda(undefined);
-              setIsFormDialogOpen(true);
-            }}
-            size="sm"
-            className="gap-1"
-          >
-            <Plus className="h-4 w-4" /> Pengajuan Agenda
-          </Button>
-        )}
+        <h1 className="text-2xl font-semibold">Agenda Lingkungan</h1>
       </div>
-
-      <div className="flex flex-col sm:flex-row justify-between gap-4">
-        <div className="w-full sm:max-w-xs relative">
+      
+      <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="relative w-full sm:w-auto">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
+            type="search"
             placeholder="Cari agenda..."
-            className="w-full pl-8"
+            className="w-full pl-8 sm:w-[250px]"
             value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setCurrentPage(1); // Reset ke halaman pertama saat pencarian berubah
-            }}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+        {/* Tampilkan tombol Pengajuan untuk semua role agar umat dapat mengajukan agenda */}
+        <Button
+          className="whitespace-nowrap"
+          onClick={() => setIsFormDialogOpen(true)}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Pengajuan
+        </Button>
       </div>
 
       <AgendaTable
@@ -283,88 +282,85 @@ export default function AgendaContent() {
         onProcess={handleProcessAgenda}
         onUpdateStatus={handleUpdateStatusAgenda}
         onFinalResult={handleFinalResultAgenda}
-        onDelete={handleDeleteAgenda}
         onReject={handleRejectAgenda}
-        userRole={mockUser.role}
+        onDelete={handleDeleteAgenda}
+        userRole={userRole}
       />
 
-      {/* Pagination */}
-      {filteredAgendas.length > 0 && (
-        <div className="flex w-full justify-between items-center mt-4">
-          <div className="flex w-[140px] items-center justify-center text-sm font-medium">
-            Halaman {currentPage} dari {totalPages}
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              className="hidden h-8 w-8 p-0 md:flex"
-              onClick={() => setCurrentPage(1)}
-              disabled={currentPage === 1}
-            >
-              <span className="sr-only">Ke halaman pertama</span>
-              <ChevronsLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              className="h-8 w-8 p-0"
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-            >
-              <span className="sr-only">Ke halaman sebelumnya</span>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              className="h-8 w-8 p-0"
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-            >
-              <span className="sr-only">Ke halaman berikutnya</span>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              className="hidden h-8 w-8 p-0 md:flex"
-              onClick={() => setCurrentPage(totalPages)}
-              disabled={currentPage === totalPages}
-            >
-              <span className="sr-only">Ke halaman terakhir</span>
-              <ChevronsRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
+      {/* Pagination controls */}
+      <div className="flex items-center justify-end space-x-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCurrentPage(1)}
+          disabled={currentPage === 1}
+        >
+          <ChevronsLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+          disabled={currentPage === 1}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <span className="text-sm font-medium">
+          Halaman {currentPage} dari {totalPages || 1}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+          disabled={currentPage === totalPages || totalPages === 0}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCurrentPage(totalPages)}
+          disabled={currentPage === totalPages || totalPages === 0}
+        >
+          <ChevronsRight className="h-4 w-4" />
+        </Button>
+      </div>
 
+      {/* Form dialog untuk pengajuan agenda baru */}
       <AgendaFormDialog
         open={isFormDialogOpen}
         onOpenChange={setIsFormDialogOpen}
-        agenda={selectedAgenda}
         onSubmit={handleAddAgenda}
       />
 
-      <ProcessDialog
-        open={isProcessDialogOpen}
-        onOpenChange={setIsProcessDialogOpen}
-        onSubmit={handleProcessSubmit}
-      />
+      {/* Dialog untuk proses agenda - hanya tampilkan jika bukan role umat */}
+      {userRole !== 'umat' && (
+        <>
+          <ProcessDialog
+            open={isProcessDialogOpen}
+            onOpenChange={setIsProcessDialogOpen}
+            onSubmit={handleProcessSubmit}
+          />
 
-      <UpdateStatusDialog
-        open={isUpdateStatusDialogOpen}
-        onOpenChange={setIsUpdateStatusDialogOpen}
-        onSubmit={handleUpdateStatusSubmit}
-      />
+          <UpdateStatusDialog
+            open={isUpdateStatusDialogOpen}
+            onOpenChange={setIsUpdateStatusDialogOpen}
+            onSubmit={handleUpdateStatusSubmit}
+          />
 
-      <FinalResultDialog
-        open={isFinalResultDialogOpen}
-        onOpenChange={setIsFinalResultDialogOpen}
-        onSubmit={handleFinalResultSubmit}
-      />
+          <FinalResultDialog
+            open={isFinalResultDialogOpen}
+            onOpenChange={setIsFinalResultDialogOpen}
+            onSubmit={handleFinalResultSubmit}
+          />
 
-      <RejectionDialog
-        open={isRejectionDialogOpen}
-        onOpenChange={setIsRejectionDialogOpen}
-        onSubmit={handleRejectionSubmit}
-      />
+          <RejectionDialog
+            open={isRejectionDialogOpen}
+            onOpenChange={setIsRejectionDialogOpen}
+            onSubmit={handleRejectionSubmit}
+          />
+        </>
+      )}
     </div>
   );
 } 

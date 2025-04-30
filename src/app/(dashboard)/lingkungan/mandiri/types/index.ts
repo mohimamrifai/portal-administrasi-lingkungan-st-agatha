@@ -58,6 +58,8 @@ export const transactionFormSchema = z.object({
 
 export const printPdfSchema = z.object({
   documentType: z.enum(["payment_receipt", "yearly_report", "debt_report"]),
+  documentCategory: z.enum(["bukti_terima_uang", "setor_ke_paroki"]),
+  month: z.number().min(1).max(12).optional(),
   year: z.number(),
   fileFormat: z.literal("pdf")
 });

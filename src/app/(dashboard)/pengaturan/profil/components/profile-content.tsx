@@ -45,41 +45,6 @@ const ROLE_ACCESS_MAP = {
     canEdit: false,
     message: "Anda melihat data profil sebagai SuperUser"
   },
-  ketuaLingkungan: {
-    canView: true,
-    canEdit: false,
-    message: "Anda melihat data profil sebagai Ketua Lingkungan"
-  },
-  wakilKetua: {
-    canView: true,
-    canEdit: false,
-    message: "Anda melihat data profil sebagai Wakil Ketua"
-  },
-  sekretaris: {
-    canView: true,
-    canEdit: false, 
-    message: "Anda melihat data profil sebagai Sekretaris"
-  },
-  wakilSekretaris: {
-    canView: true,
-    canEdit: false,
-    message: "Anda melihat data profil sebagai Wakil Sekretaris"
-  },
-  bendahara: {
-    canView: true,
-    canEdit: false,
-    message: "Anda melihat data profil sebagai Bendahara"
-  },
-  wakilBendahara: {
-    canView: true,
-    canEdit: false,
-    message: "Anda melihat data profil sebagai Wakil Bendahara"
-  },
-  adminLingkungan: {
-    canView: true,
-    canEdit: false,
-    message: "Anda melihat data profil sebagai Admin Lingkungan"
-  },
   // Hanya umat yang dapat mengedit data profil
   umat: {
     canView: true,

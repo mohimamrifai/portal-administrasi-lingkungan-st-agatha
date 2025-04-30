@@ -37,7 +37,10 @@ export function NavMain({
                 <SidebarMenuButton
                   asChild
                   isActive={pathname === item.path}
-                  className="data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground transition-colors"
+                  className={cn(
+                    "data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground transition-colors", 
+                    pathname === item.path ? "sidebar-active-menu" : ""
+                  )}
                 >
                   <Link href={item.path || '#'}>
                     {item.icon && <item.icon className="size-4" />}
@@ -69,7 +72,7 @@ function NestedMenuItem({
         <SidebarMenuButton
           className={cn(
             "justify-between",
-            isActive && "text-sidebar-accent-foreground"
+            isActive && "text-sidebar-accent-foreground sidebar-active-menu"
           )}
         >
           <div className="flex items-center gap-2">
@@ -86,7 +89,10 @@ function NestedMenuItem({
               <SidebarMenuButton
                 asChild
                 isActive={pathname === child.path}
-                className="data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground transition-colors"
+                className={cn(
+                  "data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground transition-colors",
+                  pathname === child.path ? "sidebar-active-menu" : ""
+                )}
               >
                 <Link href={child.path || '#'}>
                   {child.icon && <child.icon className="size-4" />}

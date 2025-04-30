@@ -36,11 +36,20 @@ import { JENIS_LAPORAN } from "../utils/constants"
 import { toast } from "sonner"
 import { Publikasi } from "../types/publikasi"
 
+interface FormValues {
+  title: string;
+  type: string;
+  date?: Date;
+  description?: string;
+  attachment?: File | null;
+  publikasiId?: string;
+}
+
 interface BuatLaporanDialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   publikasi?: Publikasi;
-  onSubmit?: (values: any) => void;
+  onSubmit?: (values: FormValues) => void;
 }
 
 export default function BuatLaporanDialog({
@@ -138,7 +147,7 @@ export default function BuatLaporanDialog({
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="sm:max-w-[525px]">
+      <DialogContent className="sm:max-w-[525px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Buat Laporan</DialogTitle>
           <DialogDescription>

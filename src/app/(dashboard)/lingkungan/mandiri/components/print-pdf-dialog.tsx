@@ -39,17 +39,36 @@ export function PrintPdfDialog({
   onOpenChange,
   onSubmit,
 }: PrintPdfDialogProps) {
-  // Get current year
+  // Get current year and month
   const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1; // 1-12
   
   // Create year options (current year +/- 10 years)
   const yearOptions = Array.from({ length: 21 }, (_, i) => currentYear - 10 + i);
+  
+  // Month options (1-12)
+  const monthOptions = [
+    { value: 1, label: "Januari" },
+    { value: 2, label: "Februari" },
+    { value: 3, label: "Maret" },
+    { value: 4, label: "April" },
+    { value: 5, label: "Mei" },
+    { value: 6, label: "Juni" },
+    { value: 7, label: "Juli" },
+    { value: 8, label: "Agustus" },
+    { value: 9, label: "September" },
+    { value: 10, label: "Oktober" },
+    { value: 11, label: "November" },
+    { value: 12, label: "Desember" },
+  ];
   
   // Form
   const form = useForm<PrintPdfFormValues>({
     resolver: zodResolver(printPdfSchema),
     defaultValues: {
-      documentType: "yearly_report",
+      documentType: "payment_receipt",
+      documentCategory: "bukti_terima_uang",
+      month: currentMonth,
       year: currentYear,
       fileFormat: "pdf",
     },
@@ -61,6 +80,16 @@ export function PrintPdfDialog({
     { value: "yearly_report", label: "Laporan Tahunan" },
     { value: "debt_report", label: "Laporan Tunggakan" },
   ];
+  
+  // Document category options
+  const documentCategories = [
+    { value: "bukti_terima_uang", label: "Bukti Terima Uang" },
+    { value: "setor_ke_paroki", label: "Setor ke Paroki" },
+  ];
+  
+  // Watch documentType to conditionally show month selector
+  const documentType = form.watch("documentType");
+  const showMonthSelection = documentType === "payment_receipt";
   
   // Handle form submission
   const handleSubmit = (values: PrintPdfFormValues) => {
@@ -75,7 +104,7 @@ export function PrintPdfDialog({
         <DialogHeader>
           <DialogTitle>Print PDF</DialogTitle>
           <DialogDescription>
-            Pilih jenis dokumen dan tahun yang ingin dicetak.
+            Pilih jenis dokumen, kategori, bulan dan tahun yang ingin dicetak.
           </DialogDescription>
         </DialogHeader>
         
@@ -108,6 +137,64 @@ export function PrintPdfDialog({
                 </FormItem>
               )}
             />
+            
+            <FormField
+              control={form.control}
+              name="documentCategory"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Kategori Data</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Pilih kategori data" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {documentCategories.map((category) => (
+                        <SelectItem key={category.value} value={category.value}>
+                          {category.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {showMonthSelection && (
+              <FormField
+                control={form.control}
+                name="month"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Bulan</FormLabel>
+                    <Select
+                      onValueChange={(value) => field.onChange(parseInt(value))}
+                      defaultValue={field.value?.toString()}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Pilih bulan" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {monthOptions.map((month) => (
+                          <SelectItem key={month.value} value={month.value.toString()}>
+                            {month.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             
             <FormField
               control={form.control}

@@ -2,6 +2,7 @@
 
 import { Suspense } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
+import { DoaLingkunganContent } from "./components/doa-lingkungan-content";
 
 // Komponen Loading Sederhana
 function LoadingSkeleton() {
@@ -14,25 +15,9 @@ function LoadingSkeleton() {
   )
 }
 
-// Komponen Content Placeholder
-function DoaLingkunganContent() {
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Doa Lingkungan</h2>
-      </div>
-      
-      <div className="p-4 border rounded-lg">
-        <p>Halaman sedang dalam pemeliharaan untuk memperbaiki tampilan dan responsivitas.</p>
-        <p className="mt-2">Silahkan coba kembali beberapa saat lagi.</p>
-      </div>
-    </div>
-  )
-}
-
 export default function DoaLingkunganPage() {
   return (
-    <div className="p-2">
+    <div className="p-2 px-4">
       <Suspense fallback={<LoadingSkeleton />}>
         <DoaLingkunganContent />
       </Suspense>

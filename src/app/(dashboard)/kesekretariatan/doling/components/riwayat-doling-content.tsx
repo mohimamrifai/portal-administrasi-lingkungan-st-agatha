@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { RiwayatDoling, RekapitulasiKegiatan } from "../types";
+import { RiwayatDoling, RekapitulasiKegiatan, DetilDoling, AbsensiDoling } from "../types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SearchIcon, X, DownloadIcon, CalendarIcon, TrendingUpIcon } from "lucide-react";
@@ -16,17 +16,53 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { PrintRiwayatDialog } from "./print-riwayat-dialog";
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip as RechartsTooltip, 
+  Legend, 
+  ResponsiveContainer,
+  Cell,
+  LabelList
+} from 'recharts';
 
 interface RiwayatDolingContentProps {
   riwayat: RiwayatDoling[];
   rekapitulasi: RekapitulasiKegiatan[];
+  detilDolingData: DetilDoling[];
+  absensiDolingData: AbsensiDoling[];
 }
 
-export function RiwayatDolingContent({ riwayat, rekapitulasi }: RiwayatDolingContentProps) {
+export function RiwayatDolingContent({ 
+  riwayat, 
+  rekapitulasi, 
+  detilDolingData, 
+  absensiDolingData 
+}: RiwayatDolingContentProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPeriode, setSelectedPeriode] = useState("all");
   const [sortBy, setSortBy] = useState("nama"); // nama, kehadiran, persentase
   const [sortOrder, setSortOrder] = useState("asc"); // asc, desc
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(0);
+
+  // Deteksi ukuran layar untuk responsivitas
+  useEffect(() => {
+    // Set initial width
+    setWindowWidth(window.innerWidth);
+    
+    // Update width on resize
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Opsi periode tersedia
   const periodeOptions = [
@@ -80,9 +116,42 @@ export function RiwayatDolingContent({ riwayat, rekapitulasi }: RiwayatDolingCon
     return "destructive";
   };
   
+  // Fungsi untuk mendapatkan warna bar berdasarkan nilai rata-rata hadir
+  const getBarColor = (value: number) => {
+    if (value >= 33) return "#22c55e"; // green-500
+    if (value >= 28) return "#3b82f6"; // blue-500
+    if (value >= 20) return "#eab308"; // yellow-500
+    return "#ef4444"; // red-500
+  };
+  
+  // Data untuk chart dengan konversi ke format yang sesuai untuk Recharts
+  const chartData = rekapitulasi.map(item => ({
+    bulan: item.bulan.split(" ")[0],
+    tahun: item.bulan.split(" ")[1],
+    jumlahKegiatan: item.jumlahKegiatan,
+    rataRataHadir: item.rataRataHadir,
+    persentase: Math.round((item.rataRataHadir / 40) * 100), // Asumsi 40 adalah nilai maksimum
+    color: getBarColor(item.rataRataHadir)
+  }));
+  
+  // Custom tooltip untuk chart
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-3 border rounded-md shadow-md">
+          <p className="font-medium">{label} {payload[0].payload.tahun}</p>
+          <p className="text-sm text-gray-500">Jumlah Kegiatan: {payload[0].payload.jumlahKegiatan}x</p>
+          <p className="text-sm text-gray-500">Rata-rata Hadir: {payload[0].payload.rataRataHadir}</p>
+          <p className="text-sm text-gray-500">Persentase: {payload[0].payload.persentase}%</p>
+        </div>
+      );
+    }
+    return null;
+  };
+  
   // Handler untuk cetak riwayat
   const handleCetakRiwayat = () => {
-    toast.success("Fitur cetak riwayat sedang dalam pengembangan");
+    setPrintDialogOpen(true);
   };
 
   return (
@@ -112,32 +181,86 @@ export function RiwayatDolingContent({ riwayat, rekapitulasi }: RiwayatDolingCon
           </CardTitle>
           <CardDescription>Persentase kehadiran anggota dalam 6 bulan terakhir</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="h-64 w-full">
-            <div className="h-full w-full flex flex-col">
-              <div className="flex-1 flex items-end justify-between px-4">
-                {rekapitulasi.map((item, index) => (
-                  <div key={index} className="flex flex-col items-center">
-                    <div 
-                      className="w-16 bg-primary rounded-t-md relative overflow-hidden"
-                      style={{ height: `${(item.rataRataHadir / 40) * 100}%` }}
-                    >
-                      <div className="absolute bottom-0 left-0 right-0 text-xs text-white text-center p-1">
-                        {item.rataRataHadir}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+        <CardContent className="p-2 sm:p-6">
+          <div className="h-60 sm:h-80 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={chartData}
+                margin={{ 
+                  top: 10, 
+                  right: 5, 
+                  left: windowWidth < 640 ? -15 : 0, 
+                  bottom: windowWidth < 640 ? 30 : 40 
+                }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis 
+                  dataKey="bulan" 
+                  tick={{ fontSize: windowWidth < 640 ? 8 : 10 }}
+                  tickFormatter={(value) => value.slice(0, 3)} // Singkat nama bulan
+                  tickLine={false}
+                  axisLine={{ strokeWidth: 1 }}
+                  height={50}
+                  label={{
+                    value: '',
+                    position: 'insideBottom',
+                    offset: -15
+                  }}
+                />
+                <YAxis 
+                  domain={[0, 40]}
+                  tick={{ fontSize: windowWidth < 640 ? 8 : 10 }}
+                  tickCount={windowWidth < 640 ? 4 : 5}
+                  width={25}
+                  label={windowWidth < 640 ? undefined : { 
+                    value: 'Rata-rata', 
+                    angle: -90, 
+                    position: 'insideLeft',
+                    style: { textAnchor: 'middle', fontSize: 10 },
+                    offset: -5
+                  }}
+                />
+                <RechartsTooltip content={<CustomTooltip />} />
+                <Legend 
+                  verticalAlign="bottom" 
+                  height={windowWidth < 640 ? 24 : 36}
+                  iconSize={windowWidth < 640 ? 8 : 10}
+                  wrapperStyle={{ 
+                    fontSize: windowWidth < 640 ? '8px' : '10px',
+                    paddingTop: windowWidth < 640 ? '5px' : '10px'
+                  }}
+                  payload={[
+                    { value: 'Sangat Baik', type: 'square', color: '#22c55e' },
+                    { value: 'Baik', type: 'square', color: '#3b82f6' },
+                    { value: 'Cukup', type: 'square', color: '#eab308' },
+                    { value: 'Kurang', type: 'square', color: '#ef4444' }
+                  ]}
+                />
+                <Bar 
+                  dataKey="rataRataHadir" 
+                  name="Rata-rata Kehadiran" 
+                  radius={[4, 4, 0, 0]}
+                  barSize={windowWidth < 640 ? 15 : 30}
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                  <LabelList 
+                    dataKey="persentase" 
+                    position="top" 
+                    formatter={(value: number) => `${value}%`}
+                    style={{ fontSize: windowWidth < 640 ? 8 : 9, fill: '#6b7280' }}
+                  />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="grid grid-cols-6 gap-2 text-center mt-1">
+            {chartData.map((item, index) => (
+              <div key={index} className="text-xs text-muted-foreground">
+                <span className="font-medium">{item.jumlahKegiatan}x</span>
               </div>
-              
-              <div className="flex justify-between px-4 mt-2">
-                {rekapitulasi.map((item, index) => (
-                  <div key={index} className="text-xs font-medium">
-                    {item.bulan.split(" ")[0]}
-                  </div>
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -269,58 +392,38 @@ export function RiwayatDolingContent({ riwayat, rekapitulasi }: RiwayatDolingCon
                     {filteredRekapitulasi.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={3} className="text-center py-6 text-muted-foreground">
-                          Tidak ada data untuk periode yang dipilih
+                          Tidak ada data untuk periode ini
                         </TableCell>
                       </TableRow>
                     ) : (
                       filteredRekapitulasi.map((item, index) => (
                         <TableRow key={index}>
-                          <TableCell className="font-medium">{item.bulan}</TableCell>
-                          <TableCell className="text-center">
-                            <span className="px-2 py-1 rounded-full bg-primary/10 text-primary">
-                              {item.jumlahKegiatan}x
-                            </span>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                              {item.bulan}
+                            </div>
                           </TableCell>
-                          <TableCell className="text-center">{item.rataRataHadir} orang</TableCell>
+                          <TableCell className="text-center">{item.jumlahKegiatan}</TableCell>
+                          <TableCell className="text-center">{item.rataRataHadir}</TableCell>
                         </TableRow>
                       ))
                     )}
                   </TableBody>
                 </Table>
               </div>
-              
-              {/* Summary Card */}
-              {filteredRekapitulasi.length > 0 && (
-                <div className="mt-4 p-4 bg-muted rounded-md">
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="text-center">
-                      <div className="text-sm text-muted-foreground">Total Kegiatan</div>
-                      <div className="text-2xl font-bold mt-1">
-                        {filteredRekapitulasi.reduce((sum, item) => sum + item.jumlahKegiatan, 0)}
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-sm text-muted-foreground">Kehadiran Tertinggi</div>
-                      <div className="text-2xl font-bold mt-1">
-                        {Math.max(...filteredRekapitulasi.map(item => item.rataRataHadir))}
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-sm text-muted-foreground">Rata-rata</div>
-                      <div className="text-2xl font-bold mt-1">
-                        {Math.round(
-                          filteredRekapitulasi.reduce((sum, item) => sum + item.rataRataHadir, 0) / 
-                          filteredRekapitulasi.length
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
         </div>
       </div>
+      
+      {/* Dialog Cetak PDF */}
+      <PrintRiwayatDialog 
+        open={printDialogOpen}
+        onOpenChange={setPrintDialogOpen}
+        detilDolingData={detilDolingData}
+        absensiDolingData={absensiDolingData}
+      />
     </div>
   );
 } 

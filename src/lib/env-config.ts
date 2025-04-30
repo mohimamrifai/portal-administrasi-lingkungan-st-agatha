@@ -13,7 +13,7 @@ export const VALID_ROLES = [
   'wakilSekretaris', 
   'bendahara', 
   'wakilBendahara',
-  'adminLingkungan',
+  'wakilKetua',
   'umat'
 ] as const;
 

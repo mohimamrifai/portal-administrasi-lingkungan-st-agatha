@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { format } from "date-fns"
+import { useEffect } from "react"
+import { format, startOfMonth, endOfMonth } from "date-fns"
 import { id } from "date-fns/locale"
 import { DateRange } from "react-day-picker"
 import { Button } from "@/components/ui/button"
@@ -11,11 +11,33 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils"
 
 interface PeriodFilterProps {
-  dateRange: DateRange | undefined;
-  onMonthChange: (date: DateRange | undefined) => void;
+  currentMonth: Date;
+  setCurrentMonth: (date: Date) => void;
+  setDateRange: (dateRange: DateRange | undefined) => void;
 }
 
-export function PeriodFilter({ dateRange, onMonthChange }: PeriodFilterProps) {
+export function PeriodFilter({ currentMonth, setCurrentMonth, setDateRange }: PeriodFilterProps) {
+  // Buat dateRange dari currentMonth
+  const dateRange: DateRange = {
+    from: startOfMonth(currentMonth),
+    to: endOfMonth(currentMonth),
+  };
+
+  // Update dateRange saat currentMonth berubah
+  useEffect(() => {
+    setDateRange({
+      from: startOfMonth(currentMonth),
+      to: endOfMonth(currentMonth),
+    });
+  }, [currentMonth, setDateRange]);
+
+  // Handler untuk mengubah bulan/rentang tanggal
+  const handleMonthChange = (date: DateRange | undefined) => {
+    if (date?.from) {
+      setCurrentMonth(date.from);
+    }
+  };
+
   return (
     <div className="flex flex-col space-y-2">
       <div className="flex items-center space-x-2">
@@ -34,27 +56,17 @@ export function PeriodFilter({ dateRange, onMonthChange }: PeriodFilterProps) {
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateRange?.from ? (
-                dateRange.to ? (
-                  <>
-                    {format(dateRange.from, "d MMMM yyyy", { locale: id })} - {format(dateRange.to, "d MMMM yyyy", { locale: id })}
-                  </>
-                ) : (
-                  format(dateRange.from, "d MMMM yyyy", { locale: id })
-                )
-              ) : (
-                <span>Pilih rentang tanggal</span>
-              )}
+              {format(currentMonth, "MMMM yyyy", { locale: id })}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               initialFocus
-              mode="range"
-              defaultMonth={dateRange?.from}
-              selected={dateRange}
-              onSelect={onMonthChange}
-              numberOfMonths={2}
+              mode="single"
+              defaultMonth={currentMonth}
+              selected={currentMonth}
+              onSelect={(date) => date && setCurrentMonth(date)}
+              numberOfMonths={1}
               locale={id}
               className="rounded-md border"
             />

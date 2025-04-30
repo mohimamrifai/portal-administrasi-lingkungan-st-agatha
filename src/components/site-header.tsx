@@ -81,7 +81,7 @@ export function SiteHeader({ userRole = "umat" }: SiteHeaderProps) {
       case 'wakilSekretaris': return 'Wakil Sekretaris';
       case 'bendahara': return 'Bendahara';
       case 'wakilBendahara': return 'Wakil Bendahara';
-      case 'adminLingkungan': return 'Admin Lingkungan';
+      case 'wakilKetua': return 'Wakil Ketua';
       case 'umat': return 'Umat';
       default: return role;
     }

@@ -58,19 +58,36 @@ export const navMain: Record<string, MenuItem[]> = {
     ketuaLingkungan: [
         { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         {
+            label: 'Lingkungan',
+            icon: Home,
+            children: [
+                { label: 'Kas Lingkungan', path: '/lingkungan/kas' },
+                { label: 'Dana Mandiri', path: '/lingkungan/mandiri' },
+            ],
+        },
+        { 
+            label: 'IKATA', 
+            icon: Banknote,
+            children: [
+                { label: 'Kas IKATA', path: '/ikata/kas' },
+                { label: 'Monitoring Penunggak', path: '/ikata/monitoring' },
+            ],
+        },
+        {
             label: 'Kesekretariatan',
             icon: Users,
             children: [
+                { label: 'Data Umat', path: '/kesekretariatan/umat' },
                 { label: 'Doa Lingkungan', path: '/kesekretariatan/doling' },
                 { label: 'Agenda', path: '/kesekretariatan/agenda' },
             ],
         },
         { label: 'Publikasi', path: '/publikasi', icon: FileText },
+        { label: 'Approval', path: '/approval', icon: ClipboardCheck },
         {
             label: 'Pengaturan',
             icon: Settings,
             children: [
-                { label: 'Profil', path: '/pengaturan/profil' },
                 { label: 'Ganti Password', path: '/pengaturan/password' },
             ],
         },
@@ -104,11 +121,11 @@ export const navMain: Record<string, MenuItem[]> = {
             ],
         },
         { label: 'Publikasi', path: '/publikasi', icon: FileText },
+        { label: 'Approval', path: '/approval', icon: ClipboardCheck },
         {
             label: 'Pengaturan',
             icon: Settings,
             children: [
-                { label: 'Profil', path: '/pengaturan/profil' },
                 { label: 'Ganti Password', path: '/pengaturan/password' },
             ],
         },
@@ -130,7 +147,6 @@ export const navMain: Record<string, MenuItem[]> = {
             label: 'Pengaturan',
             icon: Settings,
             children: [
-                { label: 'Profil', path: '/pengaturan/profil' },
                 { label: 'Ganti Password', path: '/pengaturan/password' },
             ],
         },
@@ -152,7 +168,6 @@ export const navMain: Record<string, MenuItem[]> = {
             label: 'Pengaturan',
             icon: Settings,
             children: [
-                { label: 'Profil', path: '/pengaturan/profil' },
                 { label: 'Ganti Password', path: '/pengaturan/password' },
             ],
         },
@@ -181,7 +196,6 @@ export const navMain: Record<string, MenuItem[]> = {
             label: 'Pengaturan',
             icon: Settings,
             children: [
-                { label: 'Profil', path: '/pengaturan/profil' },
                 { label: 'Ganti Password', path: '/pengaturan/password' },
             ],
         },
@@ -209,7 +223,6 @@ export const navMain: Record<string, MenuItem[]> = {
             label: 'Pengaturan',
             icon: Settings,
             children: [
-                { label: 'Profil', path: '/pengaturan/profil' },
                 { label: 'Ganti Password', path: '/pengaturan/password' },
             ],
         },
@@ -246,7 +259,6 @@ export const navMain: Record<string, MenuItem[]> = {
             label: 'Pengaturan',
             icon: Settings,
             children: [
-                { label: 'Profil', path: '/pengaturan/profil' },
                 { label: 'Ganti Password', path: '/pengaturan/password' },
             ],
         },
@@ -258,7 +270,7 @@ export const navMain: Record<string, MenuItem[]> = {
             label: 'Kesekretariatan',
             icon: Users,
             children: [
-                { label: 'Doa Lingkungan', path: '/kesekretariatan/doling' },
+                { label: 'Agenda', path: '/kesekretariatan/agenda' },
             ],
         },
         { label: 'Histori Pembayaran', path: '/histori-pembayaran', icon: History },

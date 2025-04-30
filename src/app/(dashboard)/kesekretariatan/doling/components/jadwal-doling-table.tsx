@@ -12,6 +12,37 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  MoreVertical,
+  PencilIcon,
+  Trash2Icon,
+  MapPinIcon,
+  PhoneIcon,
+} from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface JadwalDolingTableProps {
   jadwal: JadwalDoling[];
@@ -78,6 +109,20 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete }: JadwalDolingTabl
       case "selesai": return "Selesai";
       case "dibatalkan": return "Dibatalkan";
       default: return status;
+    }
+  };
+
+  // Helper functions for UI rendering
+  const getStatusBadge = (status: JadwalDoling['status']) => {
+    switch (status) {
+      case 'terjadwal':
+        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Terjadwal</Badge>;
+      case 'selesai':
+        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Selesai</Badge>;
+      case 'dibatalkan':
+        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Dibatalkan</Badge>;
+      default:
+        return null;
     }
   };
 
@@ -174,66 +219,104 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete }: JadwalDolingTabl
 
       {/* Table */}
       <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Tanggal & Waktu</TableHead>
-              <TableHead>Tuan Rumah</TableHead>
-              <TableHead className="hidden md:table-cell">Alamat</TableHead>
-              <TableHead className="text-center">Status</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginatedJadwal.length === 0 ? (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
-                  Tidak ada jadwal yang sesuai dengan pencarian
-                </TableCell>
+                <TableHead className="w-[100px]">Tanggal</TableHead>
+                <TableHead>Waktu</TableHead>
+                <TableHead>Tuan Rumah</TableHead>
+                <TableHead className="hidden md:table-cell">Alamat</TableHead>
+                <TableHead className="hidden md:table-cell">No Telepon</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right sticky right-0 bg-white shadow-[-8px_0_10px_-6px_rgba(0,0,0,0.1)] z-10">Aksi</TableHead>
               </TableRow>
-            ) : (
-              paginatedJadwal.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>
-                    <div className="font-medium">
-                      {format(item.tanggal, "dd MMM yyyy", { locale: id })}
-                    </div>
-                    <div className="text-sm text-muted-foreground">{item.waktu} WIB</div>
-                  </TableCell>
-                  <TableCell>{item.tuanRumah}</TableCell>
-                  <TableCell className="hidden md:table-cell max-w-xs truncate">
-                    {item.alamat}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant={getStatusBadgeVariant(item.status)}>
-                      {getStatusLabel(item.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onEdit(item)}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                        <span className="sr-only">Edit</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onDelete(item.id)}
-                      >
-                        <LucideTrash2 className="h-4 w-4" />
-                        <span className="sr-only">Delete</span>
-                      </Button>
-                    </div>
+            </TableHeader>
+            <TableBody>
+              {paginatedJadwal.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-24 text-center">
+                    Tidak ada jadwal yang ditemukan.
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                paginatedJadwal.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">
+                      {format(item.tanggal, "dd MMM yyyy", { locale: id })}
+                    </TableCell>
+                    <TableCell>{item.waktu} WIB</TableCell>
+                    <TableCell>{item.tuanRumah}</TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      <span className="truncate max-w-[200px]">{item.alamat}</span>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {item.noTelepon ? (
+                        <span>{item.noTelepon}</span>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(item.status)}</TableCell>
+                    <TableCell className="text-right sticky right-0 bg-white shadow-[-8px_0_10px_-6px_rgba(0,0,0,0.1)] z-10">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Buka menu</span>
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <DropdownMenuItem onClick={() => onEdit(item)}>
+                                  <span>Edit</span>
+                                </DropdownMenuItem>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Edit jadwal ini</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          
+                          <DropdownMenuSeparator />
+                          
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}>
+                                <span>Hapus</span>
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Apakah Anda yakin ingin menghapus jadwal pada 
+                                  {format(item.tanggal, " dd MMMM yyyy", { locale: id })} 
+                                  di rumah {item.tuanRumah}?
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Batal</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => onDelete(item.id)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Hapus
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
       
       {/* Pagination */}

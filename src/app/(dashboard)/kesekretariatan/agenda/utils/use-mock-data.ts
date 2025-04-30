@@ -1,6 +1,10 @@
 import { Agenda } from "../types";
+import { useAuth } from "@/contexts/auth-context";
 
 export function useMockData() {
+  // Mendapatkan informasi user dari auth context
+  const { userRole } = useAuth();
+
   // Mock data - in a real app, this would come from an API
   const mockAgendas: Agenda[] = [
     {
@@ -50,11 +54,11 @@ export function useMockData() {
     }
   ];
 
-  // Mock user data
+  // Mock user data dengan role yang didapat dari auth context
   const mockUser = {
     id: 1,
     name: "Budi Santoso",
-    role: "pengurus" // Ganti dengan "umat" untuk melihat tampilan berbeda
+    role: userRole // Menggunakan role dari auth context
   };
 
   return { mockAgendas, mockUser };

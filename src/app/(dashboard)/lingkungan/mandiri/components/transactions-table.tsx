@@ -162,22 +162,24 @@ export function TransactionsTable({
   // Handle select all for current page only
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
+      // Dapatkan semua ID transaksi yang bisa dipilih (tidak terkunci dan tidak disetor)
       const selectableIds = currentTransactions
         .filter(tx => !tx.isLocked && tx.status !== "submitted")
-        .map(tx => tx.id)
+        .map(tx => tx.id);
       
-      const newSelected = [...selectedIds]
+      // Gabungkan dengan ID yang sudah dipilih sebelumnya
+      const newSelected = [...selectedIds];
       selectableIds.forEach(id => {
         if (!newSelected.includes(id)) {
-          newSelected.push(id)
+          newSelected.push(id);
         }
-      })
+      });
       
-      onSelectAll(true)
+      // Update selection dengan gabungan ID terpilih
+      onSelectAll(checked);
     } else {
-      const currentIds = currentTransactions.map(tx => tx.id)
-      const newSelected = selectedIds.filter(id => !currentIds.includes(id))
-      onSelectAll(false)
+      // Kosongkan semua pilihan saat uncheck
+      onSelectAll(checked);
     }
   }
   

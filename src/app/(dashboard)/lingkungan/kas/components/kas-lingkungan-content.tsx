@@ -204,10 +204,7 @@ export default function KasLingkunganContent() {
   }
 
   function onPrintPdf(values: PrintPdfFormValues) {
-    // In real app, this would trigger a PDF generation
-    toast.success(`Mencetak laporan periode ${format(values.dateRange.from, "dd/MM/yyyy")} - ${format(values.dateRange.to, "dd/MM/yyyy")}`)
-    
-    // Mark transactions as locked
+    // Tandai transaksi sebagai terkunci
     const updatedTransactions = transactions.map(tx => {
       if (tx.date >= values.dateRange.from && tx.date <= values.dateRange.to) {
         return { ...tx, locked: true }
@@ -311,12 +308,13 @@ export default function KasLingkunganContent() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col gap-3">
           <PeriodFilter
-            dateRange={dateRange}
-            onMonthChange={handleMonthChange}
+            currentMonth={currentMonth}
+            setCurrentMonth={setCurrentMonth}
+            setDateRange={setDateRange}
           />
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex flex-col md:flex-row gap-2">
           {canModifyData && (
             <CreateTransactionDialog
               form={createForm}
@@ -327,6 +325,8 @@ export default function KasLingkunganContent() {
           <PrintPdfDialog
             form={pdfForm}
             onSubmit={onPrintPdf}
+            transactions={transactions}
+            initialBalance={initialBalance}
           />
         </div>
       </div>

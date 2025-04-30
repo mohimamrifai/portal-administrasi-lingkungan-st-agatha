@@ -168,7 +168,15 @@
 ### 10. Fitur Tambahan
 - **Tombol Log Out**
 - **Notifikasi** dengan fitur hapus otomatis
-- **Otorisasi** 8 jenis pengguna dengan batasan akses
+- **Otorisasi** 8 jenis pengguna dengan batasan akses:
+  1. Super User
+  2. Ketua Lingkungan
+  3. Wakil Ketua
+  4. Sekretaris
+  5. Wakil Sekretaris
+  6. Bendahara
+  7. Wakil Bendahara
+  8. Umat
 - **Username dan Password Awal** untuk pengurus
 
 ## Template Dokumen

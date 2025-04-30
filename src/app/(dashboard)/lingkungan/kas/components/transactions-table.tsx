@@ -398,21 +398,27 @@ export function TransactionsTable({
       
       {/* Table */}
       <div className="rounded-md border">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto relative">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[100px]">Tanggal</TableHead>
-                <TableHead>Deskripsi</TableHead>
-                <TableHead className="text-right">Pemasukan</TableHead>
-                <TableHead className="text-right">Pengeluaran</TableHead>
-                {canModifyData && <TableHead className="w-[80px] text-center">Aksi</TableHead>}
+                <TableHead className="w-[90px] whitespace-nowrap">Tanggal</TableHead>
+                <TableHead className="whitespace-nowrap">Jenis</TableHead>
+                <TableHead className="whitespace-nowrap">Tipe</TableHead>
+                <TableHead className="whitespace-nowrap">Keterangan</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Pemasukan</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Pengeluaran</TableHead>
+                {canModifyData && (
+                  <TableHead className="w-[60px] text-center whitespace-nowrap sticky right-0 bg-white shadow-[-4px_0_4px_rgba(0,0,0,0.05)]">
+                    Aksi
+                  </TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {currentTransactions.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={canModifyData ? 7 : 6} className="h-24 text-center">
                     Tidak ada data transaksi yang sesuai dengan filter
                   </TableCell>
                 </TableRow>
@@ -422,32 +428,38 @@ export function TransactionsTable({
                   key={transaction.id}
                   className={transaction.locked ? "bg-gray-50" : ""}
                 >
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {format(transaction.date, "dd/MM/yyyy")}
-                    {transaction.locked && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <LockIcon className="h-3 w-3 ml-1 text-gray-400" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Transaksi ini sudah dikunci</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-col">
-                      <span>{transaction.description}</span>
-                      {transaction.transactionSubtype && (
-                        <Badge className={`${transaction.debit > 0 ? "bg-green-600" : "bg-red-600 text-white"} w-fit mt-1`} variant={transaction.debit > 0 ? "default" : "destructive"}>
-                          {getSubtypeLabel(transaction)}
-                        </Badge>
+                    <div className="flex items-center gap-1">
+                      <Badge className={`${transaction.debit > 0 ? "bg-green-600" : "bg-red-600 text-white"} w-fit`}>
+                        {transaction.debit > 0 ? "Pemasukan" : "Pengeluaran"}
+                      </Badge>
+                      {transaction.locked && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center ml-1 bg-gray-200 text-gray-700 rounded-sm px-1 text-[10px]">
+                                <LockIcon className="h-2.5 w-2.5 mr-0.5" />
+                                <span>Terkunci</span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Transaksi ini sudah dikunci dan tidak dapat diubah</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-right font-medium text-green-600">
+                  <TableCell className="whitespace-nowrap">
+                    {getSubtypeLabel(transaction)}
+                  </TableCell>
+                  <TableCell>
+                    <span className="break-words">{transaction.description}</span>
+                  </TableCell>
+                  <TableCell className="text-right font-medium text-green-600 whitespace-nowrap">
                     {transaction.debit > 0 && (
                       <span>
                         {new Intl.NumberFormat("id-ID", {
@@ -458,7 +470,7 @@ export function TransactionsTable({
                       </span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right font-medium text-red-600">
+                  <TableCell className="text-right font-medium text-red-600 whitespace-nowrap">
                     {transaction.credit > 0 && (
                       <span>
                         {new Intl.NumberFormat("id-ID", {
@@ -470,7 +482,7 @@ export function TransactionsTable({
                     )}
                   </TableCell>
                   {canModifyData && (
-                    <TableCell className="text-center">
+                    <TableCell className="text-center sticky right-0 bg-white shadow-[-4px_0_4px_rgba(0,0,0,0.05)]">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button

@@ -220,8 +220,15 @@ export function sendReminderNotification(
 }
 
 // Print PDF
-export function printPdf(documentType: string, year?: number, fileFormat: string = "pdf"): void {
+export function printPdf(
+  documentType: string, 
+  documentCategory: string = "bukti_terima_uang",
+  month?: number,
+  year?: number, 
+  fileFormat: string = "pdf"
+): void {
   const formattedYear = year ? ` tahun ${year}` : "";
+  const formattedMonth = month ? ` bulan ${new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(new Date(year || 0, month - 1, 1))}` : "";
   
   let documentName = "";
   switch (documentType) {
@@ -238,5 +245,17 @@ export function printPdf(documentType: string, year?: number, fileFormat: string
       documentName = "Dokumen";
   }
   
-  toast.success(`Mencetak ${documentName}${formattedYear} dalam format PDF`);
+  let categoryName = "";
+  switch (documentCategory) {
+    case "bukti_terima_uang":
+      categoryName = "Bukti Terima Uang";
+      break;
+    case "setor_ke_paroki":
+      categoryName = "Setor ke Paroki";
+      break;
+    default:
+      categoryName = "";
+  }
+  
+  toast.success(`Mencetak ${documentName} ${categoryName}${formattedMonth}${formattedYear} dalam format PDF`);
 } 

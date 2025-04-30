@@ -59,12 +59,12 @@ export function ConfirmationDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {confirmAction === 'approve' ? 'Konfirmasi Persetujuan' : 'Konfirmasi Penolakan'}
+            {confirmAction === 'approve' ? 'Konfirmasi Persetujuan' : 'Konfirmasi Edit'}
           </DialogTitle>
           <DialogDescription>
             {confirmAction === 'approve'
               ? 'Anda yakin ingin menyetujui permohonan ini? Data akan diintegrasikan ke Kas Lingkungan.'
-              : 'Anda yakin ingin menolak permohonan ini?'}
+              : 'Anda yakin ingin mengedit permohonan ini?'}
           </DialogDescription>
         </DialogHeader>
         
@@ -86,14 +86,14 @@ export function ConfirmationDialog({
             
             {confirmAction === 'reject' && (
               <div className="mt-4">
-                <Label htmlFor="rejection-reason" className="font-semibold mb-2">Alasan Penolakan:</Label>
+                <Label htmlFor="rejection-reason" className="font-semibold mb-2">Alasan Edit:</Label>
                 <Textarea
                   id="rejection-reason"
                   className="w-full"
                   rows={3}
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder="Masukkan alasan penolakan..."
+                  placeholder="Masukkan alasan edit..."
                 />
               </div>
             )}
@@ -128,7 +128,7 @@ export function ConfirmationDialog({
               ? 'Memproses...' 
               : confirmAction === 'approve' 
                 ? 'Setujui' 
-                : 'Tolak'
+                : 'Edit'
             }
           </Button>
         </DialogFooter>

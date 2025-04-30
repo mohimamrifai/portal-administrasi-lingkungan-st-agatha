@@ -18,7 +18,14 @@ import {
   ChevronRightIcon, 
   ChevronsLeftIcon, 
   ChevronsRightIcon,
-  MoreVertical
+  MoreVertical,
+  PencilIcon,
+  Trash2Icon,
+  CalendarIcon,
+  UserIcon,
+  UsersIcon,
+  CheckCircleIcon,
+  XCircleIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
@@ -152,6 +159,57 @@ export function DetilDolingTable({
     setApproveFilter(null);
   };
 
+  // Helper untuk status badge
+  const getStatusBadge = (status: DetilDoling['status']) => {
+    switch (status) {
+      case 'selesai':
+        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Selesai</Badge>;
+      case 'dibatalkan':
+        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Dibatalkan</Badge>;
+      default:
+        return null;
+    }
+  };
+
+  // Helper untuk jenis ibadat badge
+  const getJenisIbadatBadge = (jenisIbadat?: string) => {
+    if (!jenisIbadat) return null;
+
+    const jenisMap: Record<string, { color: string, label: string }> = {
+      'doa-lingkungan': { color: 'blue', label: 'Doa Lingkungan' },
+      'misa': { color: 'purple', label: 'Misa' },
+      'pertemuan': { color: 'orange', label: 'Pertemuan' },
+      'bakti-sosial': { color: 'green', label: 'Bakti Sosial' },
+      'kegiatan-lainnya': { color: 'gray', label: 'Lainnya' }
+    };
+
+    const { color, label } = jenisMap[jenisIbadat] || { color: 'gray', label: jenisIbadat };
+    return (
+      <Badge variant="outline" className={`bg-${color}-50 text-${color}-700 border-${color}-200`}>
+        {label}
+      </Badge>
+    );
+  };
+
+  // Helper untuk approval status
+  const getApprovalStatus = (sudahDiapprove?: boolean) => {
+    if (sudahDiapprove) {
+      return (
+        <div className="flex items-center gap-1 text-green-600">
+          <CheckCircleIcon className="h-4 w-4" />
+          <span className="text-xs">Disetujui</span>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="flex items-center gap-1 text-amber-600">
+        <XCircleIcon className="h-4 w-4" />
+        <span className="text-xs">Belum Disetujui</span>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -278,24 +336,23 @@ export function DetilDolingTable({
 
       <div className="rounded-md border overflow-hidden">
         <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Tanggal</TableHead>
-            <TableHead>Tuan Rumah</TableHead>
-            <TableHead>Jumlah Hadir</TableHead>
-            <TableHead>Kegiatan</TableHead>
-                <TableHead>Biaya</TableHead>
-                <TableHead>Koleksi</TableHead>
-            <TableHead>Status</TableHead>
-                <TableHead>Approval</TableHead>
-                <TableHead className="sticky right-0 bg-white shadow-md w-[50px] text-center">Aksi</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[100px]">Tanggal</TableHead>
+                <TableHead>Tuan Rumah</TableHead>
+                <TableHead>Jenis Ibadat</TableHead>
+                <TableHead>Kehadiran</TableHead>
+                <TableHead className="hidden md:table-cell">Kolekte</TableHead>
+                <TableHead>Status Kegiatan</TableHead>
+                <TableHead>Status Approval</TableHead>
+                <TableHead className="text-right sticky right-0 bg-white shadow-[-8px_0_10px_-6px_rgba(0,0,0,0.1)] z-10">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {currentData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-10">
+                  <TableCell colSpan={8} className="text-center py-10">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       {filteredData.length === 0 ? (
                         detil.length > 0 ? (
@@ -321,124 +378,109 @@ export function DetilDolingTable({
               ) : (
                 currentData.map((item) => (
                   <TableRow key={item.id} className={item.sudahDiapprove ? "bg-green-50" : ""}>
-              <TableCell>{format(item.tanggal, "dd/MM/yyyy", { locale: id })}</TableCell>
-                    <TableCell className="font-medium">{item.tuanRumah}</TableCell>
-              <TableCell>{item.jumlahHadir}</TableCell>
-              <TableCell>{item.kegiatan}</TableCell>
-                    <TableCell>{formatRupiah(item.biaya || 0)}</TableCell>
-                    <TableCell>{formatRupiah(item.koleksi || 0)}</TableCell>
-              <TableCell>
-                      <Badge variant={item.status === 'selesai' ? "success" : "destructive"} className="w-max">
-                        {item.status === 'selesai' ? 'Selesai' : 'Dibatalkan'}
-                      </Badge>
-              </TableCell>
-              <TableCell>
-                      {item.status === 'selesai' && (
-                        <Badge variant={item.sudahDiapprove ? "outline" : "secondary"} className="text-xs w-max">
-                          {item.sudahDiapprove ? 'Sudah diapprove' : 'Belum diapprove'}
-                        </Badge>
+                    <TableCell className="font-medium">
+                      {format(item.tanggal, "dd MMM yyyy", { locale: id })}
+                    </TableCell>
+                    <TableCell>
+                      {item.tuanRumah}
+                    </TableCell>
+                    <TableCell>
+                      {getJenisIbadatBadge(item.jenisIbadat)}
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {item.subIbadat}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-medium">{item.jumlahHadir}</span>
+                      <span className="text-xs text-muted-foreground ml-1">orang</span>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {(item.kolekte1 || item.kolekte2 || item.ucapanSyukur) ? (
+                        <div className="space-y-1">
+                          {item.kolekte1 ? (
+                            <div className="text-xs">
+                              <span className="text-muted-foreground">Kolekte 1:</span> {formatRupiah(item.kolekte1)}
+                            </div>
+                          ) : null}
+                          {item.kolekte2 ? (
+                            <div className="text-xs">
+                              <span className="text-muted-foreground">Kolekte 2:</span> {formatRupiah(item.kolekte2)}
+                            </div>
+                          ) : null}
+                          {item.ucapanSyukur ? (
+                            <div className="text-xs">
+                              <span className="text-muted-foreground">Ucapan Syukur:</span> {formatRupiah(item.ucapanSyukur)}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="sticky right-0 bg-white shadow-md">
-                      <AlertDialog>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Hapus Data Kegiatan</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Apakah anda yakin ingin menghapus data kegiatan ini? Tindakan ini tidak dapat dibatalkan.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Batal</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-red-500 hover:bg-red-600"
-                              onClick={() => onDelete(item.id)}
-                            >
-                  Hapus
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                        
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              className="h-8 w-8 p-0"
-                            >
-                              <span className="sr-only">Buka menu</span>
-                              <MoreVertical className="h-4 w-4" />
-                </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div>
-                                    <DropdownMenuItem
-                                      onClick={() => onEdit(item)}
-                                      disabled={item.sudahDiapprove}
-                                      className={item.sudahDiapprove ? "cursor-not-allowed opacity-50" : ""}
-                                    >
-                                      <EditIcon className="mr-2 h-4 w-4" />
-                                      <span>Edit</span>
-                                    </DropdownMenuItem>
-                                  </div>
-                                </TooltipTrigger>
-                                {item.sudahDiapprove && (
-                                  <TooltipContent>
-                                    <p>Data yang sudah diapprove tidak dapat diedit</p>
-                                  </TooltipContent>
-                                )}
-                              </Tooltip>
-                            </TooltipProvider>
-                            
-                            {item.status === 'selesai' && !item.sudahDiapprove && (
-                              <DropdownMenuItem onClick={() => handleApproveClick(item.id)}>
-                                <CheckIcon className="mr-2 h-4 w-4" />
-                                <span>Approve</span>
+                    <TableCell>
+                      {getStatusBadge(item.status)}
+                    </TableCell>
+                    <TableCell>
+                      {getApprovalStatus(item.sudahDiapprove)}
+                    </TableCell>
+                    <TableCell className="text-right sticky right-0 bg-white shadow-[-8px_0_10px_-6px_rgba(0,0,0,0.1)] z-10">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Buka menu</span>
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <DropdownMenuItem onClick={() => onEdit(item)}>
+                                  <span>Edit</span>
+                                </DropdownMenuItem>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Edit detil doling ini</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          
+                          <DropdownMenuSeparator />
+                          
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}>
+                                <span>Hapus</span>
                               </DropdownMenuItem>
-                            )}
-                            
-                            {item.status === 'selesai' && (
-                              <DropdownMenuItem onClick={() => handlePrintClick(item.id)}>
-                                <PrinterIcon className="mr-2 h-4 w-4" />
-                                <span>Cetak</span>
-                              </DropdownMenuItem>
-                            )}
-                            
-                            <DropdownMenuSeparator />
-                            
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div>
-                                    <AlertDialogTrigger asChild>
-                                      <DropdownMenuItem
-                                        disabled={item.sudahDiapprove}
-                                        className={`${item.sudahDiapprove ? "cursor-not-allowed opacity-50" : ""} text-red-600 focus:text-red-600`}
-                                      >
-                                        <TrashIcon className="mr-2 h-4 w-4" />
-                                        <span>Hapus</span>
-                                      </DropdownMenuItem>
-                                    </AlertDialogTrigger>
-                                  </div>
-                                </TooltipTrigger>
-                                {item.sudahDiapprove && (
-                                  <TooltipContent>
-                                    <p>Data yang sudah diapprove tidak dapat dihapus</p>
-                                  </TooltipContent>
-                                )}
-                              </Tooltip>
-                            </TooltipProvider>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </AlertDialog>
-              </TableCell>
-            </TableRow>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Apakah Anda yakin ingin menghapus detil doling pada 
+                                  {format(item.tanggal, " dd MMMM yyyy", { locale: id })} 
+                                  di rumah {item.tuanRumah}?
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Batal</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => onDelete(item.id)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Hapus
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
                 ))
               )}
-        </TableBody>
-      </Table>
+            </TableBody>
+          </Table>
         </div>
       </div>
       

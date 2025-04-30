@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { format } from "date-fns"
 import { DanaMandiriArrears } from "../types"
 import { formatCurrency, getFamilyHeadName } from "../utils"
@@ -33,6 +33,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface MonitoringTableProps {
   arrears: DanaMandiriArrears[]
@@ -107,18 +113,49 @@ export function MonitoringTable({
   }
   
   // Format period text
-  const formatPeriods = (periods: number[]): string => {
-    if (periods.length === 1) {
-      return periods[0].toString()
+  const formatPeriods = (periods: number[]): React.ReactNode => {
+    // Sort periods in ascending order
+    const sortedPeriods = [...periods].sort((a, b) => a - b);
+    
+    // If there are too many periods, show them as badges with a tooltip for all
+    if (periods.length > 2) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex flex-wrap gap-1">
+                {sortedPeriods.slice(0, 2).map(year => (
+                  <Badge key={year} variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                    {year}
+                  </Badge>
+                ))}
+                {periods.length > 2 && (
+                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                    +{periods.length - 2}
+                  </Badge>
+                )}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="font-medium">Periode Tunggakan:</p>
+              <p>{sortedPeriods.join(", ")}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
     }
     
-    if (periods.length === 2) {
-      return periods.join(" dan ")
-    }
-    
-    const sortedPeriods = [...periods].sort()
-    return `${sortedPeriods[0]} - ${sortedPeriods[sortedPeriods.length - 1]}`
-  }
+    // For 1-2 periods, just show them directly
+    return (
+      <div className="flex flex-wrap gap-1">
+        {sortedPeriods.map(year => (
+          <Badge key={year} variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+            {year}
+          </Badge>
+        ))}
+      </div>
+    );
+  };
   
   // Get last notification status
   const getNotificationStatus = (lastNotificationDate?: Date) => {

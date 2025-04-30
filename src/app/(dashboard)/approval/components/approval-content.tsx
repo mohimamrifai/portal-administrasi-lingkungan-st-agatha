@@ -131,9 +131,9 @@ export default function ApprovalContent() {
           )
           setApprovalData(updatedData)
           
-          toast.info(`Permohonan ditolak. Notifikasi telah dikirim ke pengurus.`)
+          toast.info(`Permohonan diedit. Notifikasi telah dikirim ke pengurus.`)
         } else {
-          toast.error("Gagal menolak permohonan. Silakan coba lagi.")
+          toast.error("Gagal mengedit permohonan. Silakan coba lagi.")
         }
       }
       

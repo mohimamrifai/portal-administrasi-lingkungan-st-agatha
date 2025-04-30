@@ -29,9 +29,11 @@ import { TransactionsTable } from "./transactions-table"
 import { MonitoringTable } from "./monitoring-table"
 import { TransactionFormDialog } from "./transaction-form-dialog"
 import { PrintPdfDialog } from "./print-pdf-dialog"
+import { PDFPreviewDialog } from "./pdf-preview-dialog"
 import { SetDuesDialog } from "./set-dues-dialog"
 import { ReminderDialog } from "./reminder-dialog"
 import { SubmitToParokiDialog } from "./submit-to-paroki-dialog"
+import SlipPenyetoranDialog from "./slip-penyetoran-dialog"
 
 export default function DanaMandiriContent() {
   // State for transactions and arrears
@@ -50,8 +52,24 @@ export default function DanaMandiriContent() {
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false)
   const [submitDialogOpen, setSubmitDialogOpen] = useState(false)
   
+  // State for PDF preview
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false)
+  const [pdfPreviewData, setPdfPreviewData] = useState<{
+    documentType: string;
+    documentCategory: "bukti_terima_uang" | "setor_ke_paroki";
+    month?: number;
+    year: number;
+  }>({
+    documentType: "payment_receipt",
+    documentCategory: "bukti_terima_uang",
+    year: new Date().getFullYear()
+  })
+  
   // State for edit transaction
   const [editingTransaction, setEditingTransaction] = useState<DanaMandiriTransaction | null>(null)
+  
+  // State untuk dialog slip penyetoran
+  const [slipPenyetoranDialogOpen, setSlipPenyetoranDialogOpen] = useState(false)
   
   // Calculate summary statistics
   const { totalCollected, paidCount, unpaidCount } = calculateSummary(transactions)
@@ -88,22 +106,30 @@ export default function DanaMandiriContent() {
   // Handle selecting all transactions
   const handleSelectAllTransactions = (isChecked: boolean) => {
     if (isChecked) {
+      // Pilih semua transaksi yang tidak terkunci dan belum disetor ke Paroki
       const selectableIds = transactions
         .filter(tx => !tx.isLocked && tx.status !== "submitted")
-        .map(tx => tx.id)
-      setSelectedTransactionIds(selectableIds)
+        .map(tx => tx.id);
+      
+      // Update state dengan semua ID yang bisa dipilih
+      setSelectedTransactionIds(selectableIds);
     } else {
-      setSelectedTransactionIds([])
+      // Kosongkan pilihan
+      setSelectedTransactionIds([]);
     }
   }
   
   // Handle selecting all families for reminders
   const handleSelectAllFamilies = (isChecked: boolean) => {
     if (isChecked) {
-      const selectableIds = arrears.map(a => a.familyHeadId)
-      setSelectedFamilyIds(selectableIds)
+      // Pilih semua kepala keluarga yang memiliki tunggakan
+      const selectableIds = arrears.map(a => a.familyHeadId);
+      
+      // Update state dengan semua ID kepala keluarga
+      setSelectedFamilyIds(selectableIds);
     } else {
-      setSelectedFamilyIds([])
+      // Kosongkan pilihan
+      setSelectedFamilyIds([]);
     }
   }
   
@@ -178,7 +204,26 @@ export default function DanaMandiriContent() {
   
   // Handle print PDF
   const handlePrintPdf = (values: PrintPdfFormValues) => {
-    printPdf(values.documentType, values.year, values.fileFormat)
+    // Show PDF preview with selected data
+    setPdfPreviewData({
+      documentType: values.documentType,
+      documentCategory: values.documentCategory as "bukti_terima_uang" | "setor_ke_paroki",
+      month: values.month,
+      year: values.year
+    })
+    
+    // Open PDF preview
+    setPdfPreviewOpen(true)
+    
+    // Notifikasi berhasil unduh akan ditampilkan saat user mengunduh dokumen
+    // dan dihandle oleh komponen pdf-viewer, bukan saat membuka preview
+    // printPdf(
+    //   values.documentType, 
+    //   values.documentCategory as string,
+    //   values.month,
+    //   values.year,
+    //   values.fileFormat
+    // )
     
     // Mark related transactions as locked if yearly report
     if (values.documentType === "yearly_report" && values.year) {
@@ -243,19 +288,21 @@ export default function DanaMandiriContent() {
         </TabsList>
         
         <TabsContent value="tab1" className="space-y-4">
-          <div className="flex justify-between">
+          <div className="flex flex-col gap-2 md:flex-row justify-between">
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setPrintDialogOpen(true)}>
                 Print PDF
               </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setSlipPenyetoranDialogOpen(true)}
+              >
+                Template Slip Penyetoran
+              </Button>
             </div>
             <div className="flex gap-2">
-              <Button 
-                onClick={() => setSubmitDialogOpen(true)}
-                disabled={selectedTransactionIds.length === 0}
-                className="mr-2"
-              >
-                Setor ke Paroki
+              <Button variant="outline" onClick={() => setSubmitDialogOpen(true)} disabled={selectedTransactionIds.length === 0}>
+                Setor ke Paroki ({selectedTransactionIds.length})
               </Button>
               <Button onClick={() => setAddDialogOpen(true)}>
                 Tambah Data
@@ -265,16 +312,29 @@ export default function DanaMandiriContent() {
           
           <TransactionsTable
             transactions={transactions}
-            onEdit={startEditTransaction}
-            onDelete={handleDeleteTransaction}
-            onToggleLock={handleToggleLock}
             selectedIds={selectedTransactionIds}
             onSelectChange={handleTransactionSelectChange}
             onSelectAll={handleSelectAllTransactions}
+            onEdit={startEditTransaction}
+            onDelete={handleDeleteTransaction}
+            onToggleLock={handleToggleLock}
           />
         </TabsContent>
         
-        <TabsContent value="tab2">
+        <TabsContent value="tab2" className="space-y-4">
+          <div className="flex justify-between">
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setPrintDialogOpen(true)}>
+                Print PDF
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setReminderDialogOpen(true)} disabled={selectedFamilyIds.length === 0}>
+                Kirim Pengingat ({selectedFamilyIds.length})
+              </Button>
+            </div>
+          </div>
+          
           <MonitoringTable
             arrears={arrears}
             selectedFamilyIds={selectedFamilyIds}
@@ -287,34 +347,42 @@ export default function DanaMandiriContent() {
       </Tabs>
       
       {/* Dialogs */}
-      <TransactionFormDialog
+      <TransactionFormDialog 
         open={addDialogOpen}
         onOpenChange={setAddDialogOpen}
         onSubmit={handleAddTransaction}
         mode="add"
       />
       
-      {editingTransaction && (
-        <TransactionFormDialog
-          open={editDialogOpen}
-          onOpenChange={setEditDialogOpen}
-          onSubmit={handleEditTransaction}
-          defaultValues={{
-            familyHeadId: editingTransaction.familyHeadId,
-            year: editingTransaction.year,
-            amount: editingTransaction.amount,
-            paymentDate: editingTransaction.paymentDate,
-            notes: editingTransaction.notes || "",
-            paymentStatus: editingTransaction.paymentStatus,
-          }}
-          mode="edit"
-        />
-      )}
+      <TransactionFormDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSubmit={handleEditTransaction}
+        defaultValues={editingTransaction ? {
+          familyHeadId: editingTransaction.familyHeadId,
+          year: editingTransaction.year,
+          amount: editingTransaction.amount,
+          paymentDate: editingTransaction.paymentDate,
+          notes: editingTransaction.notes || "",
+          paymentStatus: editingTransaction.paymentStatus,
+        } : undefined}
+        mode="edit"
+      />
       
       <PrintPdfDialog
         open={printDialogOpen}
         onOpenChange={setPrintDialogOpen}
         onSubmit={handlePrintPdf}
+      />
+      
+      <PDFPreviewDialog
+        open={pdfPreviewOpen}
+        onOpenChange={setPdfPreviewOpen}
+        documentType={pdfPreviewData.documentType}
+        documentCategory={pdfPreviewData.documentCategory}
+        transactions={transactions}
+        month={pdfPreviewData.month}
+        year={pdfPreviewData.year}
       />
       
       <SetDuesDialog
@@ -336,6 +404,11 @@ export default function DanaMandiriContent() {
         onSubmit={handleSubmitToParoki}
         selectedTransactionIds={selectedTransactionIds}
         totalAmount={totalSelectedAmount}
+      />
+      
+      <SlipPenyetoranDialog
+        open={slipPenyetoranDialogOpen}
+        onOpenChange={setSlipPenyetoranDialogOpen}
       />
     </div>
   )

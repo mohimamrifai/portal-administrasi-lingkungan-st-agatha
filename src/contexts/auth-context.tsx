@@ -11,7 +11,7 @@ export const ROLES = {
   WAKIL_SEKRETARIS: 'wakilSekretaris',
   BENDAHARA: 'bendahara',
   WAKIL_BENDAHARA: 'wakilBendahara',
-  ADMIN_LINGKUNGAN: 'adminLingkungan',
+  WAKIL_KETUA: 'wakilKetua',
   UMAT: 'umat',
 };
 
@@ -118,8 +118,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       case "wakilbendahara":
         role = "wakilBendahara"
         break
-      case "adminlingkungan":
-        role = "adminLingkungan"
+      case "wakilketua":
+        role = "wakilKetua"
         break
       default:
         role = "umat"

@@ -79,9 +79,10 @@ import {
   Clock,
   CheckCircle,
   Upload,
-  Bell
+  Bell,
+  Plus
 } from "lucide-react"
-import { Publikasi } from "../types/publikasi"
+import { Publikasi, Laporan } from "../types/publikasi"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { Label } from "@/components/ui/label"
@@ -370,7 +371,7 @@ export function PublikasiTable({ data }: PublikasiTableProps) {
     setNotificationDialogOpen(false);
   };
 
-  // Tambahkan fungsi untuk membuka dialog buat laporan
+  // Tambahkan fungsi untuk membuat laporan
   const handleCreateReport = (publikasi: Publikasi) => {
     // Tampilkan dialog buat laporan
     setBuatLaporanDialogOpen(true);
@@ -635,7 +636,7 @@ export function PublikasiTable({ data }: PublikasiTableProps) {
 
       {/* Modal Lihat Detail */}
       <Dialog open={viewDetailOpen} onOpenChange={setViewDetailOpen}>
-        <DialogContent className="sm:max-w-[550px]">
+        <DialogContent className="sm:max-w-[700px] md:max-w-[800px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <InfoIcon className="h-5 w-5" />
@@ -716,6 +717,45 @@ export function PublikasiTable({ data }: PublikasiTableProps) {
                   </div>
                 </div>
               )}
+              
+              {/* Bagian Laporan */}
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label className="text-right font-medium pt-2">Laporan:</Label>
+                <div className="col-span-3">
+                  {selectedPublication.laporan && selectedPublication.laporan.length > 0 ? (
+                    <div className="space-y-2">
+                      {selectedPublication.laporan.map((laporan) => (
+                        <div key={laporan.id} className="border rounded-md p-3 shadow-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="font-medium">{laporan.judul}</div>
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                              {laporan.jenis}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-muted-foreground mb-2">
+                            {format(new Date(laporan.tanggal), "dd MMMM yyyy", { locale: localeID })}
+                          </div>
+                          <p className="text-sm mb-2">{laporan.keterangan}</p>
+                          {laporan.lampiran && (
+                            <Button variant="outline" size="sm" className="mt-2" onClick={() => handleDownload(laporan.id, laporan.lampiran)}>
+                              <FileText className="h-4 w-4 mr-2" />
+                              {laporan.lampiran}
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-4 border rounded-md">
+                      <p className="text-sm text-muted-foreground mb-2">Belum ada laporan untuk publikasi ini</p>
+                      <Button size="sm" onClick={() => handleCreateReport(selectedPublication)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Buat Laporan
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
           
@@ -727,7 +767,7 @@ export function PublikasiTable({ data }: PublikasiTableProps) {
       
       {/* Modal Edit */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-[650px]">
+        <DialogContent className="sm:max-w-[650px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Pencil className="h-5 w-5" />
@@ -997,10 +1037,41 @@ export function PublikasiTable({ data }: PublikasiTableProps) {
           onOpenChange={setBuatLaporanDialogOpen}
           publikasi={selectedPublikasiForReport}
           onSubmit={(values) => {
+            // Validasi nilai yang diberikan
+            if (!values.title || !values.type) {
+              toast.error("Data laporan tidak lengkap");
+              return;
+            }
+            
+            // Buat objek laporan baru
+            const attachmentName = values.attachment ? values.attachment.name : "tidak-ada-lampiran.pdf";
+            
+            const newReport: Laporan = {
+              id: `lap-${Date.now()}`, // Generate ID unik
+              judul: values.title,
+              jenis: values.type,
+              tanggal: values.date || new Date(),
+              keterangan: values.description || "",
+              lampiran: attachmentName,
+              publikasiId: selectedPublikasiForReport.id
+            };
+            
+            // Update publikasi dengan laporan baru
+            // Di aplikasi nyata, ini akan menggunakan API untuk memperbarui data di server
+            if (!selectedPublikasiForReport.laporan) {
+              selectedPublikasiForReport.laporan = [];
+            }
+            selectedPublikasiForReport.laporan.push(newReport);
+            
             toast.success("Laporan berhasil dibuat", {
               description: `Laporan untuk publikasi "${selectedPublikasiForReport.judul}" telah dibuat`,
             });
             setBuatLaporanDialogOpen(false);
+            
+            // Jika detail laporan terbuka, perbarui tampilan
+            if (viewDetailOpen) {
+              setSelectedPublication({...selectedPublikasiForReport});
+            }
           }}
         />
       )}

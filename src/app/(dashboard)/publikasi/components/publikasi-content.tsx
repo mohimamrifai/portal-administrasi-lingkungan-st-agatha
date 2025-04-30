@@ -34,10 +34,7 @@ export default function PublikasiContent() {
   const canCreatePublication = [
     'SuperUser', 
     'sekretaris', 
-    'wakilSekretaris', 
-    'bendahara', 
-    'wakilBendahara',
-    'adminLingkungan'
+    'wakilSekretaris'
   ].includes(userRole)
   
   // Setup table

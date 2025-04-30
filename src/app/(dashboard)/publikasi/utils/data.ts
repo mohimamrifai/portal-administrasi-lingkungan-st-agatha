@@ -1,4 +1,4 @@
-import { Publikasi } from "../types/publikasi"
+import { Publikasi, Laporan } from "../types/publikasi"
 
 // Data dummy untuk simulasi
 export const dummyPublikasi: Publikasi[] = [
@@ -13,7 +13,27 @@ export const dummyPublikasi: Publikasi[] = [
     pembuat: "Admin Lingkungan",
     lampiran: true,
     locked: false,
-    kategori: "Penting"
+    kategori: "Penting",
+    laporan: [
+      {
+        id: "lap-1",
+        judul: "Laporan Persiapan Dekorasi",
+        jenis: "Evaluasi",
+        tanggal: "2023-12-15",
+        keterangan: "Laporan tentang persiapan dekorasi untuk acara Natal 2023 di Gereja St. Agatha",
+        lampiran: "laporan-dekorasi.pdf",
+        publikasiId: "1"
+      },
+      {
+        id: "lap-2",
+        judul: "Laporan Penggunaan Dana",
+        jenis: "Keuangan",
+        tanggal: "2023-12-20",
+        keterangan: "Rincian penggunaan dana untuk keperluan acara Natal 2023",
+        lampiran: "laporan-keuangan.xlsx",
+        publikasiId: "1"
+      }
+    ]
   },
   { 
     id: "2", 
@@ -26,7 +46,18 @@ export const dummyPublikasi: Publikasi[] = [
     pembuat: "Admin Lingkungan",
     lampiran: true,
     locked: true,
-    kategori: "Umum"
+    kategori: "Umum",
+    laporan: [
+      {
+        id: "lap-3",
+        judul: "Laporan Kehadiran Umat",
+        jenis: "Evaluasi",
+        tanggal: "2023-04-10",
+        keterangan: "Laporan jumlah kehadiran umat pada Misa Paskah 2023",
+        lampiran: "kehadiran-paskah.pdf",
+        publikasiId: "2"
+      }
+    ]
   },
   { 
     id: "3", 
@@ -52,7 +83,18 @@ export const dummyPublikasi: Publikasi[] = [
     pembuat: "Sekretaris",
     lampiran: true,
     locked: false,
-    kategori: "Umum"
+    kategori: "Umum",
+    laporan: [
+      {
+        id: "lap-4",
+        judul: "Laporan Partisipasi Doa Rosario",
+        jenis: "Partisipasi",
+        tanggal: "2023-05-30",
+        keterangan: "Laporan tentang partisipasi umat dalam kegiatan doa rosario dengan jadwal yang baru",
+        lampiran: "partisipasi-rosario.pdf",
+        publikasiId: "4"
+      }
+    ]
   },
   { 
     id: "5", 

@@ -10,6 +10,7 @@ export interface Publikasi {
   lampiran: boolean
   locked: boolean
   kategori: "Penting" | "Umum" | "Rahasia" | "Segera"
+  laporan?: Laporan[]
 }
 
 export type KategoriPublikasi = "Penting" | "Umum" | "Rahasia" | "Segera"
@@ -31,9 +32,9 @@ export type TargetPenerimaType =
 export interface Laporan {
   id: string
   judul: string
-  jenis?: string
-  tanggal?: string | Date
-  keterangan?: string
-  lampiran?: string
-  publikasiId?: string
+  jenis: string
+  tanggal: string | Date
+  keterangan: string
+  lampiran: string
+  publikasiId: string
 } 

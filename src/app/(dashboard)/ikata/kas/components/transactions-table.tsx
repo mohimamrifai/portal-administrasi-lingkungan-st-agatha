@@ -85,8 +85,8 @@ export function TransactionsTable({
   // Type filter options
   const typeOptions = [
     { value: null, label: "Semua Tipe", key: "all" },
-    { value: "pemasukan", label: "Pemasukan", key: "pemasukan" },
-    { value: "pengeluaran", label: "Pengeluaran", key: "pengeluaran" }
+    { value: "uang_masuk", label: "Uang Masuk", key: "uang_masuk" },
+    { value: "uang_keluar", label: "Uang Keluar", key: "uang_keluar" }
   ];
   
   // Calculate pagination values for filtered data
@@ -153,6 +153,94 @@ export function TransactionsTable({
   const handlePageSizeChange = (value: string) => {
     setPageSize(Number(value));
     setCurrentPage(1); // Reset to first page when changing page size
+  };
+
+  // Format tipe transaksi untuk ditampilkan
+  const formatTipeTransaksi = (tipe: string) => {
+    const tipeMap: Record<string, string> = {
+      // Tipe Uang Masuk
+      'iuran_anggota': 'Iuran Anggota',
+      'transfer_dana_lingkungan': 'Transfer Dana dari Lingkungan',
+      'sumbangan_anggota': 'Sumbangan Anggota',
+      'penerimaan_lain': 'Penerimaan Lain-Lain',
+      
+      // Tipe Uang Keluar
+      'uang_duka': 'Uang Duka / Papan Bunga',
+      'kunjungan_kasih': 'Kunjungan Kasih',
+      'cinderamata_kelahiran': 'Cinderamata Kelahiran',
+      'cinderamata_pernikahan': 'Cinderamata Pernikahan',
+      'uang_akomodasi': 'Uang Akomodasi',
+      'pembelian': 'Pembelian',
+      'lain_lain': 'Lain-Lain',
+    };
+    
+    return tipeMap[tipe] || tipe;
+  };
+
+  // Mendapatkan warna untuk badge jenis transaksi
+  const getJenisTransaksiBadgeStyle = (jenis: string) => {
+    if (jenis === 'uang_masuk') {
+      return "bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-200";
+    } else {
+      return "bg-rose-100 text-rose-800 border-rose-200 hover:bg-rose-200";
+    }
+  };
+
+  // Mendapatkan warna untuk badge tipe transaksi
+  const getTipeTransaksiBadgeStyle = (tipe: string) => {
+    // Tipe Uang Masuk
+    if (tipe === 'iuran_anggota') {
+      return "bg-blue-100 text-blue-800 border-blue-200";
+    } else if (tipe === 'transfer_dana_lingkungan') {
+      return "bg-indigo-100 text-indigo-800 border-indigo-200";
+    } else if (tipe === 'sumbangan_anggota') {
+      return "bg-purple-100 text-purple-800 border-purple-200";
+    } else if (tipe === 'penerimaan_lain') {
+      return "bg-teal-100 text-teal-800 border-teal-200";
+    }
+    // Tipe Uang Keluar
+    else if (tipe === 'uang_duka') {
+      return "bg-red-100 text-red-800 border-red-200";
+    } else if (tipe === 'kunjungan_kasih') {
+      return "bg-orange-100 text-orange-800 border-orange-200";
+    } else if (tipe === 'cinderamata_kelahiran' || tipe === 'cinderamata_pernikahan') {
+      return "bg-amber-100 text-amber-800 border-amber-200";
+    } else if (tipe === 'uang_akomodasi') {
+      return "bg-pink-100 text-pink-800 border-pink-200";
+    } else if (tipe === 'pembelian') {
+      return "bg-slate-100 text-slate-800 border-slate-200";
+    } else {
+      return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
+  // Format status pembayaran iuran
+  const formatStatusPembayaran = (status?: string) => {
+    if (!status) return "";
+    
+    const statusMap: Record<string, string> = {
+      'lunas': 'Lunas',
+      'sebagian_bulan': 'Sebagian Bulan',
+      'belum_ada_pembayaran': 'Belum Dibayar'
+    };
+    
+    return statusMap[status] || status;
+  };
+
+  // Format periode bayar
+  const formatPeriodeBayar = (periode?: string[]) => {
+    if (!periode || periode.length === 0) return "";
+    
+    const months = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ];
+    
+    return periode.map(p => {
+      const [year, month] = p.split('-');
+      const monthIndex = parseInt(month, 10) - 1;
+      return `${months[monthIndex]} ${year}`;
+    }).join(", ");
   };
 
   return (
@@ -333,8 +421,11 @@ export function TransactionsTable({
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[100px]">Tanggal</TableHead>
+                <TableHead className="w-[110px]">Jenis Transaksi</TableHead>
+                <TableHead className="w-[150px]">Tipe Transaksi</TableHead>
                 <TableHead className="min-w-[250px]">Keterangan</TableHead>
-                <TableHead className="text-right w-[120px]">Jumlah</TableHead>
+                <TableHead className="text-right w-[120px]">Debit</TableHead>
+                <TableHead className="text-right w-[120px]">Kredit</TableHead>
                 <TableHead className="text-center w-[90px]">Status</TableHead>
                 {canModifyData && <TableHead className="sticky right-0 bg-white shadow-md w-[50px] text-center">Aksi</TableHead>}
               </TableRow>
@@ -342,7 +433,7 @@ export function TransactionsTable({
             <TableBody>
               {currentTransactions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-10">
+                  <TableCell colSpan={8} className="text-center py-10">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       {filteredTransactions.length === 0 && transactions.length > 0 ? (
                         <>
@@ -369,11 +460,42 @@ export function TransactionsTable({
                 currentTransactions.map((tx) => (
                   <TableRow key={tx.id} className="group">
                     <TableCell>{format(new Date(tx.tanggal), "dd/MM/yyyy")}</TableCell>
-                    <TableCell className="max-w-[250px] break-words">
-                      <div className="line-clamp-2">{tx.keterangan}</div>
+                    <TableCell>
+                      <Badge 
+                        variant="outline" 
+                        className={cn("font-normal text-xs whitespace-nowrap", getJenisTransaksiBadgeStyle(tx.jenis))}
+                      >
+                        {tx.jenis === 'uang_masuk' ? 'Uang Masuk' : 'Uang Keluar'}
+                      </Badge>
                     </TableCell>
-                    <TableCell className={`text-right font-medium ${tx.jenis !== 'pengeluaran' ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatCurrency(tx.jumlah)}
+                    <TableCell>
+                      <Badge 
+                        variant="outline" 
+                        className={cn("font-normal text-xs whitespace-nowrap", getTipeTransaksiBadgeStyle(tx.tipeTransaksi))}
+                      >
+                        {formatTipeTransaksi(tx.tipeTransaksi)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="max-w-[250px]">
+                      <div className="line-clamp-2">{tx.keterangan}</div>
+                      
+                      {/* Tambahan informasi untuk Iuran Anggota */}
+                      {tx.tipeTransaksi === 'iuran_anggota' && tx.statusPembayaran && (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          <span className="font-semibold">Status:</span> {formatStatusPembayaran(tx.statusPembayaran)}
+                          {tx.statusPembayaran === 'sebagian_bulan' && tx.periodeBayar && tx.periodeBayar.length > 0 && (
+                            <div>
+                              <span className="font-semibold">Periode:</span> {formatPeriodeBayar(tx.periodeBayar)}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-green-600">
+                      {(tx.debit ?? 0) > 0 ? formatCurrency(tx.debit ?? 0) : '-'}
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-red-600">
+                      {(tx.kredit ?? 0) > 0 ? formatCurrency(tx.kredit ?? 0) : '-'}
                     </TableCell>
                     <TableCell className="text-center">
                       {tx.locked ? 

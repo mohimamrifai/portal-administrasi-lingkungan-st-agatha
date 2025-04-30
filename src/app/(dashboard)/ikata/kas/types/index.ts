@@ -1,18 +1,28 @@
-export type TransactionType = 'iuran' | 'sumbangan' | 'pengeluaran';
+export type JenisTransaksi = 'uang_masuk' | 'uang_keluar';
+
+export type TipeTransaksiMasuk = 'iuran_anggota' | 'transfer_dana_lingkungan' | 'sumbangan_anggota' | 'penerimaan_lain';
+export type TipeTransaksiKeluar = 'uang_duka' | 'kunjungan_kasih' | 'cinderamata_kelahiran' | 'cinderamata_pernikahan' | 'uang_akomodasi' | 'pembelian' | 'lain_lain';
+export type TipeTransaksi = TipeTransaksiMasuk | TipeTransaksiKeluar;
+
+export type StatusPembayaran = 'lunas' | 'sebagian_bulan' | 'belum_ada_pembayaran';
 
 export interface IKATATransaction {
   id: string;
   tanggal: string;
   keterangan: string;
   jumlah: number;
-  jenis: TransactionType;
+  jenis: JenisTransaksi;
+  tipeTransaksi: TipeTransaksi;
+  debit?: number;
+  kredit?: number;
+  statusPembayaran?: StatusPembayaran;
+  periodeBayar?: string[];
+  anggotaId?: string;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
   updatedBy: string;
   locked: boolean;
-  anggotaId?: string;
-  periodeIuran?: string;
 }
 
 export interface IKATASummary {
@@ -30,8 +40,10 @@ export interface PeriodFilter {
 export interface TransactionFormData {
   tanggal: string;
   keterangan: string;
+  jenis: JenisTransaksi;
+  tipeTransaksi: TipeTransaksi;
   jumlah: number;
-  jenis: TransactionType;
+  statusPembayaran?: StatusPembayaran;
+  periodeBayar?: string[];
   anggotaId?: string;
-  periodeIuran?: string;
 } 
