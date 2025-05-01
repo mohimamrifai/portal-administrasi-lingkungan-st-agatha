@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 import { PaymentHistory } from "../types"
 import { formatRupiah, getStatusColor } from "../utils/index"
@@ -69,6 +70,8 @@ export function PaymentHistoryTable({
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<PaymentHistory | null>(null)
   
   // Reset to first page when data changes
   useEffect(() => {
@@ -138,13 +141,27 @@ export function PaymentHistoryTable({
   }
   
   const handleDelete = (payment: PaymentHistory) => {
-    if (onDelete) {
-      onDelete(payment)
+    setPendingDelete(payment)
+    setDeleteDialogOpen(true)
+  }
+  
+  const confirmDelete = () => {
+    if (pendingDelete && onDelete) {
+      onDelete(pendingDelete)
+      toast.success("Pembayaran berhasil dihapus")
     }
+    setDeleteDialogOpen(false)
+    setPendingDelete(null)
+  }
+  
+  const cancelDelete = () => {
+    setDeleteDialogOpen(false)
+    setPendingDelete(null)
   }
   
   const handleExport = (payment: PaymentHistory) => {
     if (onExport) {
+      // Kirim data satu pembayaran ke parent (bisa dikembangkan untuk batch)
       onExport(payment)
     }
   }
@@ -186,9 +203,8 @@ export function PaymentHistoryTable({
           <Table>
             <TableHeader>
               <TableRow>
-                {showUserColumn && <TableHead>Nama</TableHead>}
-                <TableHead>Tahun</TableHead>
-                <TableHead>Tanggal Bayar</TableHead>
+                {showUserColumn && <TableHead>Nama Kepala Keluarga</TableHead>}
+                <TableHead>Tanggal Pembayaran</TableHead>
                 <TableHead>Jumlah</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="sticky right-0 bg-white shadow-md text-center">Aksi</TableHead>
@@ -198,10 +214,9 @@ export function PaymentHistoryTable({
               {currentData.map((payment) => (
                 <TableRow key={payment.id}>
                   {showUserColumn && <TableCell>{payment.familyHeadName || 'Tidak ada nama'}</TableCell>}
-                  <TableCell>{payment.year}</TableCell>
                   <TableCell>
-                    {payment.paymentDate 
-                      ? format(payment.paymentDate, "d MMMM yyyy", { locale: id }) 
+                    {payment.paymentDate
+                      ? format(payment.paymentDate, "d MMMM yyyy", { locale: id })
                       : "-"}
                   </TableCell>
                   <TableCell>{formatRupiah(payment.amount)}</TableCell>
@@ -214,40 +229,58 @@ export function PaymentHistoryTable({
                     {showUserColumn ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="cursor-pointer"
+                          >
                             <MoreVertical className="h-4 w-4" />
                             <span className="sr-only">Buka Menu</span>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewDetails(payment)}>
+                          <DropdownMenuItem
+                            onClick={() => handleViewDetails(payment)}
+                            className="cursor-pointer"
+                          >
                             <Eye className="mr-2 h-4 w-4" /> Lihat Detail
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => {
-                            setSelectedPayment(payment);
-                            setSelectedStatus(payment.status);
-                            setSelectedDate(payment.paymentDate);
-                            setEditMode(true);
-                            setDialogOpen(true);
-                          }}>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedPayment(payment);
+                              setSelectedStatus(payment.status);
+                              setSelectedDate(payment.paymentDate);
+                              setEditMode(true);
+                              setDialogOpen(true);
+                            }}
+                            className="cursor-pointer"
+                          >
                             <Edit className="mr-2 h-4 w-4" /> Edit Status
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleExport(payment)}>
+                          <DropdownMenuItem
+                            onClick={() => handleExport(payment)}
+                            className="cursor-pointer"
+                          >
                             <FileText className="mr-2 h-4 w-4" /> Export PDF
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => handleDelete(payment)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" /> Hapus
+                          <DropdownMenuItem asChild>
+                            <Button
+                              onClick={() => handleDelete(payment)}
+                              className="w-full justify-start bg-destructive text-white hover:bg-destructive/90 cursor-pointer"
+                              variant="default"
+                              size="sm"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4 text-white" /> Hapus
+                            </Button>
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     ) : (
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="icon"
                         onClick={() => handleViewDetails(payment)}
+                        className="cursor-pointer"
                       >
                         <Eye className="h-4 w-4" />
                         <span className="sr-only">Lihat Detail</span>
@@ -457,6 +490,26 @@ export function PaymentHistoryTable({
                 <AlertDialogAction>Bayar Sekarang</AlertDialogAction>
               )
             )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* AlertDialog konfirmasi hapus */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
+          </AlertDialogHeader>
+          <div>
+            Apakah Anda yakin ingin menghapus pembayaran ini?
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDelete}>Batalkan</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={e => { e.preventDefault(); confirmDelete(); }} 
+              className="bg-destructive text-white hover:bg-destructive/90">
+              Hapus
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

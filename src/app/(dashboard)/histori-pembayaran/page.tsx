@@ -11,7 +11,7 @@ import LoadingSkeleton from "./components/loading-skeleton"
 
 export default function HistoriPembayaranPage() {
   return (
-    <div className="p-2">
+    <div className="p-2 md:p-4">
       <Suspense fallback={<LoadingSkeleton />}>
         <HistoriPembayaranContent />
       </Suspense>

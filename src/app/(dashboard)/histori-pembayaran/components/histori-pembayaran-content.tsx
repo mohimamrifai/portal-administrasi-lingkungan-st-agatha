@@ -8,6 +8,11 @@ import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
 import { Input } from "@/components/ui/input"
 import { SearchIcon, X } from "lucide-react"
+import dynamic from 'next/dynamic';
+import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
+import { PaymentHistoryPdf } from './payment-history-pdf';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import LoadingSkeleton from "./loading-skeleton";
 
 import { YearFilter } from "./year-filter"
 import { PaymentHistoryTable } from "./payment-history-table"
@@ -30,6 +35,10 @@ export default function HistoriPembayaranContent() {
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedUserId, setSelectedUserId] = useState<number | undefined>(undefined)
+  const [showPdfDialog, setShowPdfDialog] = useState(false);
+  const [pdfType, setPdfType] = useState<'Dana Mandiri' | 'IKATA'>('Dana Mandiri');
+  const [pdfData, setPdfData] = useState<PaymentHistory[]>([]);
+  const [selectedRowPdf, setSelectedRowPdf] = useState<PaymentHistory | null>(null);
   
   // Fetch data saat komponen di-mount
   useEffect(() => {
@@ -111,11 +120,18 @@ export default function HistoriPembayaranContent() {
     setSearchTerm(e.target.value)
   }
   
-  // Handler untuk mencetak PDF
-  const handlePrintPdf = (type: "Dana Mandiri" | "IKATA") => {
-    const yearLabel = selectedYear ? ` ${selectedYear}` : " semua tahun"
-    toast.success(`Mencetak data ${type}${yearLabel}`)
-  }
+  // Handler untuk mencetak PDF seluruh histori
+  const handlePrintPdf = (type: 'Dana Mandiri' | 'IKATA') => {
+    const data = type === 'Dana Mandiri' ? danaMandiriData : ikataData;
+    setPdfType(type);
+    setPdfData(data);
+    setShowPdfDialog(true);
+  };
+  
+  // Handler untuk ekspor PDF per baris
+  const handleExportPdf = (payment: PaymentHistory) => {
+    setSelectedRowPdf(payment);
+  };
   
   // Handler untuk mengubah status pembayaran
   const handleStatusChange = (payment: PaymentHistory, newStatus: string, newPaymentDate: Date | null) => {
@@ -136,30 +152,20 @@ export default function HistoriPembayaranContent() {
   
   // Handler untuk menghapus pembayaran
   const handleDeletePayment = (payment: PaymentHistory) => {
-    // Konfirmasi penghapusan
-    const confirm = window.confirm(`Apakah Anda yakin ingin menghapus pembayaran ${payment.type} tahun ${payment.year}?`)
-    
-    if (confirm) {
-      const updatedData = paymentHistory.filter(item => item.id !== payment.id)
-      setPaymentHistory(updatedData)
-      toast.success("Pembayaran berhasil dihapus")
-    }
-  }
-  
-  // Handler untuk export PDF
-  const handleExportPdf = (payment: PaymentHistory) => {
-    toast.success(`Ekspor PDF untuk ${payment.type} tahun ${payment.year}`)
+    const updatedData = paymentHistory.filter(item => item.id !== payment.id)
+    setPaymentHistory(updatedData)
+    toast.success("Pembayaran berhasil dihapus")
   }
   
   // Jika masih loading, tampilkan pesan loading
   if (isLoading) {
-    return <div className="text-center py-6">Memuat data...</div>
+    return <LoadingSkeleton />
   }
 
   return (
     <div className="space-y-6 p-2">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold hidden md:block">Histori Pembayaran</h2>
+        <h2 className="text-xl font-bold">Histori Pembayaran</h2>
       </div>
       
       {/* Summary Cards */}
@@ -279,6 +285,81 @@ export default function HistoriPembayaranContent() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Dialog PDF Preview untuk seluruh histori */}
+      <Dialog open={showPdfDialog} onOpenChange={setShowPdfDialog}>
+        <DialogContent className="max-w-[90vw] w-[90vw] max-h-[85vh] h-[85vh] p-2 flex flex-col overflow-hidden">
+          <div className="flex flex-col gap-2 flex-1 min-h-0">
+            <div className="flex-1 min-h-0 w-full h-full overflow-hidden flex items-center justify-center">
+              {pdfData.length > 0 ? (
+                <PDFViewer style={{ width: '100%', height: '100%' }} showToolbar={true}>
+                  <PaymentHistoryPdf data={pdfData} type={pdfType} year={selectedYear} />
+                </PDFViewer>
+              ) : (
+                <div className="text-center text-muted-foreground">
+                  <p>Tidak ada data untuk ditampilkan</p>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="p-2 border-t bg-background mt-0 flex flex-row gap-2 justify-end">
+            {pdfData.length > 0 ? (
+              <PDFDownloadLink
+                document={<PaymentHistoryPdf data={pdfData} type={pdfType} year={selectedYear} />}
+                fileName={`histori-pembayaran-${pdfType.toLowerCase()}${selectedYear ? '-' + selectedYear : ''}.pdf`}
+                className="inline-block"
+              >
+                {({ loading }) => (
+                  <Button size="sm" variant="default" className="mr-2">
+                    {loading ? 'Menyiapkan PDF...' : 'Download PDF'}
+                  </Button>
+                )}
+              </PDFDownloadLink>
+            ) : null}
+            <Button size="sm" variant="outline" onClick={() => setShowPdfDialog(false)}>
+              Tutup
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog PDF Preview untuk satu baris (ekspor per transaksi) */}
+      <Dialog open={!!selectedRowPdf} onOpenChange={() => setSelectedRowPdf(null)}>
+        <DialogContent className="max-w-[90vw] w-[90vw] max-h-[85vh] h-[85vh] p-2 flex flex-col overflow-hidden">
+          <DialogTitle className="hidden">PDF Preview</DialogTitle>
+          <div className="flex flex-col gap-2 flex-1 min-h-0">
+            <div className="flex-1 min-h-0 w-full h-full overflow-hidden flex items-center justify-center">
+              {selectedRowPdf ? (
+                <PDFViewer style={{ width: '100%', height: '100%' }} showToolbar={true}>
+                  <PaymentHistoryPdf data={[selectedRowPdf]} type={selectedRowPdf.type} year={selectedRowPdf.year} />
+                </PDFViewer>
+              ) : (
+                <div className="text-center text-muted-foreground">
+                  <p>Tidak ada data untuk ditampilkan</p>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="p-2 border-t bg-background mt-0 flex flex-row gap-2 justify-end">
+            {selectedRowPdf ? (
+              <PDFDownloadLink
+                document={<PaymentHistoryPdf data={[selectedRowPdf]} type={selectedRowPdf.type} year={selectedRowPdf.year} />}
+                fileName={`histori-pembayaran-${selectedRowPdf.type.toLowerCase()}-${selectedRowPdf.year}-${selectedRowPdf.familyHeadName || 'data'}.pdf`}
+                className="inline-block"
+              >
+                {({ loading }) => (
+                  <Button size="sm" variant="default" className="mr-2">
+                    {loading ? 'Menyiapkan PDF...' : 'Download PDF'}
+                  </Button>
+                )}
+              </PDFDownloadLink>
+            ) : null}
+            <Button size="sm" variant="outline" onClick={() => setSelectedRowPdf(null)}>
+              Tutup
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 } 

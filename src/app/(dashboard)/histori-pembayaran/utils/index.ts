@@ -9,6 +9,14 @@ export function filterPaymentsByUserAndType(
 ): PaymentHistory[] {
   let filteredData = data.filter(payment => payment.type === type);
   
+  // Filter status sesuai brief
+  if (type === "Dana Mandiri") {
+    filteredData = filteredData.filter(payment => payment.status === "Lunas");
+  }
+  if (type === "IKATA") {
+    filteredData = filteredData.filter(payment => payment.status === "Lunas");
+  }
+  
   // Jika perlu filter berdasarkan user ID
   if (!showAllUsers && userId) {
     filteredData = filteredData.filter(payment => payment.userId === userId);
