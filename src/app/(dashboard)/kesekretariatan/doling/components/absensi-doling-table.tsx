@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { EditIcon, SearchIcon, X, ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon } from "lucide-react";
+import { EditIcon, SearchIcon, X, ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon, PlusIcon } from "lucide-react";
 import { AbsensiDoling } from "../types";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,13 +20,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/auth-context";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
+import { JadwalDoling } from "../types";
 
 interface AbsensiDolingTableProps {
   absensi: AbsensiDoling[];
   onEdit: (absensi: AbsensiDoling) => void;
+  onAdd?: () => void;
+  jadwalDoling?: JadwalDoling[];
 }
 
-export function AbsensiDolingTable({ absensi, onEdit }: AbsensiDolingTableProps) {
+export function AbsensiDolingTable({ absensi, onEdit, onAdd, jadwalDoling = [] }: AbsensiDolingTableProps) {
+  // Get user role for authorized actions
+  const { userRole } = useAuth();
+  const canAddAbsensi = ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris'].includes(userRole);
+  
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -72,8 +82,21 @@ export function AbsensiDolingTable({ absensi, onEdit }: AbsensiDolingTableProps)
     setCurrentPage(1); // Reset to first page
   };
 
+  // Fungsi untuk mendapatkan nama tuanRumah dari jadwalId
+  const getJadwalInfo = (jadwalId: number) => {
+    const jadwal = jadwalDoling.find(j => j.id === jadwalId);
+    if (!jadwal) return { tuanRumah: "Tidak tersedia", tanggal: "-" };
+    
+    return { 
+      tuanRumah: jadwal.tuanRumah,
+      tanggal: jadwal.tanggal && jadwal.tanggal instanceof Date && !isNaN(jadwal.tanggal.getTime())
+        ? format(jadwal.tanggal, "dd MMM yyyy", { locale: id })
+        : "Tanggal tidak valid"
+    };
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4">     
       {/* Search Filter */}
       <div className="relative w-full md:w-64">
         <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -108,6 +131,8 @@ export function AbsensiDolingTable({ absensi, onEdit }: AbsensiDolingTableProps)
             <TableHeader>
               <TableRow>
                 <TableHead>No</TableHead>
+                <TableHead>Tanggal</TableHead>
+                <TableHead>Jadwal Doling</TableHead>
                 <TableHead>Nama</TableHead>
                 <TableHead>Kepala Keluarga</TableHead>
                 <TableHead>Kehadiran</TableHead>
@@ -117,23 +142,32 @@ export function AbsensiDolingTable({ absensi, onEdit }: AbsensiDolingTableProps)
             </TableHeader>
             <TableBody>
               {currentData.length > 0 ? (
-                currentData.map((item, index) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{startIndex + index + 1}</TableCell>
-                    <TableCell>{item.nama}</TableCell>
-                    <TableCell>{item.kepalaKeluarga ? "Ya" : "Tidak"}</TableCell>
-                    <TableCell>{getKehadiranBadge(item.kehadiran)}</TableCell>
-                    <TableCell>{item.keterangan || "-"}</TableCell>
-                    <TableCell className="sticky right-0 bg-white shadow-[-8px_0_10px_-6px_rgba(0,0,0,0.1)] z-10">
-                      <Button variant="ghost" size="sm" onClick={() => onEdit(item)}>
-                        Edit
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
+                currentData.map((item, index) => {
+                  const jadwalInfo = getJadwalInfo(item.jadwalId);
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell>{startIndex + index + 1}</TableCell>
+                      <TableCell>
+                        {item.tanggalKehadiran && item.tanggalKehadiran instanceof Date && !isNaN(item.tanggalKehadiran.getTime())
+                          ? format(item.tanggalKehadiran, "dd MMM yyyy", { locale: id })
+                          : "Tanggal tidak valid"}
+                      </TableCell>
+                      <TableCell>{jadwalInfo.tuanRumah}</TableCell>
+                      <TableCell>{item.nama}</TableCell>
+                      <TableCell>{item.kepalaKeluarga ? "Ya" : "Tidak"}</TableCell>
+                      <TableCell>{getKehadiranBadge(item.kehadiran)}</TableCell>
+                      <TableCell>{item.keterangan || "-"}</TableCell>
+                      <TableCell className="sticky right-0 bg-white shadow-[-8px_0_10px_-6px_rgba(0,0,0,0.1)] z-10">
+                        <Button variant="ghost" size="sm" onClick={() => onEdit(item)}>
+                          Edit
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-4">
+                  <TableCell colSpan={8} className="text-center py-4">
                     {absensi.length === 0 ? "Belum ada data absensi" : "Tidak ada data yang ditemukan"}
                   </TableCell>
                 </TableRow>

@@ -57,6 +57,9 @@ export interface DetilDoling {
 
 export interface AbsensiDoling {
   id: number
+  jadwalId: number        // ID jadwal doling terkait
+  detilDolingId?: number  // ID detail doling jika diperlukan
+  tanggalKehadiran: Date  // Tanggal kehadiran
   nama: string
   kepalaKeluarga: boolean
   kehadiran: 'hadir' | 'tidak-hadir'

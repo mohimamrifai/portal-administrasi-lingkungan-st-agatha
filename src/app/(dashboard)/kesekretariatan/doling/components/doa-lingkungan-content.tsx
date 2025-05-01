@@ -12,6 +12,7 @@ import { AbsensiDolingFormDialog } from "./absensi-doling-form-dialog";
 import { PrintJadwalDialog } from "./print-jadwal-dialog";
 import { JadwalDolingPDF } from "./jadwal-doling-pdf";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/auth-context";
 import { JadwalDoling, DetilDoling, AbsensiDoling } from "../types";
 import {
     Dialog,
@@ -38,6 +39,9 @@ import {
 import { setupReminderNotifications } from "../utils/reminder-notifications";
 
 export function DoaLingkunganContent() {
+    // Get user role
+    const { userRole } = useAuth();
+
     // Tab state
     const [activeTab, setActiveTab] = useState("jadwal-doling");
 
@@ -99,6 +103,12 @@ export function DoaLingkunganContent() {
     useEffect(() => {
         setupReminderNotifications(jadwalState);
     }, [jadwalState]);
+
+    // Log when tab changes
+    useEffect(() => {
+        console.log("Active tab changed to:", activeTab);
+        console.log("Current user role:", userRole);
+    }, [activeTab, userRole]);
 
     // Event handlers - Jadwal Doling ------------------------------------------
 
@@ -252,6 +262,8 @@ export function DoaLingkunganContent() {
 
     // Render action buttons based on active tab
     const renderActionButtons = () => {
+        console.log("Rendering action buttons for tab:", activeTab, "with role:", userRole);
+        
         switch (activeTab) {
             case "jadwal-doling":
                 return (
@@ -264,7 +276,8 @@ export function DoaLingkunganContent() {
             case "detil-doling":
                 return <DetilActionButtons onAddDetil={handleAddDetil} />;
             case "absensi-doling":
-                return <AbsensiActionButtons onAddAbsensi={handleAddAbsensi} />;
+                console.log("Should render absensi action button with role:", userRole);
+                return <AbsensiActionButtons onAddAbsensi={handleAddAbsensi} userRole={userRole} />;
             default:
                 return null;
         }
@@ -319,9 +332,12 @@ export function DoaLingkunganContent() {
 
                 {/* Absensi Tab */}
                 <TabsContent value="absensi-doling">
+                    {renderActionButtons()}
                     <AbsensiDolingTable
                         absensi={absensiState}
                         onEdit={handleEditAbsensi}
+                        onAdd={handleAddAbsensi}
+                        jadwalDoling={jadwalState}
                     />
                 </TabsContent>
 
@@ -356,6 +372,7 @@ export function DoaLingkunganContent() {
                 absensi={editingAbsensi}
                 onSubmit={handleSubmitAbsensi}
                 detilDoling={detilState}
+                jadwalDoling={jadwalState}
             />
             <PrintJadwalDialog
                 open={printJadwalOpen}

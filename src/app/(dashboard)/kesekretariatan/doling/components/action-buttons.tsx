@@ -47,11 +47,18 @@ export function DetilActionButtons({ onAddDetil }: DetilActionButtonsProps) {
 
 interface AbsensiActionButtonsProps {
   onAddAbsensi: () => void;
+  userRole?: string;
 }
 
-export function AbsensiActionButtons({ onAddAbsensi }: AbsensiActionButtonsProps) {
+export function AbsensiActionButtons({ onAddAbsensi, userRole = 'umat' }: AbsensiActionButtonsProps) {
+  const canAddAbsensi = ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris'].includes(userRole);
+  
+  if (!canAddAbsensi) {
+    return null;
+  }
+  
   return (
-    <Button onClick={onAddAbsensi} variant="default" size="sm">
+    <Button onClick={onAddAbsensi} variant="default" size="sm" className="mb-2">
       <PlusIcon className="h-4 w-4 mr-2" />
       Tambah Absensi
     </Button>

@@ -18,9 +18,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { AbsensiDoling, DetilDoling } from "../types"
+import { AbsensiDoling, DetilDoling, JadwalDoling } from "../types"
 import { toast } from "sonner"
 import { useState, useEffect } from "react"
+import { format } from "date-fns"
+import { id } from "date-fns/locale"
 
 interface AbsensiDolingFormDialogProps {
   open: boolean
@@ -28,6 +30,7 @@ interface AbsensiDolingFormDialogProps {
   absensi?: AbsensiDoling
   onSubmit: (values: Omit<AbsensiDoling, 'id' | 'createdAt' | 'updatedAt'>) => void
   detilDoling?: DetilDoling[]
+  jadwalDoling?: JadwalDoling[]
 }
 
 export function AbsensiDolingFormDialog({
@@ -36,26 +39,52 @@ export function AbsensiDolingFormDialog({
   absensi,
   onSubmit,
   detilDoling = [],
+  jadwalDoling = [],
 }: AbsensiDolingFormDialogProps) {
   const [formDisabled, setFormDisabled] = useState(false);
+  const [selectedJadwalId, setSelectedJadwalId] = useState<string>(absensi?.jadwalId?.toString() || "");
+  const [tanggalKehadiran, setTanggalKehadiran] = useState<Date>(absensi?.tanggalKehadiran || new Date());
+  
+  // Filter jadwal yang sudah selesai atau terjadwal
+  const availableJadwal = jadwalDoling.filter(jadwal => 
+    jadwal.status === 'selesai' || jadwal.status === 'terjadwal'
+  );
   
   useEffect(() => {
-    if (detilDoling.length > 0) {
-      const latestDetil = [...detilDoling].sort((a, b) => 
-        b.tanggal.getTime() - a.tanggal.getTime()
-      )[0];
+    if (detilDoling.length > 0 && selectedJadwalId) {
+      // Ambil detil doling terkait dengan jadwal yang dipilih
+      const relatedDetil = detilDoling.filter(detil => 
+        detil.jadwalId === parseInt(selectedJadwalId)
+      );
       
-      if (latestDetil && (latestDetil.jenisIbadat === "bakti-sosial" || latestDetil.jenisIbadat === "kegiatan-lainnya")) {
-        setFormDisabled(true);
+      if (relatedDetil.length > 0) {
+        const latestDetil = [...relatedDetil].sort((a, b) => 
+          b.tanggal.getTime() - a.tanggal.getTime()
+        )[0];
         
-        if (open) {
-          toast.info("Absensi dinonaktifkan untuk jenis ibadat Bakti Sosial atau Kegiatan Lainnya.");
+        if (latestDetil && (latestDetil.jenisIbadat === "bakti-sosial" || latestDetil.jenisIbadat === "kegiatan-lainnya")) {
+          setFormDisabled(true);
+          
+          if (open) {
+            toast.info("Absensi dinonaktifkan untuk jenis ibadat Bakti Sosial atau Kegiatan Lainnya.");
+          }
+        } else {
+          setFormDisabled(false);
         }
-      } else {
-        setFormDisabled(false);
+        
+        // Set tanggal kehadiran berdasarkan tanggal jadwal
+        if (selectedJadwalId) {
+          const selectedJadwal = jadwalDoling.find(jadwal => jadwal.id === parseInt(selectedJadwalId));
+          if (selectedJadwal && selectedJadwal.tanggal instanceof Date && !isNaN(selectedJadwal.tanggal.getTime())) {
+            setTanggalKehadiran(selectedJadwal.tanggal);
+          } else {
+            // Gunakan tanggal hari ini jika tanggal jadwal tidak valid
+            setTanggalKehadiran(new Date());
+          }
+        }
       }
     }
-  }, [detilDoling, open]);
+  }, [detilDoling, selectedJadwalId, jadwalDoling, open]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -65,9 +94,17 @@ export function AbsensiDolingFormDialog({
       return;
     }
     
+    if (!selectedJadwalId) {
+      toast.error("Silakan pilih jadwal doa lingkungan terlebih dahulu.");
+      return;
+    }
+    
     const formData = new FormData(e.currentTarget)
     
     onSubmit({
+      jadwalId: parseInt(selectedJadwalId),
+      detilDolingId: undefined, // Bisa ditambahkan fitur untuk memilih detil doling jika diperlukan
+      tanggalKehadiran: tanggalKehadiran,
       nama: formData.get('nama') as string,
       kepalaKeluarga: formData.get('kepalaKeluarga') === 'true',
       kehadiran: formData.get('kehadiran') as AbsensiDoling['kehadiran'],
@@ -89,6 +126,36 @@ export function AbsensiDolingFormDialog({
           )}
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Jadwal Doling */}
+          <div className="space-y-2">
+            <Label htmlFor="jadwalId">Jadwal Doa Lingkungan</Label>
+            <Select 
+              name="jadwalId" 
+              value={selectedJadwalId} 
+              onValueChange={setSelectedJadwalId}
+              disabled={formDisabled || Boolean(absensi)} // Disable jika edit mode
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Pilih jadwal doling" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableJadwal.length > 0 ? (
+                  availableJadwal.map((jadwal) => (
+                    <SelectItem key={jadwal.id} value={jadwal.id.toString()}>
+                      {jadwal.tanggal && jadwal.tanggal instanceof Date && !isNaN(jadwal.tanggal.getTime())
+                        ? format(jadwal.tanggal, "dd MMM yyyy", { locale: id })
+                        : "Tanggal tidak valid"} - {jadwal.tuanRumah}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="" disabled>
+                    Tidak ada jadwal doling tersedia
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+          
           <div className="space-y-2">
             <Label htmlFor="nama">Nama</Label>
             <Input

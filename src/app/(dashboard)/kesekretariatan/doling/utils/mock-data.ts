@@ -413,6 +413,9 @@ export const detilDolingData: DetilDoling[] = [
 export const absensiDolingData: AbsensiDoling[] = [
   {
     id: 1,
+    jadwalId: 1,
+    detilDolingId: 1,
+    tanggalKehadiran: new Date(2024, 4, 15), // 15 Mei 2024, sesuaikan dengan jadwal
     nama: "Budi Santoso",
     kepalaKeluarga: true,
     kehadiran: "hadir",
@@ -421,6 +424,9 @@ export const absensiDolingData: AbsensiDoling[] = [
   },
   {
     id: 2,
+    jadwalId: 1,
+    detilDolingId: 1,
+    tanggalKehadiran: new Date(2024, 4, 15), // 15 Mei 2024, sesuaikan dengan jadwal
     nama: "Ani Wijaya",
     kepalaKeluarga: false,
     kehadiran: "hadir",
@@ -429,6 +435,9 @@ export const absensiDolingData: AbsensiDoling[] = [
   },
   {
     id: 3,
+    jadwalId: 1,
+    detilDolingId: 1,
+    tanggalKehadiran: new Date(2024, 4, 15), // 15 Mei 2024, sesuaikan dengan jadwal
     nama: "Ahmad Hidayat",
     kepalaKeluarga: true,
     kehadiran: "tidak-hadir",
@@ -438,6 +447,9 @@ export const absensiDolingData: AbsensiDoling[] = [
   },
   {
     id: 4,
+    jadwalId: 2,
+    detilDolingId: 2,
+    tanggalKehadiran: new Date(2024, 4, 22), // 22 Mei 2024, sesuaikan dengan jadwal
     nama: "Siti Rahayu",
     kepalaKeluarga: true,
     kehadiran: "hadir",
@@ -446,6 +458,9 @@ export const absensiDolingData: AbsensiDoling[] = [
   },
   {
     id: 5,
+    jadwalId: 2,
+    detilDolingId: 2,
+    tanggalKehadiran: new Date(2024, 4, 22), // 22 Mei 2024, sesuaikan dengan jadwal
     nama: "Hendra Gunawan",
     kepalaKeluarga: true,
     kehadiran: "hadir",
@@ -454,6 +469,9 @@ export const absensiDolingData: AbsensiDoling[] = [
   },
   {
     id: 6,
+    jadwalId: 2,
+    detilDolingId: 2,
+    tanggalKehadiran: new Date(2024, 4, 22), // 22 Mei 2024, sesuaikan dengan jadwal
     nama: "Maria Gunawan",
     kepalaKeluarga: false,
     kehadiran: "hadir",
@@ -462,6 +480,9 @@ export const absensiDolingData: AbsensiDoling[] = [
   },
   {
     id: 7,
+    jadwalId: 3,
+    detilDolingId: 3,
+    tanggalKehadiran: new Date(2024, 3, 30), // 30 April 2024, sesuaikan dengan jadwal
     nama: "Eko Prasetyo",
     kepalaKeluarga: true,
     kehadiran: "tidak-hadir",
@@ -471,6 +492,9 @@ export const absensiDolingData: AbsensiDoling[] = [
   },
   {
     id: 8,
+    jadwalId: 3,
+    detilDolingId: 3,
+    tanggalKehadiran: new Date(2024, 3, 30), // 30 April 2024, sesuaikan dengan jadwal
     nama: "Dewi Lestari",
     kepalaKeluarga: true,
     kehadiran: "hadir",
@@ -479,6 +503,9 @@ export const absensiDolingData: AbsensiDoling[] = [
   },
   {
     id: 9,
+    jadwalId: 5,
+    detilDolingId: 5,
+    tanggalKehadiran: new Date(2024, 3, 8), // 8 April 2024, sesuaikan dengan jadwal
     nama: "Bambang Suprapto",
     kepalaKeluarga: true,
     kehadiran: "tidak-hadir",
@@ -488,6 +515,9 @@ export const absensiDolingData: AbsensiDoling[] = [
   },
   {
     id: 10,
+    jadwalId: 5,
+    detilDolingId: 5,
+    tanggalKehadiran: new Date(2024, 3, 8), // 8 April 2024, sesuaikan dengan jadwal
     nama: "Ratna Sari",
     kepalaKeluarga: false,
     kehadiran: "hadir",
