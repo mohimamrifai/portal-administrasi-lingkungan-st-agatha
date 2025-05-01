@@ -137,6 +137,8 @@ export default function SelectiveWipeTab({
           id="confirm" 
           value={confirmText}
           onChange={(e) => setConfirmText(e.target.value)}
+          onPaste={(e) => e.preventDefault()}
+          autoComplete="off"
           className="max-w-xs"
         />
       </div>

@@ -74,9 +74,15 @@ export default function DashboardContent() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(getMonthDateRange(currentMonth))
   
   // Generate data berdasarkan bulan yang dipilih
-  const keuanganLingkunganData: KeuanganLingkunganSummary = generateKeuanganLingkunganData(currentMonth)
-  const keuanganIkataData: KeuanganIkataSummary = generateKeuanganIkataData(currentMonth)
-  const kesekretariatanData: KesekretariatanSummary = generateKesekretariatanData(currentMonth)
+  const keuanganLingkunganData: KeuanganLingkunganSummary = dateRange === undefined
+    ? generateKeuanganLingkunganData(new Date(2000, 0, 1)) // Dummy agregat untuk semua data
+    : generateKeuanganLingkunganData(currentMonth)
+  const keuanganIkataData: KeuanganIkataSummary = dateRange === undefined
+    ? generateKeuanganIkataData(new Date(2000, 0, 1))
+    : generateKeuanganIkataData(currentMonth)
+  const kesekretariatanData: KesekretariatanSummary = dateRange === undefined
+    ? generateKesekretariatanData(new Date(2000, 0, 1))
+    : generateKesekretariatanData(currentMonth)
   
   // Data penunggak (tidak tergantung bulan)
   const penunggakDanaMandiri: PenunggakDanaMandiri[] = generatePenunggakDanaMandiriData()
@@ -87,6 +93,8 @@ export default function DashboardContent() {
     if (date?.from) {
       setCurrentMonth(date.from)
       setDateRange(date)
+    } else if (date === undefined) {
+      setDateRange(undefined)
     }
   }
 

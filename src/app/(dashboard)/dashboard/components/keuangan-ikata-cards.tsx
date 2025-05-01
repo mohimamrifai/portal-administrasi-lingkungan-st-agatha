@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/card"
 import { KeuanganIkataSummary } from "../types"
 import { formatRupiah } from "../utils"
+import { Wallet, ArrowDownCircle, ArrowUpCircle, PiggyBank } from "lucide-react"
 
 interface KeuanganIkataCardsProps {
   data: KeuanganIkataSummary
@@ -15,28 +16,40 @@ interface KeuanganIkataCardsProps {
 export function KeuanganIkataCards({ data }: KeuanganIkataCardsProps) {
   return (
     <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-      <Card>
-        <CardHeader className="pb-2">
-          <CardDescription>Saldo Awal</CardDescription>
-          <CardTitle className="text-xl text-blue-600">{formatRupiah(data.saldoAwal)}</CardTitle>
+      <Card className="bg-blue-50">
+        <CardHeader className="pb-2 flex flex-row items-center gap-3">
+          <Wallet className="w-7 h-7 text-blue-500" />
+          <div>
+            <CardDescription>Saldo Awal</CardDescription>
+            <CardTitle className="text-xl text-blue-600">{formatRupiah(data.saldoAwal)}</CardTitle>
+          </div>
         </CardHeader>
       </Card>
-      <Card>
-        <CardHeader className="pb-2">
-          <CardDescription>Pemasukan</CardDescription>
-          <CardTitle className="text-xl text-green-600">{formatRupiah(data.pemasukan)}</CardTitle>
+      <Card className="bg-green-50">
+        <CardHeader className="pb-2 flex flex-row items-center gap-3">
+          <ArrowDownCircle className="w-7 h-7 text-green-500" />
+          <div>
+            <CardDescription>Pemasukan</CardDescription>
+            <CardTitle className="text-xl text-green-600">{formatRupiah(data.pemasukan)}</CardTitle>
+          </div>
         </CardHeader>
       </Card>
-      <Card>
-        <CardHeader className="pb-2">
-          <CardDescription>Pengeluaran</CardDescription>
-          <CardTitle className="text-xl text-red-600">{formatRupiah(data.pengeluaran)}</CardTitle>
+      <Card className="bg-red-50">
+        <CardHeader className="pb-2 flex flex-row items-center gap-3">
+          <ArrowUpCircle className="w-7 h-7 text-red-500" />
+          <div>
+            <CardDescription>Pengeluaran</CardDescription>
+            <CardTitle className="text-xl text-red-600">{formatRupiah(data.pengeluaran)}</CardTitle>
+          </div>
         </CardHeader>
       </Card>
-      <Card>
-        <CardHeader className="pb-2">
-          <CardDescription>Saldo Akhir</CardDescription>
-          <CardTitle className="text-xl text-purple-600">{formatRupiah(data.saldoAkhir)}</CardTitle>
+      <Card className="bg-purple-50">
+        <CardHeader className="pb-2 flex flex-row items-center gap-3">
+          <PiggyBank className="w-7 h-7 text-purple-500" />
+          <div>
+            <CardDescription>Saldo Akhir</CardDescription>
+            <CardTitle className="text-xl text-purple-600">{formatRupiah(data.saldoAkhir)}</CardTitle>
+          </div>
         </CardHeader>
       </Card>
     </div>

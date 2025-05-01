@@ -34,6 +34,7 @@ export function PeriodFilter({ dateRange, onMonthChange }: PeriodFilterProps) {
   const currentYear = new Date().getFullYear()
   const years = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i)
   const months = [
+    { value: "all", label: "Semua Data" },
     { value: "0", label: "Januari" },
     { value: "1", label: "Februari" },
     { value: "2", label: "Maret" },
@@ -48,12 +49,16 @@ export function PeriodFilter({ dateRange, onMonthChange }: PeriodFilterProps) {
     { value: "11", label: "Desember" }
   ]
 
-  const selectedMonth = dateRange?.from ? dateRange.from.getMonth().toString() : new Date().getMonth().toString()
-  const selectedYear = dateRange?.from ? dateRange.from.getFullYear().toString() : new Date().getFullYear().toString()
+  const selectedMonth = dateRange === undefined ? "all" : (dateRange?.from ? dateRange.from.getMonth().toString() : new Date().getMonth().toString())
+  const selectedYear = dateRange === undefined ? new Date().getFullYear().toString() : (dateRange?.from ? dateRange.from.getFullYear().toString() : new Date().getFullYear().toString())
 
   const handleMonthChange = (month: string) => {
-    const newDate = new Date(parseInt(selectedYear), parseInt(month), 1)
-    onMonthChange(getMonthDateRange(newDate))
+    if (month === "all") {
+      onMonthChange(undefined)
+    } else {
+      const newDate = new Date(parseInt(selectedYear), parseInt(month), 1)
+      onMonthChange(getMonthDateRange(newDate))
+    }
   }
 
   const handleYearChange = (year: string) => {
@@ -109,7 +114,9 @@ export function PeriodFilter({ dateRange, onMonthChange }: PeriodFilterProps) {
       </div>
 
       <div className="text-xs text-muted-foreground mt-2">
-        {dateRange?.from && (
+        {dateRange === undefined ? (
+          <p>Menampilkan semua data</p>
+        ) : dateRange?.from && (
           <p>Menampilkan data untuk {format(dateRange.from, "MMMM yyyy", { locale: id })}</p>
         )}
       </div>

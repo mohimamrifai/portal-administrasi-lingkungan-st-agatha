@@ -45,7 +45,10 @@ export default function WipeContent() {
   }
 
   const handleWipeData = async () => {
-    if (confirmText !== "WIPE ALL DATA") {
+    if (
+      (activeTab === "selective" && confirmText !== "KONFIRMASI") ||
+      (activeTab === "emergency" && confirmText !== "EMERGENCY WIPE")
+    ) {
       toast.error("Teks konfirmasi tidak cocok")
       return
     }
