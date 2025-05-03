@@ -1,0 +1,366 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SuperUser
+  ketuaLingkungan
+  wakilKetua
+  sekretaris
+  wakilSekretaris
+  bendahara
+  wakilBendahara
+  umat
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+}
+
+enum LivingStatus {
+  ALIVE
+  DECEASED
+}
+
+enum Religion {
+  CATHOLIC
+  PROTESTANT
+  ISLAM
+  HINDU
+  BUDDHA
+  KONGHUCU
+}
+
+enum DependentType {
+  CHILD
+  RELATIVE
+}
+
+enum TransactionType {
+  debit
+  credit
+}
+
+enum PaymentStatus {
+  Lunas
+  Menunggu
+  BelumBayar
+}
+
+enum StatusPembayaran {
+  lunas
+  sebagian_bulan
+  belum_ada_pembayaran
+}
+
+enum StatusPublikasi {
+  aktif
+  kedaluwarsa
+}
+
+enum KategoriPublikasi {
+  Penting
+  Umum
+  Rahasia
+  Segera
+}
+
+model User {
+  id            Int        @id @default(autoincrement())
+  username      String     @unique
+  password      String
+  passphrase    String
+  role          Role
+  familyHead    FamilyHead? @relation(fields: [familyHeadId], references: [id])
+  familyHeadId  Int?       @unique
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+model FamilyHead {
+  id              Int         @id @default(autoincrement())
+  fullName        String
+  gender          Gender
+  birthPlace      String
+  birthDate       DateTime
+  nik             String     @unique
+  maritalStatus   MaritalStatus
+  address         String
+  city            String
+  phoneNumber     String
+  email           String?
+  occupation      String
+  education       String
+  religion        Religion
+  livingStatus    LivingStatus
+  bidukNumber     String?
+  baptismDate     DateTime?
+  confirmationDate DateTime?
+  deathDate       DateTime?
+  imageUrl        String?
+  joinDate        DateTime?  // Untuk monitoring
+  status          String?    // Aktif/Pindah/Meninggal
+  scheduledDeleteDate DateTime?
+  deceasedMemberName String?
+  spouse          Spouse?
+  dependents      Dependent[]
+  transactions    Transaction[]
+  danaMandiri     DanaMandiriTransaction[]
+  ikataTransaksi  IKATATransaction[]
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  user            User?
+}
+
+model Spouse {
+  id              Int      @id @default(autoincrement())
+  fullName        String
+  gender          Gender
+  birthPlace      String
+  birthDate       DateTime
+  nik             String   @unique
+  address         String
+  city            String
+  phoneNumber     String
+  email           String?
+  occupation      String
+  education       String
+  religion        Religion
+  livingStatus    LivingStatus
+  bidukNumber     String?
+  baptismDate     DateTime?
+  confirmationDate DateTime?
+  deathDate       DateTime?
+  imageUrl        String?
+  familyHead      FamilyHead @relation(fields: [familyHeadId], references: [id])
+  familyHeadId    Int       @unique
+}
+
+model Dependent {
+  id              Int      @id @default(autoincrement())
+  name            String
+  dependentType   DependentType
+  gender          Gender
+  birthPlace      String
+  birthDate       DateTime
+  education       String
+  religion        Religion
+  maritalStatus   MaritalStatus
+  baptismDate     DateTime?
+  confirmationDate DateTime?
+  imageUrl        String?
+  familyHead      FamilyHead @relation(fields: [familyHeadId], references: [id])
+  familyHeadId    Int
+}
+
+model Transaction {
+  id              Int      @id @default(autoincrement())
+  date            DateTime
+  description     String
+  debit           Int
+  credit          Int
+  locked          Boolean  @default(false)
+  transactionType TransactionType
+  transactionSubtype String?
+  familyHead      FamilyHead? @relation(fields: [familyHeadId], references: [id])
+  familyHeadId    Int?
+}
+
+model DanaMandiriTransaction {
+  id              Int      @id @default(autoincrement())
+  familyHead      FamilyHead @relation(fields: [familyHeadId], references: [id])
+  familyHeadId    Int
+  year            Int
+  amount          Int
+  status          String
+  paymentDate     DateTime
+  isLocked        Boolean  @default(false)
+  notes           String?
+  paymentStatus   String
+}
+
+model IKATATransaction {
+  id              Int      @id @default(autoincrement())
+  tanggal         DateTime
+  keterangan      String
+  jumlah          Int
+  jenis           String
+  tipeTransaksi   String
+  debit           Int?
+  kredit          Int?
+  statusPembayaran StatusPembayaran?
+  periodeBayar    String?
+  anggota         FamilyHead? @relation(fields: [anggotaId], references: [id])
+  anggotaId       Int?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  createdBy       String
+  updatedBy       String
+  locked          Boolean    @default(false)
+}
+
+model JadwalDoling {
+  id              Int      @id @default(autoincrement())
+  tanggal         DateTime
+  waktu           String
+  tuanRumahId     Int?
+  tuanRumah       String
+  alamat          String
+  noTelepon       String?
+  catatan         String?
+  status          String
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  detilDoling     DetilDoling[]
+  absensiDoling   AbsensiDoling[]
+}
+
+model DetilDoling {
+  id              Int      @id @default(autoincrement())
+  jadwal          JadwalDoling? @relation(fields: [jadwalId], references: [id])
+  jadwalId        Int?
+  tanggal         DateTime
+  tuanRumah       String
+  jumlahHadir     Int
+  jenisIbadat     String?
+  subIbadat       String?
+  temaIbadat      String?
+  kegiatan        String
+  biaya           Int?
+  koleksi         Int?
+  keterangan      String?
+  status          String
+  sudahDiapprove  Boolean?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  jumlahKKHadir   Int?
+  jumlahBapak     Int?
+  jumlahIbu       Int?
+  jumlahOMK       Int?
+  jumlahBIAKecil  Int?
+  jumlahBIABesar  Int?
+  jumlahBIR       Int?
+  jumlahPeserta   Int?
+  kolekte1        Int?
+  kolekte2        Int?
+  ucapanSyukur    Int?
+  pemimpinLiturgi String?
+  petugasRosario  String?
+  pembawaRenungan String?
+  petugasLagu     String?
+  petugasDoaUmat  String?
+  petugasBacaan   String?
+  pemimpinMisa    String?
+  bacaanPertama   String?
+  pemazmur        String?
+  absensiDoling   AbsensiDoling[]
+}
+
+model AbsensiDoling {
+  id              Int      @id @default(autoincrement())
+  jadwal          JadwalDoling @relation(fields: [jadwalId], references: [id])
+  jadwalId        Int
+  detilDoling     DetilDoling? @relation(fields: [detilDolingId], references: [id])
+  detilDolingId   Int?
+  tanggalKehadiran DateTime
+  nama            String
+  kepalaKeluarga  Boolean
+  kehadiran       String
+  keterangan      String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+model Publikasi {
+  id              Int      @id @default(autoincrement())
+  judul           String
+  tanggal         DateTime
+  waktu           String
+  lokasi          String
+  targetPenerima  String
+  status          StatusPublikasi
+  pembuat         String
+  lampiran        Boolean
+  locked          Boolean
+  kategori        KategoriPublikasi
+  laporan         Laporan[]
+}
+
+model Laporan {
+  id              Int      @id @default(autoincrement())
+  judul           String
+  jenis           String
+  tanggal         DateTime
+  keterangan      String
+  lampiran        String
+  publikasi       Publikasi @relation(fields: [publikasiId], references: [id])
+  publikasiId     Int
+}
+
+model ApprovalItem {
+  id              Int      @id @default(autoincrement())
+  itemType        String
+  itemId          Int
+  status          String
+  approvedBy      String?
+  approvedAt      DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+model Agenda {
+  id              Int      @id @default(autoincrement())
+  title           String
+  description     String
+  date            DateTime
+  location        String
+  target          String
+  status          String
+  createdBy       Int
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+model Notification {
+  id              Int      @id @default(autoincrement())
+  title           String
+  message         String
+  type            String
+  timestamp       DateTime  @default(now())
+  isRead          Boolean   @default(false)
+  recipientId     Int?
+  senderId        Int?
+  relatedItemId   Int?
+  relatedItemType String?
+}
+
+model PaymentHistory {
+  id              Int      @id @default(autoincrement())
+  userId          Int?
+  familyHeadName  String?
+  year            Int
+  paymentDate     DateTime?
+  amount          Int
+  status          PaymentStatus
+  type            String
+  description     String?
+}

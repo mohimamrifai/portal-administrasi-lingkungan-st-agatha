@@ -1,165 +1,118 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect } from "react"
-import Cookies from 'js-cookie'
+import { 
+  createContext, 
+  useContext, 
+  useState, 
+  useEffect,
+  ReactNode
+} from "react"
+import { useSession } from "next-auth/react"
 
-// Available roles in the system
-export const ROLES = {
-  SUPER_USER: 'SuperUser',
-  KETUA_LINGKUNGAN: 'ketuaLingkungan',
-  SEKRETARIS: 'sekretaris',
-  WAKIL_SEKRETARIS: 'wakilSekretaris',
-  BENDAHARA: 'bendahara',
-  WAKIL_BENDAHARA: 'wakilBendahara',
-  WAKIL_KETUA: 'wakilKetua',
-  UMAT: 'umat',
-};
+// Tipe role pengguna
+type UserRole = 
+  | 'SuperUser' 
+  | 'ketuaLingkungan' 
+  | 'bendahara' 
+  | 'wakilBendahara'
+  | 'sekretaris'
+  | 'wakilSekretaris'
+  | 'adminLingkungan'
+  | 'anggota'
+  | 'umat'
+  | 'guest'
 
+// Interface konteks autentikasi
 interface AuthContextType {
-  userRole: string
-  isLoading: boolean
-  isDevelopmentMode: boolean
-  login: (username: string, password: string) => Promise<boolean>
+  isAuthenticated: boolean
+  userRole: UserRole
+  userId: string | null
+  username: string | null
   logout: () => void
-  setDevelopmentRole: (role: string) => Promise<boolean>
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+// Nilai default untuk konteks
+const defaultContext: AuthContextType = {
+  isAuthenticated: false,
+  userRole: 'guest',
+  userId: null,
+  username: null,
+  logout: () => {}
+}
 
-/**
- * AuthProvider - Menyediakan konteks autentikasi untuk aplikasi
- * 
- * Mode Development dan Demo:
- * - Feature role selector tersedia melalui setDevelopmentRole
- * - Role disimpan dalam cookie "devUserRole" dengan masa berlaku 1 hari
- * - isDevelopmentMode = true menandakan aplikasi berjalan dalam mode development atau bahwa
- *   fitur development diaktifkan di production untuk tujuan demo
- */
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [userRole, setUserRole] = useState<string>("umat")
-  const [isLoading, setIsLoading] = useState(true)
-  const [isDevelopmentMode, setIsDevelopmentMode] = useState(false)
+// Membuat konteks
+const AuthContext = createContext<AuthContextType>(defaultContext)
 
-  // Initialize auth state from cookies on client
+// Hook untuk menggunakan konteks autentikasi
+export const useAuth = () => useContext(AuthContext)
+
+// Provider untuk konteks autentikasi
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const { data: session, status } = useSession()
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [userRole, setUserRole] = useState<UserRole>('guest')
+  const [userId, setUserId] = useState<string | null>(null)
+  const [username, setUsername] = useState<string | null>(null)
+
+  // Memeriksa autentikasi saat aplikasi dimuat atau session berubah
   useEffect(() => {
-    // Safe check for browser environment
-    if (typeof window === 'undefined') return;
+    // Jika session ada dan user memiliki role, update state
+    if (session?.user) {
+      setIsAuthenticated(true)
+      
+      // Ambil role dari session (ditambahkan ke session di NextAuth callbacks)
+      const sessionRole = (session.user as any).role
+      
+      // Validasi role, pastikan role ada dalam daftar UserRole yang valid
+      if (sessionRole && isValidUserRole(sessionRole)) {
+        setUserRole(sessionRole as UserRole)
+      } else {
+        // Fallback ke guest jika role tidak valid
+        setUserRole('guest')
+      }
+      
+      // Ambil userId dan username
+      // NextAuth user tidak memiliki id secara default, akses melalui any
+      const userId = (session.user as any).id || null
+      setUserId(userId)
+      setUsername(session.user.name || null)
+    } else {
+      // Reset ke default jika tidak ada session
+      setIsAuthenticated(false)
+      setUserRole('guest')
+      setUserId(null)
+      setUsername(null)
+    }
+  }, [session, status])
 
-    // Check if we're in development mode or demo mode is enabled
-    const isDev = process.env.NODE_ENV === 'development';
-    // Selalu aktifkan mode development untuk demo client
-    setIsDevelopmentMode(true);
-    
-    // In development, use the environment variable if available
-    const devRole = process.env.NEXT_PUBLIC_DEV_USER_ROLE;
-    if (devRole) {
-      setUserRole(devRole);
-      setIsLoading(false);
-      return;
-    }
-    
-    // Check for dev role cookie first (for our temporary role selection feature)
-    const devRoleCookie = Cookies.get("devUserRole");
-    if (devRoleCookie) {
-      setUserRole(devRoleCookie);
-      setIsLoading(false);
-      return;
-    }
-    
-    // Fall back to regular user role cookie
-    const storedRole = Cookies.get("userRole")
-    if (storedRole) {
-      setUserRole(storedRole)
-    }
-    setIsLoading(false)
-  }, [])
-
-  /**
-   * Fungsi untuk mengatur role secara langsung untuk keperluan development/demo
-   * Fitur ini sekarang juga tersedia di production untuk tujuan demo
-   */
-  const setDevelopmentRole = async (role: string): Promise<boolean> => {
-    setIsLoading(true);
-    
-    // Store role in cookies (1 day expiry for dev/demo purposes)
-    Cookies.set("devUserRole", role, { expires: 1 });
-    setUserRole(role);
-    setIsLoading(false);
-    
-    return true;
+  // Fungsi untuk memvalidasi user role
+  function isValidUserRole(role: string): role is UserRole {
+    return [
+      'SuperUser', 
+      'ketuaLingkungan', 
+      'bendahara', 
+      'wakilBendahara',
+      'sekretaris',
+      'wakilSekretaris',
+      'adminLingkungan',
+      'anggota',
+      'umat',
+      'guest'
+    ].includes(role as UserRole)
   }
 
-  // Mock login function (to be replaced with real authentication)
-  const login = async (username: string, password: string): Promise<boolean> => {
-    setIsLoading(true)
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    // Mock role assignment based on username
-    // In a real app, this would come from the backend
-    let role: string
-    switch (username.toLowerCase()) {
-      case "admin":
-        role = "SuperUser"
-        break
-      case "ketua":
-        role = "ketuaLingkungan"
-        break
-      case "sekretaris":
-        role = "sekretaris"
-        break
-      case "wakilsekretaris":
-        role = "wakilSekretaris"
-        break
-      case "bendahara":
-        role = "bendahara"
-        break
-      case "wakilbendahara":
-        role = "wakilBendahara"
-        break
-      case "wakilketua":
-        role = "wakilKetua"
-        break
-      default:
-        role = "umat"
-    }
-    
-    // Store role in cookies (7 day expiry)
-    Cookies.set("userRole", role, { expires: 7 })
-    setUserRole(role)
-    setIsLoading(false)
-    
-    return true
-  }
-
-  const logout = () => {
-    Cookies.remove("userRole")
-    Cookies.remove("devUserRole")
-    setUserRole("umat")
-    // Redirect to login page would happen in the component
-  }
-
-  const value = {
+  // Nilai konteks yang akan disediakan
+  const contextValue: AuthContextType = {
+    isAuthenticated,
     userRole,
-    isLoading,
-    isDevelopmentMode,
-    login,
-    logout,
-    setDevelopmentRole
+    userId,
+    username,
+    logout: () => {} // Kosong, karena logout sebenarnya menggunakan signOut dari next-auth
   }
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   )
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
-  }
-  return context
 } 

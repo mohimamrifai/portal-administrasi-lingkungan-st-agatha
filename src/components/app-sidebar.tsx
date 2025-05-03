@@ -33,7 +33,11 @@ export function AppSidebar({
   ...props
 }: React.ComponentProps<typeof Sidebar> & { userRole?: string }) {
   const pathname = usePathname()
-  const menuItems = navMain[userRole] || navMain.Umat
+  
+  // Pastikan userRole ada di navMain, jika tidak, gunakan fallback menu yang pasti ada
+  // Cek apakah userRole valid, jika tidak, gunakan menu "umat" atau menu pertama yang tersedia
+  const validRole = navMain[userRole] ? userRole : "umat"
+  const menuItems = navMain[validRole] || []
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>

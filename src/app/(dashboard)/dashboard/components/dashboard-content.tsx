@@ -10,7 +10,7 @@ import {
   TabsList, 
   TabsTrigger 
 } from "@/components/ui/tabs"
-import { useAuth } from "@/contexts/auth-context"
+import { useAuth } from "../../../../contexts/auth-context"
 
 // Import types
 import { 
@@ -63,7 +63,8 @@ export default function DashboardContent() {
     'ketuaLingkungan', 
     'sekretaris', 
     'wakilSekretaris',
-    'adminLingkungan'
+    'adminLingkungan',
+    'umat'
   ].includes(userRole)
   
   // Semua pengguna dapat melihat daftar penunggak pada dashboard

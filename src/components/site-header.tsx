@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { useAuth } from "@/contexts/auth-context"
+import { useAuth } from "../contexts/auth-context"
 import { Bell } from "lucide-react"
 import {
   Popover,
@@ -70,7 +70,7 @@ function NotificationList() {
 }
 
 export function SiteHeader({ userRole = "umat" }: SiteHeaderProps) {
-  const { userRole: currentRole, isDevelopmentMode } = useAuth()
+  const { userRole: currentRole } = useAuth()
   
   // Format display role name untuk tampilan badge
   const formatRoleName = (role: string): string => {
@@ -99,11 +99,6 @@ export function SiteHeader({ userRole = "umat" }: SiteHeaderProps) {
           <h1 className="text-base font-medium hidden md:block">Portal Administrasi Lingkungan St. Agatha</h1>
         </div>
         <div className="flex items-center gap-2">
-          {isDevelopmentMode && (
-            <Badge variant="secondary" className="mr-2">
-              DEMO MODE
-            </Badge>
-          )}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="icon" className="relative">

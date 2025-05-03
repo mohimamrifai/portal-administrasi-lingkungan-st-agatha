@@ -15,6 +15,8 @@ import Link from "next/link"
 import { useState } from "react"
 import { AlertCircle, Eye, EyeOff } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { registerAction } from "@/actions/register"
+import { useRouter } from "next/navigation"
 
 export function RegisterForm({
   className,
@@ -36,6 +38,9 @@ export function RegisterForm({
   const [isVerified, setIsVerified] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showPassphrase, setShowPassphrase] = useState(false)
+  const [serverError, setServerError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+  const router = useRouter()
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword)
@@ -77,38 +82,43 @@ export function RegisterForm({
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+    setServerError(null)
+    setSuccess(false)
     // Validate form
     const newErrors: typeof errors = {}
-    
     if (!isVerified) {
       newErrors.kepalakeluarga = "Silahkan verifikasi Nama Kepala Keluarga terlebih dahulu"
     }
-    
     if (!formData.username) {
       newErrors.username = "Username tidak boleh kosong"
     }
-    
     if (!formData.password) {
       newErrors.password = "Password tidak boleh kosong"
     } else if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/.test(formData.password)) {
       newErrors.password = "Password harus terdiri dari minimal 8 karakter, mengandung huruf dan angka"
     }
-    
     if (!formData.passphrase) {
       newErrors.passphrase = "Passphrase tidak boleh kosong"
     } else if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/.test(formData.passphrase)) {
       newErrors.passphrase = "Passphrase harus terdiri dari minimal 8 karakter, mengandung huruf dan angka"
     }
-    
     setErrors(newErrors)
-    
-    // If no errors, submit form
     if (Object.keys(newErrors).length === 0) {
-      // Submit form logic here
-      console.log("Form submitted:", formData)
+      // Submit ke server action
+      const res = await registerAction({
+        username: formData.username,
+        password: formData.password,
+        passphrase: formData.passphrase,
+        familyHeadName: formData.kepalakeluarga,
+      })
+      if (res.error) {
+        setServerError(res.error)
+      } else {
+        setSuccess(true)
+        setTimeout(() => router.push("/login"), 1500)
+      }
     }
   }
 
@@ -261,6 +271,17 @@ export function RegisterForm({
                 Silahkan Login
               </Link>
             </div>
+            {serverError && (
+              <Alert variant="destructive" className="py-2">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{serverError}</AlertDescription>
+              </Alert>
+            )}
+            {success && (
+              <Alert className="py-2 bg-green-50 text-green-800 border-green-200">
+                <AlertDescription>Registrasi berhasil! Mengarahkan ke halaman login...</AlertDescription>
+              </Alert>
+            )}
           </form>
         </CardContent>
       </Card>

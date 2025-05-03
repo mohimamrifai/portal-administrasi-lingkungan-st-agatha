@@ -2,17 +2,15 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/contexts/auth-context"
+import { signOut } from "next-auth/react"
 
 export default function LogoutPage() {
-  const { logout } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    // Panggil fungsi logout dan redirect ke halaman login
-    logout()
-    router.push("/login")
-  }, [logout, router])
+    // Langsung gunakan NextAuth signOut
+    signOut({ callbackUrl: "/login" })
+  }, [router])
 
   return (
     <div className="flex min-h-screen items-center justify-center">

@@ -15,8 +15,7 @@ import Link from "next/link"
 import { useState } from "react"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/contexts/auth-context"
-import { RoleSelector } from "@/components/role-selector"
+import { signIn, useSession } from "next-auth/react"
 
 export function LoginForm({
   className,
@@ -29,7 +28,7 @@ export function LoginForm({
   const [error, setError] = useState<string | null>(null)
   
   const router = useRouter()
-  const { login, isDevelopmentMode } = useAuth()
+  const { status } = useSession()
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword)
@@ -41,9 +40,15 @@ export function LoginForm({
     setError(null)
     
     try {
-      const success = await login(username, password)
-      if (success) {
+      const res = await signIn("credentials", {
+        redirect: false,
+        username,
+        password,
+      })
+      if (res?.ok) {
         router.push("/dashboard")
+      } else {
+        setError("Login gagal, silahkan cek username/password.")
       }
     } catch (error) {
       setError("Login gagal, silahkan coba lagi")
@@ -134,8 +139,6 @@ export function LoginForm({
           </form>
         </CardContent>
       </Card>
-      
-      {isDevelopmentMode && <RoleSelector />}
     </div>
   )
 }

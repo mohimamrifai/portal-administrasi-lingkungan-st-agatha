@@ -11,7 +11,6 @@ import {
     Home,
     Banknote,
     Trash2,
-    BarChart2,
 } from 'lucide-react'
 
 export const navMain: Record<string, MenuItem[]> = {
@@ -252,5 +251,10 @@ export const navMain: Record<string, MenuItem[]> = {
                 { label: 'Ganti Password', path: '/pengaturan/password' },
             ],
         },
+    ],
+
+    guest: [
+        { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+        { label: 'Masuk', path: '/login', icon: LogOut },
     ],
 }
