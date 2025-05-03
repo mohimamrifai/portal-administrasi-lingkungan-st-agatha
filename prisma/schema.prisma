@@ -196,6 +196,7 @@ model DanaMandiriTransaction {
   isLocked        Boolean  @default(false)
   notes           String?
   paymentStatus   String
+  periodeBayar    String?  // Format expected: YYYY-MM-DD, menunjukkan periode dari bulan MM sampai DD
 }
 
 model IKATATransaction {

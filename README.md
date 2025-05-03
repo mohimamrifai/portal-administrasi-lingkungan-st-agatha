@@ -185,4 +185,6 @@
 - Template Slip Penyetoran Dana Mandiri
 - Template Kas IKATA
 - Template Jadwal Doling
-- Template Riwayat Doling (2 halaman)# portal-administrasi-lingkungan-st-agatha
+- Template Riwayat Doling (2 halaman)
+
+<!-- oke, mari kerjakan halaman dashboard. gunakan search params untuk kebutuhan filter. jika bisa di lakukan refactoring code atau file supaya lebh rapih dan mudah di kelola, buatkan. gunakan server action. sebelum mengerjakan pastikan kamu periksa semua folder dan file, serta khususnya modul atau folder dashboard @dashboard .  -->
