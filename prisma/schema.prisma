@@ -336,6 +336,8 @@ model Agenda {
   location        String
   target          String
   status          String
+  rejectionReason String?
+  completedAt     DateTime?
   createdBy       Int
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt

@@ -9,30 +9,57 @@ import { ProcessDialog } from "./process-dialog";
 import { UpdateStatusDialog } from "./update-status-dialog";
 import { FinalResultDialog } from "./final-result-dialog";
 import { RejectionDialog } from "./rejection-dialog";
-import { Agenda, AgendaFormValues, ProcessTarget, RejectionFormValues } from "../types";
+import { DeleteConfirmationDialog } from "./delete-confirmation-dialog";
+import { Agenda, AgendaFormValues, ProcessTarget, RejectionFormValues, AgendaStatus } from "../types";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Plus, Search } from "lucide-react";
-import { useMockData } from "../utils/use-mock-data";
 import { useAuth } from "@/contexts/auth-context";
+import { createAgenda, deleteAgenda, updateAgenda } from "../actions";
 
-export default function AgendaContent() {
-  const { mockAgendas, mockUser } = useMockData();
-  const { userRole } = useAuth();
+export default function AgendaContent({ initialAgendas = [] }: { initialAgendas: Agenda[] }) {
+  const { userRole, userId, username } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
   const [isUpdateStatusDialogOpen, setIsUpdateStatusDialogOpen] = useState(false);
   const [isFinalResultDialogOpen, setIsFinalResultDialogOpen] = useState(false);
   const [isRejectionDialogOpen, setIsRejectionDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [selectedAgenda, setSelectedAgenda] = useState<Agenda | undefined>();
-  const [agendas, setAgendas] = useState<Agenda[]>(mockAgendas);
+  const [agendaToDelete, setAgendaToDelete] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Validasi dan normalisasi initialAgendas
+  const [agendas, setAgendas] = useState<Agenda[]>(() => {
+    try {
+      // Pastikan initialAgendas memiliki format yang diharapkan
+      return initialAgendas.map(agenda => ({
+        ...agenda,
+        // Konversi string date ke Date object jika perlu
+        date: agenda.date instanceof Date ? agenda.date : new Date(agenda.date),
+        createdAt: agenda.createdAt instanceof Date ? agenda.createdAt : new Date(agenda.createdAt),
+        updatedAt: agenda.updatedAt instanceof Date ? agenda.updatedAt : new Date(agenda.updatedAt),
+        completedAt: agenda.completedAt ? 
+          (agenda.completedAt instanceof Date ? agenda.completedAt : new Date(agenda.completedAt)) 
+          : undefined,
+        // Format createdBy sesuai kebutuhan UI
+        createdBy: typeof agenda.createdBy === 'number' 
+          ? { id: agenda.createdBy, name: `User ${agenda.createdBy}` } 
+          : agenda.createdBy
+      }));
+    } catch (error) {
+      console.error("Error parsing initial agendas:", error);
+      return [];
+    }
+  });
 
   // Cek apakah pengguna adalah umat atau pengurus
   const isUmatRole = userRole === 'umat';
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 10; // Meningkatkan jumlah item per halaman karena tabel lebih ringkas
   const totalPages = Math.ceil(
     agendas.filter((agenda) =>
       agenda.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -98,20 +125,70 @@ export default function AgendaContent() {
   );
 
   const handleAddAgenda = async (values: AgendaFormValues) => {
-    const newAgenda: Agenda = {
-      id: agendas.length + 1,
-      ...values,
-      status: "open",
-      createdBy: {
-        id: mockUser.id,
-        name: mockUser.name
-      },
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+    try {
+      setIsSubmitting(true);
+      
+      // Jika dalam mode edit, panggil updateAgenda
+      if (isEditMode && selectedAgenda) {
+        const response = await updateAgenda(selectedAgenda.id, values);
+        
+        if (response.success) {
+          // Jika berhasil, perbarui agenda yang diedit dalam state
+          if (response.data) {
+            setAgendas(prev => prev.map(agenda => 
+              agenda.id === selectedAgenda.id 
+                ? {
+                    ...response.data,
+                    date: new Date(response.data.date),
+                    createdAt: new Date(response.data.createdAt),
+                    updatedAt: new Date(response.data.updatedAt),
+                    createdBy: agenda.createdBy // Pertahankan createdBy yang ada format UI-nya
+                  } 
+                : agenda
+            ));
+          }
+          toast.success(response.message);
+          setIsEditMode(false);
+        } else {
+          toast.error(response.message);
+        }
+      } else {
+        // Mode tambah agenda baru
+        const response = await createAgenda(values);
+        
+        if (response.success) {
+          // Jika berhasil, tambahkan agenda baru ke state
+          if (response.data) {
+            const newAgenda: Agenda = {
+              ...response.data,
+              createdBy: {
+                id: userId ? parseInt(userId) : 0,
+                name: username || 'User'
+              }
+            };
+            setAgendas(prev => [newAgenda, ...prev]);
+          }
+          toast.success(response.message);
+        } else {
+          toast.error(response.message);
+        }
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      toast.error(`Gagal ${isEditMode ? 'memperbarui' : 'mengajukan'} agenda: ${errorMessage}`);
+    } finally {
+      setIsSubmitting(false);
+      setIsFormDialogOpen(false);
+    }
+  };
 
-    setAgendas([...agendas, newAgenda]);
-    toast.success("Agenda berhasil diajukan");
+  const handleEditAgenda = (id: number) => {
+    const agenda = agendas.find(a => a.id === id);
+    if (agenda) {
+      setSelectedAgenda(agenda);
+      setIsEditMode(true);
+      setIsFormDialogOpen(true);
+    }
   };
 
   const handleProcessAgenda = (id: number) => {
@@ -146,10 +223,16 @@ export default function AgendaContent() {
     }
   };
 
+  const handleOpenNewAgendaForm = () => {
+    setSelectedAgenda(undefined);
+    setIsEditMode(false);
+    setIsFormDialogOpen(true);
+  };
+
   const handleProcessSubmit = (processTarget: ProcessTarget) => {
     if (!selectedAgenda) return;
 
-    const status = `processing_${processTarget}` as Agenda['status'];
+    const status = `processing_${processTarget}` as AgendaStatus;
 
     const updatedAgendas = agendas.map((agenda) =>
       agenda.id === selectedAgenda.id
@@ -170,59 +253,51 @@ export default function AgendaContent() {
   const handleUpdateStatusSubmit = (status: 'forwarded_to_paroki' | 'completed' | 'rejected') => {
     if (!selectedAgenda) return;
 
-    if (status === 'rejected') {
-      // If rejected, we'll open the rejection dialog
-      setIsUpdateStatusDialogOpen(false);
-      setIsRejectionDialogOpen(true);
-      return;
-    }
-
     const updatedAgendas = agendas.map((agenda) =>
       agenda.id === selectedAgenda.id
         ? {
           ...agenda,
-          status,
+          status: status as AgendaStatus,
           updatedAt: new Date(),
-          completedAt: status === 'completed' ? new Date() : undefined
+          completedAt: status === 'completed' ? new Date() : agenda.completedAt
         }
         : agenda
     );
 
     setAgendas(updatedAgendas);
 
-    // Send notification to the agenda creator
+    // Send notification based on status
     if (status === 'forwarded_to_paroki') {
       toast.info(`Agenda "${selectedAgenda.title}" telah diteruskan ke Paroki`);
     } else if (status === 'completed') {
-      toast.success(`Agenda "${selectedAgenda.title}" telah selesai diproses`);
+      toast.success(`Agenda "${selectedAgenda.title}" telah diselesaikan`);
+    } else if (status === 'rejected') {
+      toast.error(`Agenda "${selectedAgenda.title}" telah ditolak`);
     }
   };
 
   const handleFinalResultSubmit = (result: 'completed' | 'rejected') => {
     if (!selectedAgenda) return;
 
-    if (result === 'rejected') {
-      // If rejected, we'll open the rejection dialog
-      setIsFinalResultDialogOpen(false);
-      setIsRejectionDialogOpen(true);
-      return;
-    }
-
     const updatedAgendas = agendas.map((agenda) =>
       agenda.id === selectedAgenda.id
         ? {
           ...agenda,
-          status: result,
+          status: result as AgendaStatus,
           updatedAt: new Date(),
-          completedAt: new Date()
+          completedAt: result === 'completed' ? new Date() : agenda.completedAt
         }
         : agenda
     );
 
     setAgendas(updatedAgendas);
 
-    // Send notification to the agenda creator
-    toast.success(`Agenda "${selectedAgenda.title}" telah selesai diproses`);
+    // Send notification based on result
+    if (result === 'completed') {
+      toast.success(`Agenda "${selectedAgenda.title}" telah diselesaikan`);
+    } else {
+      toast.error(`Agenda "${selectedAgenda.title}" telah ditolak`);
+    }
   };
 
   const handleRejectionSubmit = (values: RejectionFormValues) => {
@@ -232,7 +307,7 @@ export default function AgendaContent() {
       agenda.id === selectedAgenda.id
         ? {
           ...agenda,
-          status: 'rejected' as const,
+          status: 'rejected' as AgendaStatus,
           rejectionReason: values.reason,
           updatedAt: new Date()
         }
@@ -241,13 +316,44 @@ export default function AgendaContent() {
 
     setAgendas(updatedAgendas);
 
-    // Send notification to the agenda creator
+    // Send notification
     toast.error(`Agenda "${selectedAgenda.title}" ditolak dengan alasan: ${values.reason}`);
   };
 
-  const handleDeleteAgenda = async (id: number) => {
-    setAgendas(agendas.filter((agenda) => agenda.id !== id));
-    toast.success("Agenda berhasil dihapus");
+  const handleConfirmDelete = (id: number) => {
+    // Menyimpan ID agenda yang akan dihapus
+    setAgendaToDelete(id);
+    
+    const agenda = agendas.find(a => a.id === id);
+    if (agenda) {
+      setSelectedAgenda(agenda);
+    }
+    
+    // Membuka dialog konfirmasi
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteAgenda = async () => {
+    if (!agendaToDelete) return;
+    
+    try {
+      // Memanggil server action untuk menghapus agenda
+      const response = await deleteAgenda(agendaToDelete);
+      
+      if (response.success) {
+        setAgendas(agendas.filter((agenda) => agenda.id !== agendaToDelete));
+        toast.success(response.message);
+      } else {
+        toast.error(response.message);
+      }
+    } catch (error) {
+      console.error("Error deleting agenda:", error);
+      toast.error("Gagal menghapus agenda");
+    } finally {
+      // Reset state
+      setAgendaToDelete(null);
+      setSelectedAgenda(undefined);
+    }
   };
 
   return (
@@ -256,7 +362,7 @@ export default function AgendaContent() {
         <h1 className="text-2xl font-semibold">Agenda Lingkungan</h1>
       </div>
       
-      <div className="flex items-center gap-2 w-full sm:w-auto">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
         <div className="relative w-full sm:w-auto">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -267,100 +373,124 @@ export default function AgendaContent() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        {/* Tampilkan tombol Pengajuan untuk semua role agar umat dapat mengajukan agenda */}
-        <Button
-          className="whitespace-nowrap"
-          onClick={() => setIsFormDialogOpen(true)}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Pengajuan
-        </Button>
+        {isUmatRole && (
+          <Button
+            className="whitespace-nowrap w-full sm:w-auto"
+            onClick={handleOpenNewAgendaForm}
+            disabled={isSubmitting}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Pengajuan
+          </Button>
+        )}
       </div>
 
-      <AgendaTable
-        agendas={paginatedAgendas}
-        onProcess={handleProcessAgenda}
-        onUpdateStatus={handleUpdateStatusAgenda}
-        onFinalResult={handleFinalResultAgenda}
-        onReject={handleRejectAgenda}
-        onDelete={handleDeleteAgenda}
-        userRole={userRole}
-      />
+      {/* Pesan jika tidak ada agenda */}
+      {agendas.length === 0 && (
+        <div className="text-center py-10 border rounded-md bg-muted/20">
+          <p className="text-muted-foreground">Belum ada agenda. Klik tombol Pengajuan untuk membuat agenda baru.</p>
+        </div>
+      )}
 
-      {/* Pagination controls */}
-      <div className="flex items-center justify-end space-x-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setCurrentPage(1)}
-          disabled={currentPage === 1}
-        >
-          <ChevronsLeft className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-          disabled={currentPage === 1}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <span className="text-sm font-medium">
-          Halaman {currentPage} dari {totalPages || 1}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-          disabled={currentPage === totalPages || totalPages === 0}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setCurrentPage(totalPages)}
-          disabled={currentPage === totalPages || totalPages === 0}
-        >
-          <ChevronsRight className="h-4 w-4" />
-        </Button>
-      </div>
+      {/* Tabel Agenda */}
+      {agendas.length > 0 && (
+        <AgendaTable
+          agendas={paginatedAgendas}
+          onProcess={handleProcessAgenda}
+          onUpdateStatus={handleUpdateStatusAgenda}
+          onFinalResult={handleFinalResultAgenda}
+          onDelete={handleConfirmDelete}
+          onReject={handleRejectAgenda}
+          onEdit={handleEditAgenda}
+          userRole={userRole}
+        />
+      )}
 
-      {/* Form dialog untuk pengajuan agenda baru */}
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-end space-x-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage === 1}
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setCurrentPage(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm">
+            Halaman {currentPage} dari {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setCurrentPage(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage === totalPages}
+          >
+            <ChevronsRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      {/* Dialog untuk form agenda baru atau edit */}
       <AgendaFormDialog
         open={isFormDialogOpen}
         onOpenChange={setIsFormDialogOpen}
         onSubmit={handleAddAgenda}
+        isSubmitting={isSubmitting}
+        agenda={isEditMode ? selectedAgenda : undefined}
       />
 
-      {/* Dialog untuk proses agenda - hanya tampilkan jika bukan role umat */}
-      {userRole !== 'umat' && (
-        <>
-          <ProcessDialog
-            open={isProcessDialogOpen}
-            onOpenChange={setIsProcessDialogOpen}
-            onSubmit={handleProcessSubmit}
-          />
+      {/* Dialog untuk proses agenda */}
+      <ProcessDialog
+        open={isProcessDialogOpen}
+        onOpenChange={setIsProcessDialogOpen}
+        onSubmit={handleProcessSubmit}
+      />
 
-          <UpdateStatusDialog
-            open={isUpdateStatusDialogOpen}
-            onOpenChange={setIsUpdateStatusDialogOpen}
-            onSubmit={handleUpdateStatusSubmit}
-          />
+      {/* Dialog untuk update status */}
+      <UpdateStatusDialog
+        open={isUpdateStatusDialogOpen}
+        onOpenChange={setIsUpdateStatusDialogOpen}
+        onSubmit={handleUpdateStatusSubmit}
+      />
 
-          <FinalResultDialog
-            open={isFinalResultDialogOpen}
-            onOpenChange={setIsFinalResultDialogOpen}
-            onSubmit={handleFinalResultSubmit}
-          />
+      {/* Dialog untuk hasil akhir */}
+      <FinalResultDialog
+        open={isFinalResultDialogOpen}
+        onOpenChange={setIsFinalResultDialogOpen}
+        onSubmit={handleFinalResultSubmit}
+      />
 
-          <RejectionDialog
-            open={isRejectionDialogOpen}
-            onOpenChange={setIsRejectionDialogOpen}
-            onSubmit={handleRejectionSubmit}
-          />
-        </>
-      )}
+      {/* Dialog untuk penolakan */}
+      <RejectionDialog
+        open={isRejectionDialogOpen}
+        onOpenChange={setIsRejectionDialogOpen}
+        onSubmit={handleRejectionSubmit}
+      />
+
+      {/* Dialog konfirmasi penghapusan */}
+      <DeleteConfirmationDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={handleDeleteAgenda}
+        title={selectedAgenda?.title}
+      />
     </div>
   );
 } 

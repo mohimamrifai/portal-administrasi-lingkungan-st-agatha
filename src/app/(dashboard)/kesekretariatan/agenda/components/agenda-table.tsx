@@ -20,8 +20,12 @@ import { Button } from "@/components/ui/button";
 import { Agenda } from "../types";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { ChevronDown, MoreVertical } from "lucide-react";
+import { ChevronDown, Edit, Eye, MoreVertical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/contexts/auth-context";
+import { useState } from "react";
+import { AgendaDetailDialog } from "./agenda-detail-dialog";
+import { useSession } from "next-auth/react";
 
 interface AgendaTableProps {
   agendas: Agenda[];
@@ -30,6 +34,7 @@ interface AgendaTableProps {
   onFinalResult: (id: number) => void;
   onDelete: (id: number) => void;
   onReject: (id: number) => void;
+  onEdit: (id: number) => void;
   userRole?: string;
 }
 
@@ -40,8 +45,28 @@ export function AgendaTable({
   onFinalResult, 
   onDelete, 
   onReject,
+  onEdit,
   userRole 
 }: AgendaTableProps) {
+  const { data: session } = useSession();
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [selectedAgenda, setSelectedAgenda] = useState<Agenda | null>(null);
+  
+  // Helper untuk mendapatkan ID dari createdBy (yang bisa number atau object)
+  const getCreatedById = (createdBy: number | { id: number; name: string }): number => {
+    return typeof createdBy === 'number' ? createdBy : createdBy.id;
+  };
+  
+  // Helper untuk mendapatkan nama dari createdBy
+  const getCreatedByName = (createdBy: number | { id: number; name: string }): string => {
+    return typeof createdBy === 'number' ? `User ${createdBy}` : createdBy.name;
+  };
+  
+  const handleViewDetail = (agenda: Agenda) => {
+    setSelectedAgenda(agenda);
+    setDetailDialogOpen(true);
+  };
+  
   const getStatusColor = (status: Agenda['status']) => {
     switch (status) {
       case 'open':
@@ -122,9 +147,15 @@ export function AgendaTable({
   };
 
   const isCreator = (agenda: Agenda) => {
-    // Ini hanya contoh, pada implementasi sebenarnya perlu logika untuk memeriksa
-    // apakah pengguna saat ini adalah pembuat agenda
-    return agenda.createdBy.id === 1; // Mengasumsikan ID 1 adalah ID pengguna saat ini
+    // Dapatkan user ID langsung dari session di setiap pemanggilan fungsi
+    const userId = session?.user?.id;
+    
+    if (!userId) {
+      return false;
+    }
+    
+    const creatorId = getCreatedById(agenda.createdBy);
+    return creatorId === Number(userId);
   };
 
   const canDelete = (agenda: Agenda, role: string | undefined) => {
@@ -134,77 +165,88 @@ export function AgendaTable({
     return role !== 'umat' && agenda.status === 'open';
   };
 
+  const canEdit = (agenda: Agenda) => {
+    // Hanya creator yang dapat mengedit agenda dengan status open
+    const isCreatorResult = isCreator(agenda);
+    const statusOk = agenda.status === 'open';
+    return isCreatorResult && statusOk;
+  };
+
   const canReject = (agenda: Agenda, role: string | undefined) => {
     // Hanya pengurus (selain role umat) yang dapat menolak agenda
     return role !== 'umat' && agenda.status === 'open';
   };
 
   return (
-    <div className="rounded-md border overflow-hidden">
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="whitespace-nowrap">Judul</TableHead>
-              <TableHead className="whitespace-nowrap hidden md:table-cell">Deskripsi</TableHead>
-              <TableHead className="whitespace-nowrap">Tanggal</TableHead>
-              <TableHead className="whitespace-nowrap hidden md:table-cell">Lokasi</TableHead>
-              <TableHead className="whitespace-nowrap">Tujuan</TableHead>
-              <TableHead className="whitespace-nowrap">Status</TableHead>
-              <TableHead className="whitespace-nowrap">Diajukan Oleh</TableHead>
-              <TableHead className="whitespace-nowrap sticky right-0 bg-white shadow-md w-[50px] text-center">Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {agendas.length === 0 ? (
+    <>
+      <div className="rounded-md border">
+        <div className="w-full overflow-auto">
+          <Table className="w-full min-w-[650px]">
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
-                  Tidak ada agenda yang sesuai dengan pencarian
-                </TableCell>
+                <TableHead className="w-[180px]">Judul</TableHead>
+                <TableHead className="w-[90px]">Tanggal</TableHead>
+                <TableHead className="w-[110px]">Tujuan</TableHead>
+                <TableHead className="w-[110px]">Status</TableHead>
+                <TableHead className="w-[110px] hidden sm:table-cell">Pengaju</TableHead>
+                <TableHead className="w-[70px] text-center sticky right-0 bg-white shadow-sm">Aksi</TableHead>
               </TableRow>
-            ) : (
-              agendas.map((agenda) => (
-                <TableRow key={agenda.id}>
-                  <TableCell className="font-medium whitespace-nowrap">{agenda.title}</TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    <div className="max-w-xs truncate">{agenda.description}</div>
+            </TableHeader>
+            <TableBody>
+              {agendas.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                    Tidak ada agenda yang sesuai dengan pencarian
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {format(new Date(agenda.date), 'dd/MM/yyyy', { locale: id })}
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    <div className="max-w-xs truncate">{agenda.location}</div>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">{getTargetText(agenda.target)}</TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant={getStatusVariant(agenda.status)} 
-                      className={`${getStatusColor(agenda.status)} w-max`}
-                    >
-                      {getStatusText(agenda.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">{agenda.createdBy.name}</TableCell>
-                  <TableCell className="sticky right-0 bg-white shadow-md text-center">
-                    {userRole === 'umat' ? (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => onDelete(agenda.id)}
-                        disabled={!isCreator(agenda) || agenda.status !== 'open'}
+                </TableRow>
+              ) : (
+                agendas.map((agenda) => (
+                  <TableRow key={agenda.id}>
+                    <TableCell className="font-medium">
+                      <div className="max-w-[180px]">{agenda.title}</div>
+                    </TableCell>
+                    <TableCell>
+                      {format(new Date(agenda.date), 'dd/MM/yyyy', { locale: id })}
+                    </TableCell>
+                    <TableCell>
+                      <div className="truncate">{getTargetText(agenda.target)}</div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={getStatusVariant(agenda.status)} 
+                        className={`${getStatusColor(agenda.status)} w-max`}
                       >
-                        Hapus
-                      </Button>
-                    ) : (
+                        {getStatusText(agenda.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      <div className="truncate max-w-[110px]">
+                        {getCreatedByName(agenda.createdBy)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="sticky right-0 bg-white shadow-sm text-center">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm">
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <span className="sr-only">Buka menu</span>
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Aksi</DropdownMenuLabel>
                           <DropdownMenuSeparator />
+                          
+                          <DropdownMenuItem onClick={() => handleViewDetail(agenda)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Lihat Detail
+                          </DropdownMenuItem>
+
+                          {canEdit(agenda) && (
+                            <DropdownMenuItem onClick={() => onEdit(agenda.id)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                          )}
 
                           {canProcess(agenda, userRole) && (
                             <DropdownMenuItem onClick={() => onProcess(agenda.id)}>
@@ -230,7 +272,7 @@ export function AgendaTable({
                             </DropdownMenuItem>
                           )}
 
-                          {canDelete(agenda, userRole) && (
+                          {canDelete(agenda, userRole) && isCreator(agenda) && (
                             <DropdownMenuItem 
                               onClick={() => onDelete(agenda.id)}
                               className="text-red-600 focus:text-red-600"
@@ -240,14 +282,20 @@ export function AgendaTable({
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
-    </div>
+      
+      <AgendaDetailDialog 
+        open={detailDialogOpen} 
+        onOpenChange={setDetailDialogOpen} 
+        agenda={selectedAgenda} 
+      />
+    </>
   );
 } 

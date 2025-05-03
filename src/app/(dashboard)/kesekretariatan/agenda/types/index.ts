@@ -18,7 +18,7 @@ export interface Agenda {
   target: ProcessTarget;
   status: AgendaStatus;
   rejectionReason?: string;
-  createdBy: {
+  createdBy: number | {
     id: number;
     name: string;
   };
