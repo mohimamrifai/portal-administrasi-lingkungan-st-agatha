@@ -43,19 +43,8 @@ export async function getKeuanganLingkunganData(bulan?: number, tahun?: number) 
         : {},
     };
 
-    // Mengambil total pemasukan (credit) untuk periode
+    // Mengambil total pemasukan (debit) untuk periode sesuai dengan schema dan seed data
     const pemasukan = await prisma.transaction.aggregate({
-      _sum: {
-        credit: true,
-      },
-      where: {
-        ...transactionQuery.where,
-        transactionType: "credit",
-      },
-    });
-
-    // Mengambil total pengeluaran (debit) untuk periode
-    const pengeluaran = await prisma.transaction.aggregate({
       _sum: {
         debit: true,
       },
@@ -65,13 +54,24 @@ export async function getKeuanganLingkunganData(bulan?: number, tahun?: number) 
       },
     });
 
+    // Mengambil total pengeluaran (credit) untuk periode sesuai dengan schema dan seed data
+    const pengeluaran = await prisma.transaction.aggregate({
+      _sum: {
+        credit: true,
+      },
+      where: {
+        ...transactionQuery.where,
+        transactionType: "credit",
+      },
+    });
+
     // Menghitung saldo awal
     const saldoAwal = 
-      (saldoAwalQuery._sum.credit || 0) - (saldoAwalQuery._sum.debit || 0);
+      (saldoAwalQuery._sum.debit || 0) - (saldoAwalQuery._sum.credit || 0);
 
     // Menghitung saldo akhir
-    const totalPemasukan = pemasukan._sum.credit || 0;
-    const totalPengeluaran = pengeluaran._sum.debit || 0;
+    const totalPemasukan = pemasukan._sum.debit || 0;
+    const totalPengeluaran = pengeluaran._sum.credit || 0;
     const saldoAkhir = saldoAwal + totalPemasukan - totalPengeluaran;
 
     return {
@@ -131,35 +131,35 @@ export async function getKeuanganIkataData(bulan?: number, tahun?: number) {
         : {},
     };
 
-    // Mengambil total pemasukan (kredit) untuk periode
+    // Mengambil total pemasukan (debit) untuk periode sesuai dengan schema dan seed data
     const pemasukan = await prisma.iKATATransaction.aggregate({
-      _sum: {
-        kredit: true,
-      },
-      where: {
-        ...transactionQuery.where,
-        tipeTransaksi: "credit",
-      },
-    });
-
-    // Mengambil total pengeluaran (debit) untuk periode
-    const pengeluaran = await prisma.iKATATransaction.aggregate({
       _sum: {
         debit: true,
       },
       where: {
         ...transactionQuery.where,
-        tipeTransaksi: "debit",
+        jenis: "uang_masuk",
+      },
+    });
+
+    // Mengambil total pengeluaran (kredit) untuk periode
+    const pengeluaran = await prisma.iKATATransaction.aggregate({
+      _sum: {
+        kredit: true,
+      },
+      where: {
+        ...transactionQuery.where,
+        jenis: "uang_keluar",
       },
     });
 
     // Menghitung saldo awal
     const saldoAwal = 
-      (saldoAwalQuery._sum.kredit || 0) - (saldoAwalQuery._sum.debit || 0);
+      (saldoAwalQuery._sum.debit || 0) - (saldoAwalQuery._sum.kredit || 0);
 
     // Menghitung saldo akhir
-    const pemasukan_value = pemasukan._sum.kredit || 0;
-    const pengeluaran_value = pengeluaran._sum.debit || 0;
+    const pemasukan_value = pemasukan._sum.debit || 0;
+    const pengeluaran_value = pengeluaran._sum.kredit || 0;
     const saldoAkhir = saldoAwal + pemasukan_value - pengeluaran_value;
 
     return {
