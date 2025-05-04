@@ -1,27 +1,40 @@
+import type { Metadata } from "next"
+import { Inter as FontSans } from "next/font/google"
 import "./globals.css"
-import { Inter } from "next/font/google"
+import { cn } from "@/lib/utils"
+import { NotificationProvider } from "@/contexts/notification-context"
 import { Toaster } from "@/components/ui/sonner"
-import { ClientSessionProvider } from "@/components/client-session-provider"
+import { NextAuthProvider } from "@/providers/next-auth-provider"
 
-const inter = Inter({ subsets: ["latin"] })
+const fontSans = FontSans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+})
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Portal Administrasi Lingkungan St. Agatha",
-  description: "Portal administrasi untuk lingkungan St. Agatha",
+  description: "Portal Administrasi Lingkungan St. Agatha",
 }
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode
-}) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html lang="id">
-      <body className={inter.className}>
-        <ClientSessionProvider>
-          {children}
-          <Toaster />
-        </ClientSessionProvider>
+    <html lang="en">
+      <body
+        className={cn(
+          "min-h-screen bg-background font-sans antialiased",
+          fontSans.variable
+        )}
+      >
+        <NextAuthProvider>
+          <NotificationProvider>
+            {children}
+          </NotificationProvider>
+        </NextAuthProvider>
+        <Toaster richColors closeButton position="top-right" />
       </body>
     </html>
   )

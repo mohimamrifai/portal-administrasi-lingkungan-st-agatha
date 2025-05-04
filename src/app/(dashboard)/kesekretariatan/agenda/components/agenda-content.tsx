@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Plus, Search } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { createAgenda, deleteAgenda, updateAgenda } from "../actions";
+import { showNotification, setupNotifications } from "@/lib/client-notifications";
+import { createNotification } from "@/lib/notifications";
 
 export default function AgendaContent({ initialAgendas = [] }: { initialAgendas: Agenda[] }) {
   const { userRole, userId, username } = useAuth();
@@ -67,6 +69,18 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
     ).length / itemsPerPage
   );
 
+  // Function to safely convert userId to number
+  const getUserIdAsNumber = (userIdValue: string | null): number | undefined => {
+    if (!userIdValue) return undefined;
+    const parsedId = parseInt(userIdValue, 10);
+    return isNaN(parsedId) ? undefined : parsedId;
+  };
+
+  // Setup notifikasi saat komponen di-mount
+  useEffect(() => {
+    setupNotifications();
+  }, []);
+
   // Auto-delete completed agendas weekly on Sunday at 00:00
   useEffect(() => {
     const checkDay = () => {
@@ -88,7 +102,7 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
 
   // Send reminder notifications every 3 days at 00:00 for open agendas
   useEffect(() => {
-    const checkReminders = () => {
+    const checkReminders = async () => {
       const now = new Date();
       if (now.getHours() === 0 && now.getMinutes() === 0) {
         // It's 00:00
@@ -98,10 +112,35 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
           // Count open agendas
           const openAgendas = agendas.filter(agenda => agenda.status === 'open').length;
 
-          if (openAgendas > 0) {
+          if (openAgendas > 0 && userId) {
+            // Tampilkan toast
             toast.info(`Anda memiliki ${openAgendas} agenda yang menunggu tindak lanjut.`, {
               duration: 10000,
             });
+            
+            // Tambahkan ke database notifikasi jika userId adalah number
+            const userIdNum = getUserIdAsNumber(userId);
+            if (userIdNum) {
+              try {
+                await createNotification({
+                  title: "Pengingat Agenda",
+                  message: `Anda memiliki ${openAgendas} agenda yang menunggu tindak lanjut.`,
+                  type: "info",
+                  recipientId: userIdNum,
+                  relatedItemType: "Agenda"
+                });
+              } catch (error) {
+                console.error("Failed to create notification:", error);
+              }
+            }
+            
+            // Tampilkan notifikasi browser
+            showNotification(
+              "Pengingat Agenda",
+              `Anda memiliki ${openAgendas} agenda yang menunggu tindak lanjut.`,
+              "info",
+              { duration: 10000 }
+            );
           }
         }
       }
@@ -110,7 +149,7 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
     // Check every minute
     const interval = setInterval(checkReminders, 60 * 1000);
     return () => clearInterval(interval);
-  }, [agendas]);
+  }, [agendas, userId]);
 
   const filteredAgendas = agendas
     .filter((agenda) =>
@@ -229,7 +268,7 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
     setIsFormDialogOpen(true);
   };
 
-  const handleProcessSubmit = (processTarget: ProcessTarget) => {
+  const handleProcessSubmit = async (processTarget: ProcessTarget) => {
     if (!selectedAgenda) return;
 
     const status = `processing_${processTarget}` as AgendaStatus;
@@ -246,11 +285,41 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
 
     setAgendas(updatedAgendas);
 
-    // Send notification to the agenda creator
-    toast.info(`Agenda "${selectedAgenda.title}" diproses di ${processTarget === 'lingkungan' ? 'Lingkungan' : processTarget === 'stasi' ? 'Stasi' : 'Paroki'}`);
+    // Kirim notifikasi ke database jika user adalah sender
+    if (userId && selectedAgenda.createdBy) {
+      // Konversi userId ke number
+      const userIdNum = getUserIdAsNumber(userId);
+      const creatorId = typeof selectedAgenda.createdBy === 'object' 
+        ? selectedAgenda.createdBy.id 
+        : selectedAgenda.createdBy;
+      
+      // Cek apakah user saat ini bukan pembuat agenda
+      if (userIdNum && userIdNum !== creatorId) {
+        try {
+          await createNotification({
+            title: "Agenda Diproses",
+            message: `Agenda "${selectedAgenda.title}" sedang diproses di ${processTarget === 'lingkungan' ? 'Lingkungan' : processTarget === 'stasi' ? 'Stasi' : 'Paroki'}`,
+            type: "info",
+            recipientId: creatorId,
+            senderId: userIdNum,
+            relatedItemId: selectedAgenda.id,
+            relatedItemType: "Agenda"
+          });
+        } catch (error) {
+          console.error("Failed to create notification:", error);
+        }
+      }
+    }
+
+    // Tampilkan notifikasi browser dan toast
+    showNotification(
+      "Agenda Diproses",
+      `Agenda "${selectedAgenda.title}" diproses di ${processTarget === 'lingkungan' ? 'Lingkungan' : processTarget === 'stasi' ? 'Stasi' : 'Paroki'}`,
+      "info"
+    );
   };
 
-  const handleUpdateStatusSubmit = (status: 'forwarded_to_paroki' | 'completed' | 'rejected') => {
+  const handleUpdateStatusSubmit = async (status: 'forwarded_to_paroki' | 'completed' | 'rejected') => {
     if (!selectedAgenda) return;
 
     const updatedAgendas = agendas.map((agenda) =>
@@ -266,17 +335,65 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
 
     setAgendas(updatedAgendas);
 
-    // Send notification based on status
+    // Tentukan tipe notifikasi berdasarkan status
+    const notificationType = status === 'completed' 
+      ? "success" 
+      : status === 'rejected' 
+        ? "error" 
+        : "info";
+
+    let message = "";
     if (status === 'forwarded_to_paroki') {
-      toast.info(`Agenda "${selectedAgenda.title}" telah diteruskan ke Paroki`);
+      message = `Agenda "${selectedAgenda.title}" telah diteruskan ke Paroki`;
     } else if (status === 'completed') {
-      toast.success(`Agenda "${selectedAgenda.title}" telah diselesaikan`);
+      message = `Agenda "${selectedAgenda.title}" telah diselesaikan`;
     } else if (status === 'rejected') {
-      toast.error(`Agenda "${selectedAgenda.title}" telah ditolak`);
+      message = `Agenda "${selectedAgenda.title}" telah ditolak`;
     }
+
+    // Kirim notifikasi ke database
+    if (userId && selectedAgenda.createdBy) {
+      // Konversi userId ke number
+      const userIdNum = getUserIdAsNumber(userId);
+      const creatorId = typeof selectedAgenda.createdBy === 'object' 
+        ? selectedAgenda.createdBy.id 
+        : selectedAgenda.createdBy;
+      
+      // Cek apakah user saat ini bukan pembuat agenda
+      if (userIdNum && userIdNum !== creatorId) {
+        try {
+          await createNotification({
+            title: status === 'completed' 
+              ? "Agenda Selesai" 
+              : status === 'rejected' 
+                ? "Agenda Ditolak" 
+                : "Agenda Diteruskan",
+            message,
+            type: notificationType,
+            recipientId: creatorId,
+            senderId: userIdNum,
+            relatedItemId: selectedAgenda.id,
+            relatedItemType: "Agenda"
+          });
+        } catch (error) {
+          console.error("Failed to create notification:", error);
+        }
+      }
+    }
+
+    // Tampilkan notifikasi browser dan toast
+    showNotification(
+      status === 'completed' 
+        ? "Agenda Selesai" 
+        : status === 'rejected' 
+          ? "Agenda Ditolak" 
+          : "Agenda Diteruskan",
+      message,
+      notificationType
+    );
   };
 
-  const handleFinalResultSubmit = (result: 'completed' | 'rejected') => {
+  const handleFinalResultSubmit = async (result: 'completed' | 'rejected') => {
     if (!selectedAgenda) return;
 
     const updatedAgendas = agendas.map((agenda) =>
@@ -292,15 +409,47 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
 
     setAgendas(updatedAgendas);
 
-    // Send notification based on result
-    if (result === 'completed') {
-      toast.success(`Agenda "${selectedAgenda.title}" telah diselesaikan`);
-    } else {
-      toast.error(`Agenda "${selectedAgenda.title}" telah ditolak`);
+    // Tentukan tipe notifikasi dan pesan
+    const notificationType = result === 'completed' ? "success" : "error";
+    const message = result === 'completed'
+      ? `Agenda "${selectedAgenda.title}" telah diselesaikan`
+      : `Agenda "${selectedAgenda.title}" telah ditolak`;
+
+    // Kirim notifikasi ke database
+    if (userId && selectedAgenda.createdBy) {
+      // Konversi userId ke number
+      const userIdNum = getUserIdAsNumber(userId);
+      const creatorId = typeof selectedAgenda.createdBy === 'object' 
+        ? selectedAgenda.createdBy.id 
+        : selectedAgenda.createdBy;
+      
+      // Cek apakah user saat ini bukan pembuat agenda
+      if (userIdNum && userIdNum !== creatorId) {
+        try {
+          await createNotification({
+            title: result === 'completed' ? "Agenda Selesai" : "Agenda Ditolak",
+            message,
+            type: notificationType,
+            recipientId: creatorId,
+            senderId: userIdNum,
+            relatedItemId: selectedAgenda.id,
+            relatedItemType: "Agenda"
+          });
+        } catch (error) {
+          console.error("Failed to create notification:", error);
+        }
+      }
     }
+
+    // Tampilkan notifikasi browser dan toast
+    showNotification(
+      result === 'completed' ? "Agenda Selesai" : "Agenda Ditolak",
+      message,
+      notificationType
+    );
   };
 
-  const handleRejectionSubmit = (values: RejectionFormValues) => {
+  const handleRejectionSubmit = async (values: RejectionFormValues) => {
     if (!selectedAgenda) return;
 
     const updatedAgendas = agendas.map((agenda) =>
@@ -316,8 +465,40 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
 
     setAgendas(updatedAgendas);
 
-    // Send notification
-    toast.error(`Agenda "${selectedAgenda.title}" ditolak dengan alasan: ${values.reason}`);
+    const message = `Agenda "${selectedAgenda.title}" ditolak dengan alasan: ${values.reason}`;
+
+    // Kirim notifikasi ke database
+    if (userId && selectedAgenda.createdBy) {
+      // Konversi userId ke number
+      const userIdNum = getUserIdAsNumber(userId);
+      const creatorId = typeof selectedAgenda.createdBy === 'object' 
+        ? selectedAgenda.createdBy.id 
+        : selectedAgenda.createdBy;
+      
+      // Cek apakah user saat ini bukan pembuat agenda
+      if (userIdNum && userIdNum !== creatorId) {
+        try {
+          await createNotification({
+            title: "Agenda Ditolak",
+            message,
+            type: "error",
+            recipientId: creatorId,
+            senderId: userIdNum,
+            relatedItemId: selectedAgenda.id,
+            relatedItemType: "Agenda"
+          });
+        } catch (error) {
+          console.error("Failed to create notification:", error);
+        }
+      }
+    }
+
+    // Tampilkan notifikasi browser dan toast
+    showNotification(
+      "Agenda Ditolak",
+      message,
+      "error"
+    );
   };
 
   const handleConfirmDelete = (id: number) => {

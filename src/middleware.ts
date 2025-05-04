@@ -22,6 +22,7 @@ const routeAccessMap: { [key: string]: string[] } = {
   '/pengaturan/profil': ['SuperUser', 'umat'],
   '/pengaturan/password': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'umat'],
   '/pengaturan/wipe': ['SuperUser'],
+  '/notifications': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'umat'],
 }
 
 const checkAccess = (path: string, role: string): boolean => {
@@ -29,6 +30,12 @@ const checkAccess = (path: string, role: string): boolean => {
   if (routeAccessMap[path]) {
     return routeAccessMap[path].includes(role)
   }
+  
+  // Khusus untuk halaman detail notifikasi (/notifications/[id])
+  if (path.startsWith('/notifications/')) {
+    return routeAccessMap['/notifications']?.includes(role) || false
+  }
+  
   const pathSegments = path.split('/').filter(Boolean)
   let currentPath = ''
   for (let i = 0; i < pathSegments.length; i++) {

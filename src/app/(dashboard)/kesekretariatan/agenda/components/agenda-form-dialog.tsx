@@ -201,7 +201,7 @@ export function AgendaFormDialog({
       });
       
       // Only close the dialog if we successfully got here
-      onOpenChange(false);
+    onOpenChange(false);
     } catch (error) {
       console.error("Error submitting form:", error);
       alert("Terjadi kesalahan saat menyimpan: " + (error instanceof Error ? error.message : String(error)));
@@ -224,31 +224,31 @@ export function AgendaFormDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto pr-2">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label htmlFor="title" className="text-sm font-medium">
-                Judul Agenda
-              </label>
-              <Input
-                id="title"
-                value={formValues.title}
-                onChange={(e) =>
-                  setFormValues({ ...formValues, title: e.target.value })
-                }
-                required
+          <div className="space-y-2">
+            <label htmlFor="title" className="text-sm font-medium">
+              Judul Agenda
+            </label>
+            <Input
+              id="title"
+              value={formValues.title}
+              onChange={(e) =>
+                setFormValues({ ...formValues, title: e.target.value })
+              }
+              required
                 disabled={submitting}
-              />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="location" className="text-sm font-medium">
-                Lokasi
-              </label>
-              <Input
-                id="location"
-                value={formValues.location}
-                onChange={(e) =>
-                  setFormValues({ ...formValues, location: e.target.value })
-                }
-                required
+            />
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="location" className="text-sm font-medium">
+              Lokasi
+            </label>
+            <Input
+              id="location"
+              value={formValues.location}
+              onChange={(e) =>
+                setFormValues({ ...formValues, location: e.target.value })
+              }
+              required
                 disabled={submitting}
               />
             </div>

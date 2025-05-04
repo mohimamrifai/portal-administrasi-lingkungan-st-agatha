@@ -3,6 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useSession } from "next-auth/react"
 import {
   LayoutDashboard
 } from "lucide-react"
@@ -20,24 +21,32 @@ import {
 } from "@/components/ui/sidebar"
 import { navMain } from "@/lib/nav-menu"
 
-const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
+interface AppSidebarProps extends Omit<React.ComponentProps<typeof Sidebar>, 'userRole'> {
+  userRole?: string
 }
 
 export function AppSidebar({
-  userRole = "SuperUser",
+  userRole,
   ...props
-}: React.ComponentProps<typeof Sidebar> & { userRole?: string }) {
+}: AppSidebarProps) {
   const pathname = usePathname()
+  const { data: session, status } = useSession()
   
-  // Pastikan userRole ada di navMain, jika tidak, gunakan fallback menu yang pasti ada
-  // Cek apakah userRole valid, jika tidak, gunakan menu "umat" atau menu pertama yang tersedia
-  const validRole = navMain[userRole] ? userRole : "umat"
+  // Jika session masih loading, kita bisa menampilkan loading state
+  if (status === "loading") {
+    return null // Atau komponen loading
+  }
+
+  // Gunakan role dari session jika tersedia, jika tidak gunakan prop userRole, atau fallback ke "umat"
+  const effectiveRole = session?.user?.role || userRole || "umat"
+  const validRole = navMain[effectiveRole] ? effectiveRole : "umat"
   const menuItems = navMain[validRole] || []
+
+  const userData = {
+    name: session?.user?.name || "",
+    email: "", // Email tidak disediakan dalam session saat ini
+    avatar: "/avatars/default.jpg", // Gunakan avatar default
+  }
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -60,7 +69,7 @@ export function AppSidebar({
         <NavMain items={menuItems} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={userData} />
       </SidebarFooter>
     </Sidebar>
   )

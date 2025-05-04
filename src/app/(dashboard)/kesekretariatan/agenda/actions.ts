@@ -8,6 +8,7 @@ import { getServerSession } from "next-auth";
 import { AgendaFormValues, AgendaAttachment } from "./types";
 import { z } from "zod";
 import { uploadFile, updateFile, deleteFile } from "@/lib/uploads";
+import { createNotification } from "@/lib/notifications";
 
 // Schema validasi untuk agenda
 const agendaSchema = z.object({
@@ -149,6 +150,40 @@ export async function createAgenda(formData: AgendaFormValues): Promise<ActionRe
       }
     });
 
+    // Buat notifikasi untuk pengelola atau admin berdasarkan target
+    // Target bisa berupa 'lingkungan', 'stasi', atau 'paroki'
+    if (formData.target === 'lingkungan' || formData.target === 'stasi' || formData.target === 'paroki') {
+      // Fetch users with role that matches the target
+      const adminRole = formData.target === 'lingkungan' 
+        ? 'ketuaLingkungan' 
+        : formData.target === 'stasi' 
+          ? 'wakilKetua' 
+          : 'SuperUser';
+      
+      // Get admins based on role
+      const admins = await prisma.user.findMany({
+        where: {
+          role: adminRole
+        },
+        select: {
+          id: true
+        }
+      });
+      
+      // Create notifications for each admin
+      for (const admin of admins) {
+        await createNotification({
+          title: "Agenda Baru Dibuat",
+          message: `Agenda baru "${formData.title}" memerlukan persetujuan Anda. Silakan cek menu agenda.`,
+          type: "info",
+          recipientId: admin.id,
+          senderId: userId,
+          relatedItemId: newAgenda.id,
+          relatedItemType: "Agenda"
+        });
+      }
+    }
+
     // Revalidasi path agar data diperbarui
     revalidatePath('/kesekretariatan/agenda');
     
@@ -270,6 +305,27 @@ export async function updateAgenda(id: number, formData: AgendaFormValues): Prom
       }
     });
     
+    // Dapatkan data user untuk mengirim notifikasi
+    const session = await getServerSession(authOptions);
+    let senderId: number | undefined;
+    
+    if (session?.user?.id) {
+      senderId = Number(session.user.id);
+    }
+    
+    // Kirim notifikasi ke pembuat agenda jika editor bukan pembuat
+    if (senderId && senderId !== updatedAgenda.createdBy) {
+      await createNotification({
+        title: "Agenda Diperbarui",
+        message: `Agenda "${formData.title}" telah diperbarui.`,
+        type: "info",
+        recipientId: updatedAgenda.createdBy,
+        senderId,
+        relatedItemId: id,
+        relatedItemType: "Agenda"
+      });
+    }
+    
     // Revalidasi path agar data diperbarui
     revalidatePath('/kesekretariatan/agenda');
     
@@ -348,6 +404,25 @@ export async function deleteAgenda(agendaId: number): Promise<ActionResponse> {
     await prisma.agenda.delete({
       where: { id: agendaId }
     });
+    
+    // Dapatkan data user untuk mengirim notifikasi
+    let senderId: number | undefined;
+    
+    if (session?.user?.id) {
+      senderId = Number(session.user.id);
+      
+      // Kirim notifikasi ke pembuat agenda jika deleter bukan pembuat
+      if (senderId !== agenda.createdBy) {
+        await createNotification({
+          title: "Agenda Dihapus",
+          message: `Agenda "${agenda.title}" telah dihapus.`,
+          type: "warning",
+          recipientId: agenda.createdBy,
+          senderId,
+          relatedItemType: "Agenda"
+        });
+      }
+    }
     
     // Revalidasi path agar data diperbarui
     revalidatePath('/kesekretariatan/agenda');
