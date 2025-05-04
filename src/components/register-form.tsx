@@ -15,7 +15,7 @@ import Link from "next/link"
 import { useState } from "react"
 import { AlertCircle, Eye, EyeOff } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { registerAction } from "@/actions/register"
+import { registerAction } from "@/app/register/actions/register"
 import { useRouter } from "next/navigation"
 
 export function RegisterForm({

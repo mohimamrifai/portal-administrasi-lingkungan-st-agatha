@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 interface AgendaDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  agenda: Agenda | null;
+  agenda: Agenda | undefined;
 }
 
 export function AgendaDetailDialog({
@@ -90,67 +90,69 @@ export function AgendaDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-xl">{agenda.title}</DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-4 mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Status</p>
-              <Badge 
-                variant={getStatusVariant(agenda.status)} 
-                className={`mt-1 ${getStatusColor(agenda.status)}`}
-              >
-                {getStatusText(agenda.status)}
-              </Badge>
+        <div className="space-y-4 mt-4 overflow-y-auto pr-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Tanggal</h3>
+                <p className="text-base">{format(new Date(agenda.date), 'dd MMMM yyyy', { locale: id })}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Lokasi</h3>
+                <p className="text-base">{agenda.location}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Nama Pengaju</h3>
+                <p className="text-base">{getCreatedByName(agenda.createdBy)}</p>
+              </div>
             </div>
             
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Tujuan</p>
-              <p className="mt-1">{getTargetText(agenda.target)}</p>
-            </div>
-
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Tanggal</p>
-              <p className="mt-1">{format(new Date(agenda.date), 'dd MMMM yyyy', { locale: id })}</p>
-            </div>
-
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Lokasi</p>
-              <p className="mt-1">{agenda.location}</p>
-            </div>
-
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Diajukan Oleh</p>
-              <p className="mt-1">{getCreatedByName(agenda.createdBy)}</p>
-            </div>
-
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Tanggal Pengajuan</p>
-              <p className="mt-1">{format(new Date(agenda.createdAt), 'dd MMMM yyyy', { locale: id })}</p>
-            </div>
-
-            {agenda.completedAt && (
+            <div className="space-y-4">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Tanggal Selesai</p>
-                <p className="mt-1">{format(new Date(agenda.completedAt), 'dd MMMM yyyy', { locale: id })}</p>
+                <h3 className="text-sm font-medium text-muted-foreground">Target</h3>
+                <p className="text-base">{getTargetText(agenda.target)}</p>
               </div>
-            )}
-
-            {agenda.rejectionReason && (
-              <div className="col-span-1 md:col-span-2">
-                <p className="text-sm font-medium text-muted-foreground">Alasan Penolakan</p>
-                <p className="mt-1 text-red-600">{agenda.rejectionReason}</p>
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
+                <div className="flex items-center space-x-2">
+                  <Badge 
+                    variant={getStatusVariant(agenda.status)} 
+                    className={`mt-1 ${getStatusColor(agenda.status)}`}
+                  >
+                    {getStatusText(agenda.status)}
+                  </Badge>
+                </div>
               </div>
-            )}
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Tanggal Pengajuan</h3>
+                <p className="text-base">{format(new Date(agenda.createdAt), 'dd MMMM yyyy', { locale: id })}</p>
+              </div>
+            </div>
           </div>
           
           <div>
-            <p className="text-sm font-medium text-muted-foreground">Deskripsi</p>
-            <p className="mt-1">{agenda.description}</p>
+            <h3 className="text-sm font-medium text-muted-foreground mb-1">Deskripsi</h3>
+            <p className="text-base whitespace-pre-wrap">{agenda.description}</p>
           </div>
+          
+          {agenda.completedAt && (
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground mb-1">Tanggal Selesai</h3>
+              <p className="text-base">{format(new Date(agenda.completedAt), 'dd MMMM yyyy', { locale: id })}</p>
+            </div>
+          )}
+          
+          {agenda.rejectionReason && (
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground mb-1">Alasan Penolakan</h3>
+              <p className="text-base text-red-600">{agenda.rejectionReason}</p>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

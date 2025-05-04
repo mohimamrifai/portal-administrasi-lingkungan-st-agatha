@@ -9,6 +9,14 @@ export type AgendaStatus =
 
 export type ProcessTarget = 'lingkungan' | 'stasi' | 'paroki';
 
+// Tipe untuk attachment agenda
+export interface AgendaAttachment {
+  fileName: string;
+  originalName: string;
+  fileUrl: string;
+  fileType: string;
+}
+
 export interface Agenda {
   id: number;
   title: string;
@@ -18,6 +26,7 @@ export interface Agenda {
   target: ProcessTarget;
   status: AgendaStatus;
   rejectionReason?: string;
+  attachment?: AgendaAttachment; // Menambahkan properti opsional untuk lampiran
   createdBy: number | {
     id: number;
     name: string;
@@ -33,6 +42,8 @@ export interface AgendaFormValues {
   date: Date;
   location: string;
   target: ProcessTarget;
+  attachment?: File; // Menambahkan field untuk upload file
+  removeAttachment?: boolean; // Flag untuk menandai apakah lampiran harus dihapus
 }
 
 export interface RejectionFormValues {

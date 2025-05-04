@@ -20,12 +20,13 @@ import { Button } from "@/components/ui/button";
 import { Agenda } from "../types";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { ChevronDown, Edit, Eye, MoreVertical } from "lucide-react";
+import { ChevronDown, Edit, Eye, MoreVertical, Trash, Play, CheckCircle, X, AlertCircle, ArrowRight, Paperclip, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/auth-context";
 import { useState } from "react";
 import { AgendaDetailDialog } from "./agenda-detail-dialog";
 import { useSession } from "next-auth/react";
+import { AgendaViewDialog } from "./agenda-view-dialog";
 
 interface AgendaTableProps {
   agendas: Agenda[];
@@ -50,7 +51,8 @@ export function AgendaTable({
 }: AgendaTableProps) {
   const { data: session } = useSession();
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-  const [selectedAgenda, setSelectedAgenda] = useState<Agenda | null>(null);
+  const [selectedAgenda, setSelectedAgenda] = useState<Agenda | undefined>(undefined);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   
   // Helper untuk mendapatkan ID dari createdBy (yang bisa number atau object)
   const getCreatedById = (createdBy: number | { id: number; name: string }): number => {
@@ -177,6 +179,19 @@ export function AgendaTable({
     return role !== 'umat' && agenda.status === 'open';
   };
 
+  // Menambahkan fungsi untuk download lampiran
+  const handleDownloadAttachment = (agenda: Agenda) => {
+    if (agenda.attachment?.fileUrl) {
+      window.open(agenda.attachment.fileUrl, '_blank');
+    }
+  };
+
+  // Fungsi untuk membuka dialog view
+  const handleViewAgenda = (agenda: Agenda) => {
+    setSelectedAgenda(agenda);
+    setIsViewDialogOpen(true);
+  };
+
   return (
     <>
       <div className="rounded-md border">
@@ -187,9 +202,9 @@ export function AgendaTable({
                 <TableHead className="w-[180px]">Judul</TableHead>
                 <TableHead className="w-[90px]">Tanggal</TableHead>
                 <TableHead className="w-[110px]">Tujuan</TableHead>
-                <TableHead className="w-[110px]">Status</TableHead>
-                <TableHead className="w-[110px] hidden sm:table-cell">Pengaju</TableHead>
-                <TableHead className="w-[70px] text-center sticky right-0 bg-white shadow-sm">Aksi</TableHead>
+                <TableHead className="w-[130px] hidden md:table-cell">Status</TableHead>
+                <TableHead className="w-[120px] hidden md:table-cell">Pengaju</TableHead>
+                <TableHead className="w-[60px] text-center sticky right-0 bg-background shadow-sm">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -203,15 +218,33 @@ export function AgendaTable({
                 agendas.map((agenda) => (
                   <TableRow key={agenda.id}>
                     <TableCell className="font-medium">
-                      <div className="max-w-[180px]">{agenda.title}</div>
+                      <div className="max-w-[180px] truncate">
+                        <div className="text-sm font-medium text-left truncate">
+                          {agenda.title}
+                          {agenda.attachment && (
+                            <Paperclip className="inline-block ml-1 h-3 w-3 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="md:hidden flex items-center gap-1 mt-1">
+                          <Badge 
+                            variant={getStatusVariant(agenda.status)} 
+                            className={`${getStatusColor(agenda.status)} w-max text-xs px-1 py-0`}
+                          >
+                            {getStatusText(agenda.status)}
+                          </Badge>
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>
                       {format(new Date(agenda.date), 'dd/MM/yyyy', { locale: id })}
                     </TableCell>
                     <TableCell>
-                      <div className="truncate">{getTargetText(agenda.target)}</div>
+                      <div className="truncate max-w-[110px]">{getTargetText(agenda.target)}</div>
+                      <div className="md:hidden text-xs text-muted-foreground mt-1 truncate max-w-[110px]">
+                        {getCreatedByName(agenda.createdBy)}
+                      </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       <Badge 
                         variant={getStatusVariant(agenda.status)} 
                         className={`${getStatusColor(agenda.status)} w-max`}
@@ -219,12 +252,12 @@ export function AgendaTable({
                         {getStatusText(agenda.status)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      <div className="truncate max-w-[110px]">
+                    <TableCell className="hidden md:table-cell">
+                      <div className="truncate max-w-[120px]">
                         {getCreatedByName(agenda.createdBy)}
                       </div>
                     </TableCell>
-                    <TableCell className="sticky right-0 bg-white shadow-sm text-center">
+                    <TableCell className="sticky right-0 bg-background shadow-sm p-0 text-center">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -236,7 +269,7 @@ export function AgendaTable({
                           <DropdownMenuLabel>Aksi</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           
-                          <DropdownMenuItem onClick={() => handleViewDetail(agenda)}>
+                          <DropdownMenuItem onClick={() => handleViewAgenda(agenda)}>
                             <Eye className="mr-2 h-4 w-4" />
                             Lihat Detail
                           </DropdownMenuItem>
@@ -280,6 +313,13 @@ export function AgendaTable({
                               Hapus
                             </DropdownMenuItem>
                           )}
+
+                          {agenda.attachment && (
+                            <DropdownMenuItem onClick={() => handleDownloadAttachment(agenda)}>
+                              <Download className="mr-2 h-4 w-4" />
+                              Download Lampiran
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -294,6 +334,12 @@ export function AgendaTable({
       <AgendaDetailDialog 
         open={detailDialogOpen} 
         onOpenChange={setDetailDialogOpen} 
+        agenda={selectedAgenda} 
+      />
+
+      <AgendaViewDialog 
+        open={isViewDialogOpen} 
+        onOpenChange={setIsViewDialogOpen} 
         agenda={selectedAgenda} 
       />
     </>

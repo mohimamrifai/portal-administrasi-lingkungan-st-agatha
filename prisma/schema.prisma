@@ -338,6 +338,7 @@ model Agenda {
   status          String
   rejectionReason String?
   completedAt     DateTime?
+  attachment      String?
   createdBy       Int
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
