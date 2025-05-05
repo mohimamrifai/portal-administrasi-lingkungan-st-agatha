@@ -5,11 +5,17 @@ import { cn } from "@/lib/utils"
 import { NotificationProvider } from "@/contexts/notification-context"
 import { Toaster } from "@/components/ui/sonner"
 import { NextAuthProvider } from "@/providers/next-auth-provider"
+import { initScheduler } from '@/lib/scheduler'
 
 const fontSans = FontSans({
   subsets: ["latin"],
   variable: "--font-sans",
 })
+
+// Inisialisasi scheduler
+if (process.env.NODE_ENV === 'production') {
+  initScheduler();
+}
 
 export const metadata: Metadata = {
   title: "Portal Administrasi Lingkungan St. Agatha",

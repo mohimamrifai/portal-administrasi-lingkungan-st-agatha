@@ -9,6 +9,7 @@ import { AgendaFormValues, AgendaAttachment } from "./types";
 import { z } from "zod";
 import { uploadFile, updateFile, deleteFile } from "@/lib/uploads";
 import { createNotification } from "@/lib/notifications";
+import { getCurrentJakartaTime } from '@/lib/date-utils';
 
 // Schema validasi untuk agenda
 const agendaSchema = z.object({
@@ -436,6 +437,144 @@ export async function deleteAgenda(agendaId: number): Promise<ActionResponse> {
     return {
       success: false,
       message: "Gagal menghapus agenda"
+    };
+  }
+}
+
+// Fungsi untuk menghapus agenda yang sudah selesai secara otomatis
+export async function autoDeleteCompletedAgendas(): Promise<ActionResponse> {
+  noStore();
+  
+  try {
+    // Dapatkan semua agenda yang sudah selesai/ditolak dan lebih dari 7 hari
+    const cutoffDate = new Date(getCurrentJakartaTime());
+    cutoffDate.setDate(cutoffDate.getDate() - 7); // 7 hari yang lalu
+
+    // Cari agenda yang akan dihapus
+    const agendasToDelete = await prisma.agenda.findMany({
+      where: {
+        status: {
+          in: ['completed', 'rejected']
+        },
+        updatedAt: {
+          lt: cutoffDate
+        }
+      }
+    });
+
+    // Hapus file attachment untuk setiap agenda jika ada
+    for (const agenda of agendasToDelete) {
+      if (agenda.attachment) {
+        try {
+          const attachmentData = JSON.parse(agenda.attachment as string) as AgendaAttachment;
+          await deleteFile(attachmentData.fileName, 'agenda');
+        } catch (error) {
+          console.error(`Error deleting attachment for agenda ${agenda.id}:`, error);
+        }
+      }
+    }
+
+    // Hapus agenda dari database
+    const result = await prisma.agenda.deleteMany({
+      where: {
+        status: {
+          in: ['completed', 'rejected']
+        },
+        updatedAt: {
+          lt: cutoffDate
+        }
+      }
+    });
+
+    // Kirim notifikasi ke admin
+    try {
+      const admins = await prisma.user.findMany({
+        where: {
+          role: 'SuperUser'
+        }
+      });
+
+      for (const admin of admins) {
+        await createNotification({
+          title: "Auto-Delete Agenda",
+          message: `${result.count} agenda yang sudah selesai/ditolak telah dihapus secara otomatis.`,
+          type: "info",
+          recipientId: admin.id,
+          relatedItemType: "Agenda"
+        });
+      }
+    } catch (error) {
+      console.error("Error sending notifications:", error);
+    }
+
+    // Revalidasi path setelah penghapusan
+    revalidatePath('/kesekretariatan/agenda');
+    
+    return {
+      success: true,
+      message: `${result.count} agenda telah dihapus secara otomatis`,
+      data: result
+    };
+  } catch (error) {
+    console.error("Error auto-deleting agendas:", error);
+    return {
+      success: false,
+      message: "Gagal menghapus agenda secara otomatis"
+    };
+  }
+}
+
+// Fungsi untuk mengirim notifikasi pengingat ke pengurus
+export async function sendReminderNotifications(): Promise<ActionResponse> {
+  noStore();
+  
+  try {
+    // Hitung jumlah agenda open
+    const openAgendas = await prisma.agenda.count({
+      where: {
+        status: 'open'
+      }
+    });
+
+    if (openAgendas > 0) {
+      // Dapatkan semua pengurus
+      const pengurus = await prisma.user.findMany({
+        where: {
+          role: {
+            in: [
+              'ketuaLingkungan',
+              'wakilKetua',
+              'sekretaris',
+              'wakilSekretaris',
+              'bendahara',
+              'wakilBendahara',
+              'SuperUser'
+            ]
+          }
+        }
+      });
+
+      // Kirim notifikasi ke setiap pengurus
+      for (const user of pengurus) {
+        await createNotification({
+          title: "Pengingat Agenda",
+          message: `Terdapat ${openAgendas} agenda yang menunggu tindak lanjut.`,
+          type: "info",
+          recipientId: user.id,
+          relatedItemType: "Agenda"
+        });
+      }
+    }
+
+    return {
+      success: true,
+      message: "Notifikasi pengingat berhasil dikirim"
+    };
+  } catch (error) {
+    console.error("Error sending reminder notifications:", error);
+    return {
+      success: false,
+      message: "Gagal mengirim notifikasi pengingat"
     };
   }
 } 

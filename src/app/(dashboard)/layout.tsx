@@ -3,7 +3,6 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import { Toaster } from "@/components/ui/sonner"
 import { AuthProvider } from "@/contexts/auth-context"
 import { AppClientWrapper, HeaderClientWrapper } from "@/components/client-wrappers"
 
@@ -32,7 +31,6 @@ export default function DashboardLayout({
           </SidebarInset>
         </SidebarProvider>
       </AuthProvider>
-      <Toaster />
     </div>
   )
 }
