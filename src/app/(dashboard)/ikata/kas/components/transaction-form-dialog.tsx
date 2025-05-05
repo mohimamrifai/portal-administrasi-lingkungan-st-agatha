@@ -101,13 +101,15 @@ interface TransactionFormDialogProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: TransactionFormData) => void;
   editTransaction?: IKATATransaction | null;
+  keluargaUmatList: { id: string; namaKepalaKeluarga: string }[];
 }
 
 export function TransactionFormDialog({ 
   open, 
   onOpenChange, 
   onSubmit, 
-  editTransaction 
+  editTransaction,
+  keluargaUmatList
 }: TransactionFormDialogProps) {
   const [showAnggotaFields, setShowAnggotaFields] = useState(false);
   const [showStatusPembayaran, setShowStatusPembayaran] = useState(false);
@@ -255,9 +257,9 @@ export function TransactionFormDialog({
       // Simulasi pengiriman notifikasi
       if (values.jenis === 'uang_masuk') {
         if (values.tipeTransaksi === 'iuran_anggota') {
-          const anggota = mockAnggotaIKATA.find(a => a.id === values.anggotaId);
+          const anggota = keluargaUmatList.find(a => a.id === values.anggotaId);
           if (anggota) {
-            toast.success(`Notifikasi Terkirim ke ${anggota.nama}`, {
+            toast.success(`Notifikasi Terkirim ke ${anggota.namaKepalaKeluarga}`, {
               description: `Iuran sebesar Rp ${values.jumlah.toLocaleString('id-ID')} telah berhasil dibukukan.`
             });
           }
@@ -415,7 +417,7 @@ export function TransactionFormDialog({
                             )}
                           >
                             {field.value
-                              ? mockAnggotaIKATA.find((anggota) => anggota.id === field.value)?.nama
+                              ? keluargaUmatList.find((anggota) => anggota.id === field.value)?.namaKepalaKeluarga
                               : "Pilih anggota"}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
@@ -426,10 +428,10 @@ export function TransactionFormDialog({
                           <CommandInput placeholder="Cari anggota..." />
                           <CommandEmpty>Anggota tidak ditemukan.</CommandEmpty>
                           <CommandGroup className="max-h-60 overflow-auto">
-                            {mockAnggotaIKATA.map((anggota) => (
+                            {keluargaUmatList.map((anggota) => (
                               <CommandItem
                                 key={anggota.id}
-                                value={anggota.nama}
+                                value={anggota.namaKepalaKeluarga}
                                 onSelect={() => {
                                   form.setValue("anggotaId", anggota.id)
                                 }}
@@ -442,7 +444,7 @@ export function TransactionFormDialog({
                                       : "opacity-0"
                                   )}
                                 />
-                                {anggota.nama}
+                                {anggota.namaKepalaKeluarga}
                               </CommandItem>
                             ))}
                           </CommandGroup>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { PeriodFilter as PeriodFilterType } from '../types';
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
@@ -9,7 +9,7 @@ import { KasIKATAPDF } from './kas-ikata-pdf';
 import { IKATASummary, IKATATransaction } from '../types';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Download } from 'lucide-react';
+import { Download, X } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
@@ -43,15 +43,24 @@ export function PrintPDFDialog({
   }, [open, skipConfirmation]);
   
   const handlePrint = () => {
-    // Tanggal awal dan akhir bulan
-    const firstDay = new Date(period.tahun, period.bulan - 1, 1);
-    const lastDay = new Date(period.tahun, period.bulan, 0);
+    // Tanggal awal dan akhir periode cetak
+    // Jika bulan = 0 (filter reset/semua data), maka ambil semua data
+    let dateRange;
+    
+    if (period.bulan === 0) {
+      // Untuk menampilkan semua data, kita bisa menggunakan tanggal yang sangat lama hingga saat ini
+      const pastDate = new Date(2000, 0, 1); // 1 Januari 2000
+      const futureDate = new Date(2100, 11, 31); // 31 Desember 2100
+      dateRange = { from: pastDate, to: futureDate };
+    } else {
+      // Tanggal awal dan akhir bulan spesifik
+      const firstDay = new Date(period.tahun, period.bulan - 1, 1);
+      const lastDay = new Date(period.tahun, period.bulan, 0);
+      dateRange = { from: firstDay, to: lastDay };
+    }
     
     onPrint({ 
-      dateRange: { 
-        from: firstDay, 
-        to: lastDay 
-      }, 
+      dateRange, 
       lockTransactions 
     });
     setIsPDFReady(true);
@@ -64,28 +73,38 @@ export function PrintPDFDialog({
   };
   
   // Format bulan dalam bahasa Indonesia
-  const bulanText = format(new Date(period.tahun, period.bulan - 1, 1), 'MMMM', { locale: id });
-  const fileName = `Laporan_Kas_IKATA_${bulanText}_${period.tahun}.pdf`;
+  const bulanText = period.bulan === 0 
+    ? "Semua Data" 
+    : format(new Date(period.tahun, period.bulan - 1, 1), 'MMMM', { locale: id });
+    
+  const tahunText = period.bulan === 0 
+    ? "" 
+    : period.tahun.toString();
+    
+  const fileName = `Laporan_Kas_IKATA_${period.bulan === 0 ? "Semua_Data" : `${bulanText}_${period.tahun}`}.pdf`;
   
   return (
     <Dialog open={open} onOpenChange={(open) => {
       if (!open) handleClose();
       else onOpenChange(open);
     }}>
-      <DialogContent className={isPDFReady ? "sm:max-w-[750px] w-full max-h-[90vh]" : ""}>
-        <DialogHeader>
+      <DialogContent className={isPDFReady ? "sm:max-w-[700px] max-h-[90vh] p-6" : "sm:max-w-[500px] p-6"}>
+        <DialogHeader className="flex flex-row items-center justify-between pb-2">
           <DialogTitle>
             {isPDFReady 
-              ? `Laporan Kas IKATA - ${bulanText} ${period.tahun}`
-              : "Print PDF"
+              ? `Laporan Kas IKATA - ${bulanText} ${tahunText}`
+              : "Cetak Laporan PDF"
             }
           </DialogTitle>
         </DialogHeader>
         
         {!isPDFReady ? (
-          <div className="space-y-4">
+          <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
-              Pilih opsi print PDF untuk periode {format(new Date(period.tahun, period.bulan - 1, 1), 'MMMM yyyy', { locale: id })}
+              {period.bulan === 0 
+                ? "Cetak laporan untuk semua data transaksi" 
+                : `Cetak laporan untuk periode ${format(new Date(period.tahun, period.bulan - 1, 1), 'MMMM yyyy', { locale: id })}`
+              }
             </p>
             
             <div className="flex items-center space-x-2">
@@ -102,26 +121,23 @@ export function PrintPDFDialog({
               </Label>
             </div>
             
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <DialogFooter>
+              <Button variant="outline" onClick={handleClose}>
                 Batal
               </Button>
               <Button onClick={handlePrint}>Lihat PDF</Button>
-            </div>
+            </DialogFooter>
           </div>
         ) : (
           <div className="space-y-4">
-            <PDFViewer width="100%" height="500px" className="border">
+            <PDFViewer width="100%" height="450px" className="border rounded-md shadow-sm">
               <KasIKATAPDF 
                 period={period} 
                 summary={summary} 
                 transactions={transactions}
               />
             </PDFViewer>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={handleClose}>
-                Tutup
-              </Button>
+            <DialogFooter>
               <PDFDownloadLink
                 document={
                   <KasIKATAPDF 
@@ -131,6 +147,7 @@ export function PrintPDFDialog({
                   />
                 }
                 fileName={fileName}
+                className="flex"
               >
                 {({ loading }) => (
                   <Button disabled={loading}>
@@ -139,7 +156,7 @@ export function PrintPDFDialog({
                   </Button>
                 )}
               </PDFDownloadLink>
-            </div>
+            </DialogFooter>
           </div>
         )}
       </DialogContent>

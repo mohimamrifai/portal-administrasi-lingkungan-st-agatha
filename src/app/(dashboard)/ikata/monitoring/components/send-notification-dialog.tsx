@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
+import { sendNotificationToDelinquents } from "../utils/monitoring-service"
 import { DelinquentPayment } from "../types"
 
 interface SendNotificationDialogProps {
@@ -19,11 +20,40 @@ export function SendNotificationDialog({
   onOpenChange 
 }: SendNotificationDialogProps) {
   const [message, setMessage] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleSend = () => {
-    // TODO: Implement API call to send notifications
-    toast.success("Notifikasi pengingat berhasil dikirim")
-    onOpenChange(false)
+  const handleSend = async () => {
+    if (!message.trim()) {
+      toast.error("Pesan notifikasi tidak boleh kosong")
+      return
+    }
+
+    if (delinquentPayments.length === 0) {
+      toast.error("Tidak ada penerima notifikasi yang dipilih")
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      // Dapatkan ID dari delinquentPayments
+      const delinquentIds = delinquentPayments.map(payment => payment.id)
+      
+      // Panggil server action untuk mengirim notifikasi
+      const result = await sendNotificationToDelinquents(delinquentIds, message)
+      
+      if (result.success) {
+        toast.success(result.message || "Notifikasi pengingat berhasil dikirim")
+        onOpenChange(false)
+      } else {
+        toast.error("Gagal mengirim notifikasi")
+      }
+    } catch (error) {
+      console.error("Error sending notifications:", error)
+      toast.error("Gagal mengirim notifikasi. Silakan coba lagi.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -45,11 +75,11 @@ export function SendNotificationDialog({
             />
           </div>
           <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
               Batal
             </Button>
-            <Button onClick={handleSend}>
-              Kirim
+            <Button onClick={handleSend} disabled={isLoading}>
+              {isLoading ? "Mengirim..." : "Kirim"}
             </Button>
           </div>
         </div>

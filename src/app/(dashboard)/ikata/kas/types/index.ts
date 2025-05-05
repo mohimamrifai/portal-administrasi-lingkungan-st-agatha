@@ -32,10 +32,10 @@ export interface IKATASummary {
   saldoAkhir: number;
 }
 
-export interface PeriodFilter {
-  bulan: number;
+export type PeriodFilter = {
+  bulan: number; // 0 untuk semua data, 1-12 untuk bulan spesifik
   tahun: number;
-}
+};
 
 export interface TransactionFormData {
   tanggal: string;

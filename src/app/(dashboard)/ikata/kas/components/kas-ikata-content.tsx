@@ -20,16 +20,17 @@ import { toast } from 'sonner';
 interface KasIKATAContentProps {
   summary: IKATASummary;
   transactions: IKATATransaction[];
+  keluargaUmatList: { id: string; namaKepalaKeluarga: string }[];
   isLoading?: boolean;
 }
 
-export function KasIKATAContent({ summary, transactions: initialTransactions, isLoading = false }: KasIKATAContentProps) {
+export function KasIKATAContent({ summary, transactions: initialTransactions, keluargaUmatList, isLoading = false }: KasIKATAContentProps) {
   const { userRole } = useAuth();
   const router = useRouter();
   // const { toast: useToastToast } = useToast();
   const [period, setPeriod] = useState<PeriodFilterType>({
-    bulan: 4, // April (bulan dimulai dari 1)
-    tahun: 2024,
+    bulan: new Date().getMonth() + 1, // Default ke bulan saat ini
+    tahun: new Date().getFullYear() // Default ke tahun saat ini
   });
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
@@ -37,23 +38,34 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, is
   const [skipConfirmation, setSkipConfirmation] = useState(false);
   const [transactions, setTransactions] = useState<IKATATransaction[]>(initialTransactions);
   
+  // State untuk menentukan apakah filter aktif atau tidak
+  const [filterActive, setFilterActive] = useState(false);
+  
   // Role definition
-  const isAdmin = userRole === 'SuperUser' || userRole === 'adminLingkungan';
-  const isTreasurer = userRole === 'wakilBendahara';
+  const isAdmin = userRole === 'SUPER_USER' || userRole === 'KETUA';
+  const isTreasurer = userRole === 'WAKIL_BENDAHARA';
   const canModifyData = isAdmin || isTreasurer;
 
   // Filter transaksi berdasarkan periode yang dipilih
   const filteredTransactions = useMemo(() => {
-    return transactions.filter(t => {
-      // Format tanggal transaksi: '2024-04-01' (tahun-bulan-hari)
-      const dateParts = t.tanggal.split('-');
-      const txYear = parseInt(dateParts[0], 10);
-      const txMonth = parseInt(dateParts[1], 10); // Bulan dalam format 1-12
-      
-      // Bandingkan dengan period (bulan juga dalam format 1-12)
-      return txMonth === period.bulan && txYear === period.tahun;
+    if (!filterActive) {
+      return transactions;
+    }
+    
+    // Jika bulan = 0, tampilkan semua data
+    if (period.bulan === 0) {
+      return transactions;
+    }
+    
+    // Filter berdasarkan bulan dan tahun
+    const startDate = new Date(period.tahun, period.bulan - 1, 1);
+    const endDate = new Date(period.tahun, period.bulan, 0);
+    
+    return transactions.filter(transaction => {
+      const txDate = new Date(transaction.tanggal);
+      return txDate >= startDate && txDate <= endDate;
     });
-  }, [transactions, period]);
+  }, [transactions, period, filterActive]);
 
   // const { 
   //   transactions: filteredTransactions, 
@@ -66,11 +78,10 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, is
   // } = useTransactions(period);
 
   // Cek apakah pengguna memiliki hak akses ke halaman
-  const hasAccess = [
-    'SuperUser',
-    'ketuaLingkungan',
-    'wakilBendahara',
-    'adminLingkungan'
+  const hasAccess = userRole && [
+    'SUPER_USER',
+    'KETUA',
+    'WAKIL_BENDAHARA'
   ].includes(userRole);
 
   // Redirect jika tidak memiliki akses
@@ -86,11 +97,21 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, is
 
   useEffect(() => {
     // Hitung ulang summary berdasarkan data transaksi saat ini
-    const pemasukan = transactions
+    const filteredTransactions = filterActive ? transactions.filter(tx => {
+      // Format tanggal transaksi: '2024-04-01' (tahun-bulan-hari)
+      const dateParts = tx.tanggal.split('-');
+      const txYear = parseInt(dateParts[0], 10);
+      const txMonth = parseInt(dateParts[1], 10); // Bulan dalam format 1-12
+      
+      // Bandingkan dengan period (bulan juga dalam format 1-12)
+      return txMonth === period.bulan && txYear === period.tahun;
+    }) : transactions;
+    
+    const pemasukan = filteredTransactions
       .filter(tx => tx.jenis === 'uang_masuk')
       .reduce((sum, tx) => sum + tx.jumlah, 0);
     
-    const pengeluaran = transactions
+    const pengeluaran = filteredTransactions
       .filter(tx => tx.jenis === 'uang_keluar')
       .reduce((sum, tx) => sum + tx.jumlah, 0);
     
@@ -102,7 +123,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, is
       pengeluaran,
       saldoAkhir
     });
-  }, [transactions, summary]);
+  }, [transactions, summary, period, filterActive]);
 
   if (!hasAccess) {
     return <div className="flex justify-center items-center h-64">Memeriksa akses...</div>;
@@ -136,8 +157,8 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, is
       periodeBayar: data.periodeBayar,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      createdBy: userRole,
-      updatedBy: userRole,
+      createdBy: userRole || 'Guest',
+      updatedBy: userRole || 'Guest',
       locked: false
     };
     
@@ -196,7 +217,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, is
           statusPembayaran: data.statusPembayaran,
           periodeBayar: data.periodeBayar,
           updatedAt: new Date().toISOString(),
-          updatedBy: userRole
+          updatedBy: userRole || 'Guest'
         };
       }
       return tx;
@@ -244,7 +265,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, is
           ...tx,
           locked: !tx.locked,
           updatedAt: new Date().toISOString(),
-          updatedBy: userRole
+          updatedBy: userRole || 'Guest'
         };
       }
       return tx;
@@ -277,7 +298,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, is
             ...tx,
             locked: true,
             updatedAt: new Date().toISOString(),
-            updatedBy: userRole
+            updatedBy: userRole || 'Guest'
           };
         }
         return tx;
@@ -294,8 +315,23 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, is
     setIsPrintDialogOpen(false);
   };
 
+  // Handler untuk memfilter transaksi berdasarkan periode
+  const handlePeriodChange = (newPeriod: PeriodFilterType) => {
+    setPeriod(newPeriod);
+    setFilterActive(true);
+  };
+  
+  // Handler untuk mereset filter
+  const handleResetFilter = () => {
+    setPeriod({
+      bulan: new Date().getMonth() + 1,
+      tahun: new Date().getFullYear()
+    });
+    setFilterActive(false);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {!canModifyData && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -306,46 +342,67 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, is
         </Alert>
       )}
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-bold">Kas IKATA</h1>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold mb-1">Kas IKATA</h2>
+          <p className="text-muted-foreground">
+            Manajemen kas Ikatan Keluarga Katolik
+          </p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+          <PeriodFilter period={period} onPeriodChange={handlePeriodChange} />
+
+          {filterActive && (
+            <Button 
+              variant="outline" 
+              onClick={handleResetFilter}
+              className="h-10"
+            >
+              Reset Filter
+            </Button>
+          )}
+
+          {canModifyData && (
+            <Button 
+              onClick={() => {
+                setEditingTransaction(null);
+                setIsAddTransactionOpen(true);
+              }}
+              className="h-10"
+            >
+              Tambah Transaksi
+            </Button>
+          )}
+          
+          <Button 
+            variant="outline" 
+            onClick={handleOpenPrintDialog}
+            className="h-10"
+          >
+            <Printer className="h-4 w-4 mr-2" /> Cetak PDF
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <SummaryCards summary={summaryData} />
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-        <PeriodFilter period={period} onPeriodChange={setPeriod} />
-
-        {canModifyData && (
-          <Button
-            className="w-full sm:w-auto"
-            onClick={() => {
-              setEditingTransaction(null);
-              setIsAddTransactionOpen(true);
-            }}
-          >
-            Tambah Transaksi
-          </Button>
-        )}
-
-        <Button
-          className="w-full sm:w-auto"
-          variant="outline"
-          onClick={handleOpenPrintDialog}
-        >
-          <Printer className="h-4 w-4" /> Print PDF
-        </Button>
-      </div>
-
-      <TransactionsTable
-        transactions={filteredTransactions || []}
-        period={period}
-        onEdit={handleEditTransaction}
-        onDelete={handleDeleteTransaction}
-        onToggleLock={handleToggleLock}
-        canModifyData={canModifyData}
-      />
+      <Card>
+        <CardHeader>
+          <CardTitle>Daftar Transaksi</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <TransactionsTable 
+            transactions={filteredTransactions}
+            onEdit={handleEditTransaction}
+            onDelete={handleDeleteTransaction}
+            onToggleLock={handleToggleLock}
+            canModifyData={canModifyData}
+          />
+        </CardContent>
+      </Card>
 
       <TransactionFormDialog
         open={isAddTransactionOpen}
@@ -366,6 +423,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, is
           }
         }}
         editTransaction={editingTransaction}
+        keluargaUmatList={keluargaUmatList}
       />
 
       <PrintPDFDialog

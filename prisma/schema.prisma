@@ -13,10 +13,10 @@ model User {
   username      String         @unique
   password      String
   passphrase    String
-  role          Role          @default(UMAT)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  keluarga      KeluargaUmat? @relation(fields: [keluargaId], references: [id])
+  role          Role           @default(UMAT)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  keluarga      KeluargaUmat?  @relation(fields: [keluargaId], references: [id])
   keluargaId    String?
   notifications Notification[]
   pengajuan     Pengajuan[]
@@ -36,32 +36,32 @@ enum Role {
 
 // Model untuk data keluarga umat
 model KeluargaUmat {
-  id                    String           @id @default(uuid())
-  namaKepalaKeluarga   String           @unique
-  tanggalBergabung     DateTime
-  tanggalKeluar        DateTime?
-  alamat               String
-  jumlahAnakTertanggung Int
+  id                       String           @id @default(uuid())
+  namaKepalaKeluarga       String           @unique
+  tanggalBergabung         DateTime
+  tanggalKeluar            DateTime?
+  alamat                   String
+  jumlahAnakTertanggung    Int
   jumlahKerabatTertanggung Int
-  jumlahAnggotaKeluarga Int
-  tempatLahir          String?
-  tanggalLahir         DateTime?
-  nomorTelepon         String?
-  status               StatusKehidupan  @default(HIDUP)
-  kotaDomisili         String?
-  pendidikanTerakhir   String?
-  tanggalBaptis        DateTime?
-  tanggalKrisma        DateTime?
-  tanggalMeninggal     DateTime?
-  statusPernikahan     StatusPernikahan @default(TIDAK_MENIKAH)
-  pasangan             Pasangan?
-  tanggungan           Tanggungan[]
-  users                User[]
-  doaLingkungan       DoaLingkungan[]  @relation("TuanRumah")
-  absensiDoling       AbsensiDoling[]
-  danaMandiri         DanaMandiri[]
-  iurataIkata         IuranIkata[]
-  sumbangan           KasLingkungan[]
+  jumlahAnggotaKeluarga    Int
+  tempatLahir              String?
+  tanggalLahir             DateTime?
+  nomorTelepon             String?
+  status                   StatusKehidupan  @default(HIDUP)
+  kotaDomisili             String?
+  pendidikanTerakhir       String?
+  tanggalBaptis            DateTime?
+  tanggalKrisma            DateTime?
+  tanggalMeninggal         DateTime?
+  statusPernikahan         StatusPernikahan @default(TIDAK_MENIKAH)
+  pasangan                 Pasangan?
+  tanggungan               Tanggungan[]
+  users                    User[]
+  doaLingkungan            DoaLingkungan[]  @relation("TuanRumah")
+  absensiDoling            AbsensiDoling[]
+  danaMandiri              DanaMandiri[]
+  iurataIkata              IuranIkata[]
+  sumbangan                KasLingkungan[]
 }
 
 enum StatusKehidupan {
@@ -76,35 +76,35 @@ enum StatusPernikahan {
 
 // Model untuk data pasangan
 model Pasangan {
-  id                String        @id @default(uuid())
-  nama              String
-  tempatLahir       String
-  tanggalLahir      DateTime
-  nomorTelepon      String?
+  id                 String          @id @default(uuid())
+  nama               String
+  tempatLahir        String
+  tanggalLahir       DateTime
+  nomorTelepon       String?
   pendidikanTerakhir String
-  agama             Agama
-  noBiduk           String?
-  tanggalBaptis     DateTime?
-  tanggalKrisma     DateTime?
-  status            StatusKehidupan @default(HIDUP)
-  tanggalMeninggal  DateTime?
-  keluarga          KeluargaUmat   @relation(fields: [keluargaId], references: [id])
-  keluargaId        String         @unique
+  agama              Agama
+  noBiduk            String?
+  tanggalBaptis      DateTime?
+  tanggalKrisma      DateTime?
+  status             StatusKehidupan @default(HIDUP)
+  tanggalMeninggal   DateTime?
+  keluarga           KeluargaUmat    @relation(fields: [keluargaId], references: [id])
+  keluargaId         String          @unique
 }
 
 // Model untuk data tanggungan (anak/kerabat)
 model Tanggungan {
-  id                String        @id @default(uuid())
-  jenisTanggungan   JenisTanggungan
-  nama              String
-  tanggalLahir      DateTime
+  id                 String           @id @default(uuid())
+  jenisTanggungan    JenisTanggungan
+  nama               String
+  tanggalLahir       DateTime
   pendidikanTerakhir String
-  agama             Agama
-  tanggalBaptis     DateTime?
-  tanggalKrisma     DateTime?
-  statusPernikahan  StatusPernikahan @default(TIDAK_MENIKAH)
-  keluarga          KeluargaUmat    @relation(fields: [keluargaId], references: [id])
-  keluargaId        String
+  agama              Agama
+  tanggalBaptis      DateTime?
+  tanggalKrisma      DateTime?
+  statusPernikahan   StatusPernikahan @default(TIDAK_MENIKAH)
+  keluarga           KeluargaUmat     @relation(fields: [keluargaId], references: [id])
+  keluargaId         String
 }
 
 enum JenisTanggungan {
@@ -122,18 +122,18 @@ enum Agama {
 
 // Model untuk manajemen keuangan lingkungan
 model KasLingkungan {
-  id              String           @id @default(uuid())
-  tanggal         DateTime
-  jenisTranasksi  JenisTransaksi
-  tipeTransaksi   TipeTransaksiLingkungan
-  keterangan      String?
-  debit           Float           @default(0)
-  kredit          Float           @default(0)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  approval        Approval?
-  keluarga        KeluargaUmat?   @relation(fields: [keluargaId], references: [id])
-  keluargaId      String?
+  id             String                  @id @default(uuid())
+  tanggal        DateTime
+  jenisTranasksi JenisTransaksi
+  tipeTransaksi  TipeTransaksiLingkungan
+  keterangan     String?
+  debit          Float                   @default(0)
+  kredit         Float                   @default(0)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  approval       Approval?
+  keluarga       KeluargaUmat?           @relation(fields: [keluargaId], references: [id])
+  keluargaId     String?
 }
 
 enum JenisTransaksi {
@@ -156,30 +156,31 @@ enum TipeTransaksiLingkungan {
 
 // Model untuk manajemen dana mandiri
 model DanaMandiri {
-  id              String        @id @default(uuid())
-  tanggal         DateTime
-  keluarga        KeluargaUmat @relation(fields: [keluargaId], references: [id])
-  keluargaId      String
-  jumlahDibayar   Float
-  statusSetor     Boolean      @default(false)
-  tanggalSetor    DateTime?
-  tahun           Int
-  bulan           Int
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id            String       @id @default(uuid())
+  tanggal       DateTime
+  keluarga      KeluargaUmat @relation(fields: [keluargaId], references: [id])
+  keluargaId    String
+  jumlahDibayar Float
+  statusSetor   Boolean      @default(false)
+  tanggalSetor  DateTime?
+  tahun         Int
+  bulan         Int
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
 
 // Model untuk manajemen IKATA
 model KasIkata {
-  id              String           @id @default(uuid())
-  tanggal         DateTime
-  jenisTranasksi  JenisTransaksi
-  tipeTransaksi   TipeTransaksiIkata
-  keterangan      String?
-  debit           Float           @default(0)
-  kredit          Float           @default(0)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id             String             @id @default(uuid())
+  tanggal        DateTime
+  jenisTranasksi JenisTransaksi
+  tipeTransaksi  TipeTransaksiIkata
+  keterangan     String?
+  debit          Float              @default(0)
+  kredit         Float              @default(0)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  locked         Boolean            @default(false)
 }
 
 enum TipeTransaksiIkata {
@@ -198,16 +199,16 @@ enum TipeTransaksiIkata {
 
 // Model untuk iuran IKATA
 model IuranIkata {
-  id              String        @id @default(uuid())
-  keluarga        KeluargaUmat @relation(fields: [keluargaId], references: [id])
-  keluargaId      String
-  status          StatusIuran
-  bulanAwal       Int?
-  bulanAkhir      Int?
-  tahun           Int
-  jumlahDibayar   Float
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id            String       @id @default(uuid())
+  keluarga      KeluargaUmat @relation(fields: [keluargaId], references: [id])
+  keluargaId    String
+  status        StatusIuran
+  bulanAwal     Int?
+  bulanAkhir    Int?
+  tahun         Int
+  jumlahDibayar Float
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
 
 enum StatusIuran {
@@ -218,36 +219,36 @@ enum StatusIuran {
 
 // Model untuk doa lingkungan
 model DoaLingkungan {
-  id                String          @id @default(uuid())
-  tanggal          DateTime
-  jenisIbadat      JenisIbadat
-  subIbadat        SubIbadat?
-  temaIbadat       String?
-  tuanRumah        KeluargaUmat    @relation("TuanRumah", fields: [tuanRumahId], references: [id])
-  tuanRumahId      String
-  jumlahKKHadir    Int             @default(0)
-  bapak            Int             @default(0)
-  ibu              Int             @default(0)
-  omk              Int             @default(0)
-  bir              Int             @default(0)
-  biaBawah         Int             @default(0)
-  biaAtas          Int             @default(0)
-  kolekteI         Float           @default(0)
-  kolekteII        Float           @default(0)
-  ucapanSyukur     Float           @default(0)
-  pemimpinIbadat   String?
-  pemimpinRosario  String?
-  pembawaRenungan  String?
-  pembawaLagu      String?
-  doaUmat          String?
-  pemimpinMisa     String?
-  bacaanI          String?
-  pemazmur         String?
-  jumlahPeserta    Int             @default(0)
-  absensi          AbsensiDoling[]
-  approval         Approval?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  id              String          @id @default(uuid())
+  tanggal         DateTime
+  jenisIbadat     JenisIbadat
+  subIbadat       SubIbadat?
+  temaIbadat      String?
+  tuanRumah       KeluargaUmat    @relation("TuanRumah", fields: [tuanRumahId], references: [id])
+  tuanRumahId     String
+  jumlahKKHadir   Int             @default(0)
+  bapak           Int             @default(0)
+  ibu             Int             @default(0)
+  omk             Int             @default(0)
+  bir             Int             @default(0)
+  biaBawah        Int             @default(0)
+  biaAtas         Int             @default(0)
+  kolekteI        Float           @default(0)
+  kolekteII       Float           @default(0)
+  ucapanSyukur    Float           @default(0)
+  pemimpinIbadat  String?
+  pemimpinRosario String?
+  pembawaRenungan String?
+  pembawaLagu     String?
+  doaUmat         String?
+  pemimpinMisa    String?
+  bacaanI         String?
+  pemazmur        String?
+  jumlahPeserta   Int             @default(0)
+  absensi         AbsensiDoling[]
+  approval        Approval?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 }
 
 enum JenisIbadat {
@@ -276,11 +277,11 @@ model AbsensiDoling {
   id              String        @id @default(uuid())
   doaLingkungan   DoaLingkungan @relation(fields: [doaLingkunganId], references: [id])
   doaLingkunganId String
-  keluarga        KeluargaUmat @relation(fields: [keluargaId], references: [id])
+  keluarga        KeluargaUmat  @relation(fields: [keluargaId], references: [id])
   keluargaId      String
-  hadir           Boolean      @default(false)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  hadir           Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 }
 
 // Model untuk approval
@@ -291,8 +292,8 @@ model Approval {
   doaLingkungan   DoaLingkungan? @relation(fields: [doaLingkunganId], references: [id])
   doaLingkunganId String?        @unique
   status          StatusApproval @default(PENDING)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 }
 
 enum StatusApproval {
@@ -303,7 +304,7 @@ enum StatusApproval {
 
 // Model untuk pengajuan agenda
 model Pengajuan {
-  id              String         @id @default(uuid())
+  id              String          @id @default(uuid())
   tanggal         DateTime
   perihal         String
   tujuan          TujuanPengajuan
@@ -312,10 +313,10 @@ model Pengajuan {
   updateStatus    UpdateStatus?
   hasilAkhir      HasilAkhir?
   alasanPenolakan String?
-  pengaju         User           @relation(fields: [pengajuId], references: [id])
+  pengaju         User            @relation(fields: [pengajuId], references: [id])
   pengajuId       String
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 }
 
 enum TujuanPengajuan {
@@ -349,17 +350,17 @@ enum HasilAkhir {
 
 // Model untuk publikasi/pengumuman
 model Publikasi {
-  id              String           @id @default(uuid())
-  judul           String
-  isi             String
-  lampiran        String[]
-  klasifikasi     KlasifikasiPublikasi
-  deadline        DateTime?
-  targetPenerima  Role[]
-  pembuat         User             @relation(fields: [pembuatId], references: [id])
-  pembuatId       String
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id             String               @id @default(uuid())
+  judul          String
+  isi            String
+  lampiran       String[]
+  klasifikasi    KlasifikasiPublikasi
+  deadline       DateTime?
+  targetPenerima Role[]
+  pembuat        User                 @relation(fields: [pembuatId], references: [id])
+  pembuatId      String
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
 }
 
 enum KlasifikasiPublikasi {
@@ -371,11 +372,11 @@ enum KlasifikasiPublikasi {
 
 // Model untuk notifikasi
 model Notification {
-  id          String    @id @default(uuid())
-  pesan       String
-  dibaca      Boolean   @default(false)
-  user        User      @relation(fields: [userId], references: [id])
-  userId      String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String   @id @default(uuid())
+  pesan     String
+  dibaca    Boolean  @default(false)
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

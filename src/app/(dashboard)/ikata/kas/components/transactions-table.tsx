@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { format, isWithinInterval } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -58,16 +58,14 @@ import { formatCurrency, cn } from '@/lib/utils';
 
 interface TransactionsTableProps {
   transactions: IKATATransaction[];
-  period: PeriodFilterType;
-  onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
-  onToggleLock: (id: string) => void;
+  onEdit?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  onToggleLock?: (id: string) => void;
   canModifyData?: boolean;
 }
 
 export function TransactionsTable({ 
   transactions, 
-  period, 
   onEdit, 
   onDelete,
   onToggleLock,
@@ -84,7 +82,7 @@ export function TransactionsTable({
   
   // Type filter options
   const typeOptions = [
-    { value: null, label: "Semua Tipe", key: "all" },
+    { value: null, label: "Semua Jenis", key: "all" },
     { value: "uang_masuk", label: "Uang Masuk", key: "uang_masuk" },
     { value: "uang_keluar", label: "Uang Keluar", key: "uang_keluar" }
   ];
@@ -242,6 +240,19 @@ export function TransactionsTable({
       return `${months[monthIndex]} ${year}`;
     }).join(", ");
   };
+
+  // Handler untuk mengelola callback secara aman
+  const handleEdit = useCallback((id: string) => {
+    if (onEdit) onEdit(id);
+  }, [onEdit]);
+  
+  const handleDelete = useCallback((id: string) => {
+    if (onDelete) onDelete(id);
+  }, [onDelete]);
+  
+  const handleToggleLock = useCallback((id: string) => {
+    if (onToggleLock) onToggleLock(id);
+  }, [onToggleLock]);
 
   return (
     <div className="space-y-4">
@@ -519,7 +530,7 @@ export function TransactionsTable({
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Batal</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => onDelete(tx.id)}>
+                              <AlertDialogAction onClick={() => handleDelete(tx.id)}>
                                 Hapus
                               </AlertDialogAction>
                             </AlertDialogFooter>
@@ -537,7 +548,7 @@ export function TransactionsTable({
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
-                                onClick={() => onEdit(tx.id)}
+                                onClick={() => handleEdit(tx.id)}
                                 disabled={tx.locked}
                                 className={tx.locked ? "cursor-not-allowed opacity-50" : ""}
                               >
@@ -545,7 +556,7 @@ export function TransactionsTable({
                                 <span>Edit</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => onToggleLock(tx.id)}
+                                onClick={() => handleToggleLock(tx.id)}
                               >
                                 {tx.locked ?
                                   <UnlockIcon className="mr-2 h-4 w-4" /> :
