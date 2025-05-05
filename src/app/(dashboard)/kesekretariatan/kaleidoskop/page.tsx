@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { KaleidoskopContent } from "./components/kaleidoskop-content";
+import { getKaleidoskopData, getRingkasanKegiatan } from "./actions";
 
 // Komponen Loading Sederhana
 function LoadingSkeleton() {
@@ -13,11 +14,27 @@ function LoadingSkeleton() {
   )
 }
 
-export default function KaleidoskopPage() {
+export default async function KaleidoskopPage() {
+  // Tentukan rentang waktu (defaultnya 1 tahun terakhir)
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setFullYear(startDate.getFullYear() - 1);
+
+  // Mengambil data dari server actions
+  const activityData = await getKaleidoskopData(startDate, endDate);
+  const summaryData = await getRingkasanKegiatan(startDate, endDate);
+  
   return (
     <div className="p-2 px-4">
       <Suspense fallback={<LoadingSkeleton />}>
-        <KaleidoskopContent periodRange="2024-01-01 - 2024-12-31" activityData={[]} isLoading={false} />
+        <KaleidoskopContent 
+          activityData={activityData}
+          summaryData={summaryData}
+          periodRange={{
+            startDate,
+            endDate
+          }}
+        />
       </Suspense>
     </div>
   )

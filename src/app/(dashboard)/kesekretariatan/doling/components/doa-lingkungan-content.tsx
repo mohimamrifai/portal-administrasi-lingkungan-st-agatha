@@ -1,19 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { JadwalDolingTable } from "./jadwal-doling-table";
 import { DetilDolingTable } from "./detil-doling-table";
 import { AbsensiDolingTable } from "./absensi-doling-table";
 import { RiwayatDolingContent } from "./riwayat-doling-content";
 import { JadwalDolingFormDialog } from "./jadwal-doling-form-dialog";
-import { DetilDolingFormDialog } from "./detail-dolling-form-dialog";
+import { DetilDolingFormDialog } from "./detil-doling-form-dialog";
 import { AbsensiDolingFormDialog } from "./absensi-doling-form-dialog";
 import { PrintJadwalDialog } from "./print-jadwal-dialog";
 import { JadwalDolingPDF } from "./jadwal-doling-pdf";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/auth-context";
-import { JadwalDoling, DetilDoling, AbsensiDoling } from "../types";
+import { DolingData, JadwalDoling, DetilDoling, AbsensiDoling } from "../types";
 import {
     Dialog,
     DialogContent,
@@ -26,19 +26,37 @@ import { JadwalDolingCards } from "./summary-cards";
 import { FilterSection } from "./filter-section";
 import { JadwalActionButtons, DetilActionButtons, AbsensiActionButtons } from "./action-buttons";
 
-// Import data and utils
+// Import server actions
 import {
-    jadwalDolingData,
-    detilDolingData,
-    absensiDolingData,
-    kepalaKeluargaData,
-    riwayatDolingData,
-    rekapitulasiData,
-} from "../utils/mock-data";
+    getAllDoling,
+    getKeluargaForSelection,
+    getAbsensiByDolingId,
+    addDoling,
+    updateDolingDetail,
+    updateAbsensi,
+    deleteDoling,
+    updateApprovalStatus,
+    getRiwayatKehadiran,
+    getRekapitulasiBulanan,
+    KeluargaForSelect
+} from "../actions";
 
 import { setupReminderNotifications } from "../utils/reminder-notifications";
+import { JenisIbadat, SubIbadat, StatusApproval } from "@prisma/client";
 
-export function DoaLingkunganContent() {
+export interface DoaLingkunganContentProps {
+    initialDoling?: DolingData[];
+    initialRiwayat?: {nama: string; totalHadir: number; persentase: number}[];
+    initialRekapitulasi?: {bulan: string; jumlahKegiatan: number; rataRataHadir: number}[];
+    initialKeluarga?: KeluargaForSelect[];
+}
+
+export function DoaLingkunganContent({
+    initialDoling = [],
+    initialRiwayat = [],
+    initialRekapitulasi = [],
+    initialKeluarga = []
+}: DoaLingkunganContentProps) {
     // Get user role
     const { userRole } = useAuth();
 
@@ -46,10 +64,13 @@ export function DoaLingkunganContent() {
     const [activeTab, setActiveTab] = useState("jadwal-doling");
 
     // Data state
-    const [jadwalState, setJadwalState] = useState<JadwalDoling[]>(jadwalDolingData);
-    const [detilState, setDetilState] = useState<DetilDoling[]>(detilDolingData);
-    const [absensiState, setAbsensiState] = useState<AbsensiDoling[]>(absensiDolingData);
-    const [kepalaKeluargaState, setKepalaKeluargaState] = useState(kepalaKeluargaData);
+    const [jadwalState, setJadwalState] = useState<JadwalDoling[]>(initialDoling);
+    const [detilState, setDetilState] = useState<DetilDoling[]>(initialDoling);
+    const [absensiState, setAbsensiState] = useState<AbsensiDoling[]>([]);
+    const [kepalaKeluargaState, setKepalaKeluargaState] = useState<KeluargaForSelect[]>(initialKeluarga);
+    const [riwayatState, setRiwayatState] = useState<{nama: string; totalHadir: number; persentase: number}[]>(initialRiwayat);
+    const [rekapitulasiState, setRekapitulasiState] = useState<{bulan: string; jumlahKegiatan: number; rataRataHadir: number}[]>(initialRekapitulasi);
+    const [loading, setLoading] = useState(!initialDoling.length);
 
     // Filter state
     const [showSudahTerpilih, setShowSudahTerpilih] = useState(false);
@@ -76,6 +97,46 @@ export function DoaLingkunganContent() {
     const [editingJadwal, setEditingJadwal] = useState<JadwalDoling | undefined>(undefined);
     const [editingDetil, setEditingDetil] = useState<DetilDoling | undefined>(undefined);
     const [editingAbsensi, setEditingAbsensi] = useState<AbsensiDoling | undefined>(undefined);
+    const [selectedDolingId, setSelectedDolingId] = useState<string | null>(null);
+
+    // Fetch data 
+    const fetchData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [dolingData, keluargaData, riwayatData, rekapitulasi] = await Promise.all([
+                getAllDoling(),
+                getKeluargaForSelection(),
+                getRiwayatKehadiran(),
+                getRekapitulasiBulanan(new Date().getFullYear())
+            ]);
+            
+            setJadwalState(dolingData);
+            setDetilState(dolingData);
+            setKepalaKeluargaState(keluargaData);
+            setRiwayatState(riwayatData);
+            setRekapitulasiState(rekapitulasi);
+
+            // Jika ada doling yang dipilih, ambil data absensinya
+            if (selectedDolingId) {
+                const absensiData = await getAbsensiByDolingId(selectedDolingId);
+                setAbsensiState(absensiData);
+            }
+        } catch (error) {
+            console.error("Error fetching data:", error);
+            toast.error("Gagal memuat data");
+        } finally {
+            setLoading(false);
+        }
+    }, [selectedDolingId]);
+
+    // Initial data fetching
+    useEffect(() => {
+        if (!initialDoling.length || !initialRiwayat.length || !initialRekapitulasi.length || !initialKeluarga.length) {
+            fetchData();
+        } else {
+            setLoading(false);
+        }
+    }, [fetchData, initialDoling.length, initialRiwayat.length, initialRekapitulasi.length, initialKeluarga.length]);
 
     // Filter kepala keluarga yang sudah/belum terpilih
     const filteredKepalaKeluarga = kepalaKeluargaState.filter(item =>
@@ -84,7 +145,7 @@ export function DoaLingkunganContent() {
 
     // Filter jadwal berdasarkan pencarian dan bulan/tahun
     const filteredJadwal = jadwalState.filter(jadwal => {
-        const jadwalDate = jadwal.tanggal;
+        const jadwalDate = new Date(jadwal.tanggal);
         const jadwalYear = jadwalDate.getFullYear().toString();
         const jadwalMonth = (jadwalDate.getMonth() + 1).toString();
 
@@ -122,51 +183,59 @@ export function DoaLingkunganContent() {
         setJadwalFormOpen(true);
     };
 
-    const handleDeleteJadwal = (id: number) => {
-        setJadwalState(jadwalState.filter(item => item.id !== id));
-        toast.success("Jadwal berhasil dihapus");
+    const handleDeleteJadwal = async (id: string) => {
+        try {
+            await deleteDoling(id);
+            toast.success("Jadwal berhasil dihapus");
+            fetchData(); // Refresh data
+        } catch (error) {
+            console.error("Error deleting jadwal:", error);
+            toast.error("Gagal menghapus jadwal");
+        }
     };
 
     const handleResetKepalaKeluarga = () => {
-        setKepalaKeluargaState(
-            kepalaKeluargaState.map(item => ({ ...item, sudahTerpilih: false }))
-        );
+        // Reset tidak dibutuhkan karena data sudah dikelola oleh server
         toast.success("Reset berhasil. Semua kepala keluarga dapat dipilih kembali.");
+        fetchData(); // Refresh data
     };
 
-    const handleSubmitJadwal = (values: Omit<JadwalDoling, 'id' | 'createdAt' | 'updatedAt'>) => {
-        if (editingJadwal) {
-            // Edit existing
-            setJadwalState(jadwalState.map(item =>
-                item.id === editingJadwal.id
-                    ? { ...item, ...values, updatedAt: new Date() }
-                    : item
-            ));
-            toast.success("Jadwal berhasil diperbarui");
-        } else {
-            // Add new
-            const newJadwal: JadwalDoling = {
-                id: Math.max(0, ...jadwalState.map(item => item.id)) + 1,
-                ...values,
-                createdAt: new Date(),
-                updatedAt: new Date()
-            };
-            setJadwalState([...jadwalState, newJadwal]);
-
-            // Update status kepala keluarga yang terpilih
-            if (values.tuanRumahId) {
-                setKepalaKeluargaState(
-                    kepalaKeluargaState.map(item =>
-                        item.id === values.tuanRumahId
-                            ? { ...item, sudahTerpilih: true }
-                            : item
-                    )
-                );
+    const handleSubmitJadwal = async (values: {
+        tanggal: Date;
+        tuanRumahId: string;
+        jenisIbadat: JenisIbadat;
+        subIbadat?: SubIbadat | null;
+        temaIbadat?: string | null;
+    }) => {
+        try {
+            if (editingJadwal) {
+                // Edit existing - tidak ada fungsi update jadwal, akan menggunakan deleteDoling dan addDoling
+                await deleteDoling(editingJadwal.id);
+                await addDoling({
+                    tanggal: values.tanggal,
+                    tuanRumahId: values.tuanRumahId,
+                    jenisIbadat: values.jenisIbadat,
+                    subIbadat: values.subIbadat || undefined,
+                    temaIbadat: values.temaIbadat || undefined
+                });
+                toast.success("Jadwal berhasil diperbarui");
+            } else {
+                // Add new
+                await addDoling({
+                    tanggal: values.tanggal,
+                    tuanRumahId: values.tuanRumahId,
+                    jenisIbadat: values.jenisIbadat,
+                    subIbadat: values.subIbadat || undefined,
+                    temaIbadat: values.temaIbadat || undefined
+                });
+                toast.success("Jadwal baru berhasil ditambahkan");
             }
-
-            toast.success("Jadwal baru berhasil ditambahkan");
+            setJadwalFormOpen(false);
+            fetchData(); // Refresh data
+        } catch (error) {
+            console.error("Error submitting jadwal:", error);
+            toast.error("Gagal menyimpan jadwal");
         }
-        setJadwalFormOpen(false);
     };
 
     // Event handlers - Detil Doling -------------------------------------------
@@ -181,32 +250,28 @@ export function DoaLingkunganContent() {
         setDetilFormOpen(true);
     };
 
-    const handleDeleteDetil = (id: number) => {
-        setDetilState(detilState.filter(item => item.id !== id));
-        toast.success("Detail doling berhasil dihapus");
+    const handleDeleteDetil = async (id: string) => {
+        try {
+            await deleteDoling(id);
+            toast.success("Detail doling berhasil dihapus");
+            fetchData(); // Refresh data
+        } catch (error) {
+            console.error("Error deleting detail:", error);
+            toast.error("Gagal menghapus detail");
+        }
     };
 
-    const handleSubmitDetil = (values: Omit<DetilDoling, 'id' | 'createdAt' | 'updatedAt'>) => {
-        if (editingDetil) {
-            // Edit existing
-            setDetilState(detilState.map(item =>
-                item.id === editingDetil.id
-                    ? { ...item, ...values, updatedAt: new Date() }
-                    : item
-            ));
+    const handleSubmitDetil = async (values: any) => {
+        try {
+            const { id, ...updateData } = values;
+            await updateDolingDetail(id, updateData);
             toast.success("Detail doling berhasil diperbarui");
-        } else {
-            // Add new
-            const newDetil: DetilDoling = {
-                id: Math.max(0, ...detilState.map(item => item.id)) + 1,
-                ...values,
-                createdAt: new Date(),
-                updatedAt: new Date()
-            };
-            setDetilState([...detilState, newDetil]);
-            toast.success("Detail doling baru berhasil ditambahkan");
+            setDetilFormOpen(false);
+            fetchData(); // Refresh data
+        } catch (error) {
+            console.error("Error submitting detail:", error);
+            toast.error("Gagal menyimpan detail");
         }
-        setDetilFormOpen(false);
     };
 
     // Event handlers - Absensi Doling -----------------------------------------
@@ -221,27 +286,17 @@ export function DoaLingkunganContent() {
         setAbsensiFormOpen(true);
     };
 
-    const handleSubmitAbsensi = (values: Omit<AbsensiDoling, 'id' | 'createdAt' | 'updatedAt'>) => {
-        if (editingAbsensi) {
-            // Edit existing
-            setAbsensiState(absensiState.map(item =>
-                item.id === editingAbsensi.id
-                    ? { ...item, ...values, updatedAt: new Date() }
-                    : item
-            ));
+    const handleSubmitAbsensi = async (values: any) => {
+        try {
+            await updateAbsensi(values.doaLingkunganId, values.absensiData);
+            setSelectedDolingId(values.doaLingkunganId);
             toast.success("Data absensi berhasil diperbarui");
-        } else {
-            // Add new
-            const newAbsensi: AbsensiDoling = {
-                id: Math.max(0, ...absensiState.map(item => item.id)) + 1,
-                ...values,
-                createdAt: new Date(),
-                updatedAt: new Date()
-            };
-            setAbsensiState([...absensiState, newAbsensi]);
-            toast.success("Data absensi baru berhasil ditambahkan");
+            setAbsensiFormOpen(false);
+            fetchData(); // Refresh data
+        } catch (error) {
+            console.error("Error submitting absensi:", error);
+            toast.error("Gagal menyimpan absensi");
         }
-        setAbsensiFormOpen(false);
     };
 
     // Print PDF Jadwal ---------------------------------------------------------
@@ -277,7 +332,7 @@ export function DoaLingkunganContent() {
                 return <DetilActionButtons onAddDetil={handleAddDetil} />;
             case "absensi-doling":
                 console.log("Should render absensi action button with role:", userRole);
-                return <AbsensiActionButtons onAddAbsensi={handleAddAbsensi} userRole={userRole} />;
+                return <AbsensiActionButtons onAddAbsensi={handleAddAbsensi} userRole={userRole || undefined} />;
             default:
                 return null;
         }
@@ -323,6 +378,7 @@ export function DoaLingkunganContent() {
 
                 {/* Detil Doling Tab */}
                 <TabsContent value="detil-doling">
+                    {renderActionButtons()}
                     <DetilDolingTable
                         detil={detilState}
                         onEdit={handleEditDetil}
@@ -344,8 +400,8 @@ export function DoaLingkunganContent() {
                 {/* Riwayat Doling Tab */}
                 <TabsContent value="riwayat-doling" className="space-y-4">
                     <RiwayatDolingContent 
-                        riwayat={riwayatDolingData} 
-                        rekapitulasi={rekapitulasiData}
+                        riwayat={riwayatState} 
+                        rekapitulasi={rekapitulasiState}
                         detilDolingData={detilState}
                         absensiDolingData={absensiState}
                     />
@@ -358,6 +414,7 @@ export function DoaLingkunganContent() {
                 onOpenChange={setJadwalFormOpen}
                 jadwal={editingJadwal}
                 onSubmit={handleSubmitJadwal}
+                kepalaKeluarga={filteredKepalaKeluarga}
             />
             <DetilDolingFormDialog
                 open={detilFormOpen}

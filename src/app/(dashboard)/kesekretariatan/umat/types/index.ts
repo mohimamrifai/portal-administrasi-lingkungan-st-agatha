@@ -1,56 +1,45 @@
 import { z } from "zod";
+import { StatusKehidupan } from "@prisma/client";
+import { FamilyHeadData } from "../actions";
 
-export interface FamilyHead {
-  id: number;
-  name: string;
-  address: string;
-  phoneNumber: string;
-  joinDate: Date;
-  childrenCount: number;
-  relativesCount: number;
-  familyMembersCount: number;
-  status: "active" | "moved" | "deceased";
-  createdAt: Date;
-  updatedAt: Date;
-  // Jika status pindah, kapan data akan dihapus otomatis
-  scheduledDeleteDate?: Date;
-  // Jika status meninggal, siapa anggota keluarga yang meninggal
-  deceasedMemberName?: string;
-}
+// Re-export FamilyHeadData untuk kompatibilitas
+export type { FamilyHeadData } from "../actions";
+
+// Alias untuk FamilyHead (kompatibilitas dengan kode lama)
+export type FamilyHead = FamilyHeadData;
 
 export const familyHeadStatuses = [
-  { value: "active", label: "Aktif" },
-  { value: "moved", label: "Pindah" },
-  { value: "deceased", label: "Meninggal" }
+  { value: StatusKehidupan.HIDUP, label: "Aktif" },
+  { value: StatusKehidupan.MENINGGAL, label: "Meninggal" }
 ] as const;
 
 export const familyHeadFormSchema = z.object({
-  name: z.string().min(3, {
+  namaKepalaKeluarga: z.string().min(3, {
     message: "Nama minimal 3 karakter",
   }),
-  address: z.string().min(5, {
+  alamat: z.string().min(5, {
     message: "Alamat minimal 5 karakter",
   }),
-  phoneNumber: z.string().min(10, {
+  nomorTelepon: z.string().min(10, {
     message: "Nomor telepon minimal 10 digit",
-  }),
-  joinDate: z.date({
+  }).optional().nullable(),
+  tanggalBergabung: z.date({
     required_error: "Tanggal bergabung wajib diisi",
   }),
-  childrenCount: z.number().int().min(0, {
+  jumlahAnakTertanggung: z.number().int().min(0, {
     message: "Jumlah anak tertanggung tidak boleh negatif",
   }),
-  relativesCount: z.number().int().min(0, {
+  jumlahKerabatTertanggung: z.number().int().min(0, {
     message: "Jumlah kerabat tertanggung tidak boleh negatif",
   }),
-  familyMembersCount: z.number().int().min(1, {
+  jumlahAnggotaKeluarga: z.number().int().min(1, {
     message: "Jumlah anggota keluarga minimal 1",
   }),
-  status: z.enum(["active", "moved", "deceased"], {
+  status: z.nativeEnum(StatusKehidupan, {
     required_error: "Status wajib dipilih",
   }),
-  // Opsional, hanya diisi jika status adalah deceased
-  deceasedMemberName: z.string().optional(),
+  tanggalKeluar: z.date().optional().nullable(),
+  tanggalMeninggal: z.date().optional().nullable(),
 });
 
 export type FamilyHeadFormValues = z.infer<typeof familyHeadFormSchema>; 

@@ -1,37 +1,33 @@
 "use client";
 
 import { useState } from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { JadwalDoling } from "../types";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { CalendarIcon, Edit2, LucideTrash2, SearchIcon } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  MoreVertical,
-  PencilIcon,
-  Trash2Icon,
-  MapPinIcon,
-  PhoneIcon,
+import { 
+  SearchIcon, 
+  X, 
+  EditIcon, 
+  TrashIcon, 
+  ChevronLeftIcon, 
+  ChevronRightIcon, 
+  ChevronsLeftIcon, 
+  ChevronsRightIcon,
+  CalendarIcon,
+  UserIcon,
+  PhoneIcon
 } from "lucide-react";
+import { JadwalDoling } from "../types";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,408 +45,374 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { formatTanggalWaktu } from "../utils/helpers";
+import { JenisIbadat } from "@prisma/client";
 
 interface JadwalDolingTableProps {
   jadwal: JadwalDoling[];
   onEdit: (jadwal: JadwalDoling) => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: string) => void;
 }
 
 export function JadwalDolingTable({ jadwal, onEdit, onDelete }: JadwalDolingTableProps) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  // state
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [pageSize, setPageSize] = useState(10);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [jenisIbadatFilter, setJenisIbadatFilter] = useState<JenisIbadat | null>(null);
+  
+  // Dialog untuk melihat detail jadwal
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [selectedJadwal, setSelectedJadwal] = useState<JadwalDoling | null>(null);
-  const itemsPerPage = 5;
   
-  // Hitung tanggal saat ini untuk memfilter jadwal yang segera datang
-  const today = new Date();
-  const upcomingDate = new Date();
-  upcomingDate.setDate(today.getDate() + 14); // 2 minggu ke depan
+  // Reset to first page when filters change
+  const resetPage = () => setCurrentPage(1);
   
-  // Filter jadwal berdasarkan pencarian dan status
-  const filteredJadwal = jadwal
-    .filter(item => 
-      (item.tuanRumah.toLowerCase().includes(searchTerm.toLowerCase()) ||
-       item.alamat.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (statusFilter === "all" || item.status === statusFilter)
-    )
-    .sort((a, b) => {
-      if (sortOrder === "asc") {
-        return a.tanggal.getTime() - b.tanggal.getTime();
-      } else {
-        return b.tanggal.getTime() - a.tanggal.getTime();
-      }
-    });
-  
-  // Paginasi
-  const totalPages = Math.ceil(filteredJadwal.length / itemsPerPage);
-  const paginatedJadwal = filteredJadwal.slice(
-    (currentPage - 1) * itemsPerPage, 
-    currentPage * itemsPerPage
-  );
-  
-  // Mendapatkan jadwal yang akan datang dalam 2 minggu ke depan
-  const upcomingJadwal = jadwal
-    .filter(item => 
-      item.status === "terjadwal" && 
-      item.tanggal >= today && 
-      item.tanggal <= upcomingDate)
-    .sort((a, b) => a.tanggal.getTime() - b.tanggal.getTime());
-  
-  // Fungsi untuk mendapatkan variant badge berdasarkan status
-  const getStatusBadgeVariant = (status: string) => {
+  // Helper untuk badge status
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case "terjadwal": return "default";
-      case "selesai": return "success";
-      case "dibatalkan": return "destructive";
-      default: return "outline";
-    }
-  };
-  
-  // Fungsi untuk mendapatkan label yang lebih user-friendly dari status
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "terjadwal": return "Terjadwal";
-      case "selesai": return "Selesai";
-      case "dibatalkan": return "Dibatalkan";
-      default: return status;
-    }
-  };
-
-  // Helper functions for UI rendering
-  const getStatusBadge = (status: JadwalDoling['status']) => {
-    switch (status) {
-      case 'terjadwal':
+      case "terjadwal":
         return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Terjadwal</Badge>;
-      case 'selesai':
+      case "selesai":
         return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Selesai</Badge>;
-      case 'dibatalkan':
+      case "dibatalkan":
         return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Dibatalkan</Badge>;
+      case "menunggu":
+        return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Menunggu Approval</Badge>;
       default:
         return null;
     }
   };
   
-  // Buka dialog detail
-  const openDetailDialog = (item: JadwalDoling) => {
-    setSelectedJadwal(item);
+  // Fungsi untuk menampilkan dialog detail
+  const handleShowDetail = (jadwal: JadwalDoling) => {
+    setSelectedJadwal(jadwal);
     setShowDetailDialog(true);
   };
 
+  // Render nomor telepon
+  const renderPhone = (item: JadwalDoling) => {
+    if (!item.nomorTelepon) return "-";
+    return item.nomorTelepon;
+  };
+  
+  // Pembantu untuk badge jenis ibadat
+  const getJenisIbadatBadge = (jenisIbadat: JenisIbadat | undefined) => {
+    if (!jenisIbadat) return null;
+    
+    switch (jenisIbadat) {
+      case JenisIbadat.DOA_LINGKUNGAN:
+        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Doa Lingkungan</Badge>;
+      case JenisIbadat.MISA:
+        return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">Misa</Badge>;
+      case JenisIbadat.PERTEMUAN:
+        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Pertemuan</Badge>;
+      case JenisIbadat.BAKTI_SOSIAL:
+        return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Bakti Sosial</Badge>;
+      case JenisIbadat.KEGIATAN_LAIN:
+        return <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">Kegiatan Lain</Badge>;
+      default:
+        return <Badge variant="outline">{jenisIbadat}</Badge>;
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Upcoming Events Card */}
-      {upcomingJadwal.length > 0 && (
-        <Card className="border-primary/20 bg-primary/5 gap-2 p-2">
-          <CardHeader className="px-0">
-            <CardTitle className="flex items-center text-base text-primary">
-              <CalendarIcon className="h-4 w-4 mr-2" />
-              Akan Datang dalam 2 Minggu
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-0">
-            <div className="grid gap-4">
-              {upcomingJadwal.slice(0, 3).map((item) => (
-                <div 
-                  key={item.id} 
-                  className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 border rounded-lg bg-background"
-                >
-                  <div className="flex flex-col">
-                    <div className="font-medium mb-1">{item.tuanRumah}</div>
-                    <div className="text-sm text-muted-foreground">{item.alamat}</div>
-                  </div>
-                  <div className="flex mt-2 sm:mt-0 space-x-4 items-center">
-                    <div className="flex flex-col items-end">
-                      <div className="text-sm font-medium">
-                        {format(item.tanggal, "EEEE, dd MMMM yyyy", { locale: id })}
-                      </div>
-                      <div className="text-sm text-muted-foreground">{item.waktu} WIB</div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8"
-                      onClick={() => openDetailDialog(item)}
-                    >
-                      Detail
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+    <div className="space-y-4">
+      {/* Filters */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        {/* Search */}
+        <div className="relative w-full md:w-64">
+          <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Cari tuan rumah, alamat..."
+            className="pl-8"
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              resetPage();
+            }}
+          />
+          {searchTerm && (
+            <Button
+              variant="ghost"
+              className="absolute right-0 top-0 h-9 w-9 p-0"
+              onClick={() => {
+                setSearchTerm("");
+                resetPage();
+              }}
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Clear search</span>
+            </Button>
+          )}
+        </div>
+        
+        <div className="flex flex-wrap gap-2">
+          {/* Jenis Ibadat Filter */}
+          <Select
+            value={jenisIbadatFilter || "all"}
+            onValueChange={(value) => {
+              if (value === "all") {
+                setJenisIbadatFilter(null);
+              } else {
+                setJenisIbadatFilter(value as JenisIbadat);
+              }
+              resetPage();
+            }}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Jenis Ibadat" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Jenis</SelectItem>
+              <SelectItem value={JenisIbadat.DOA_LINGKUNGAN}>Doa Lingkungan</SelectItem>
+              <SelectItem value={JenisIbadat.MISA}>Misa</SelectItem>
+              <SelectItem value={JenisIbadat.PERTEMUAN}>Pertemuan</SelectItem>
+              <SelectItem value={JenisIbadat.BAKTI_SOSIAL}>Bakti Sosial</SelectItem>
+              <SelectItem value={JenisIbadat.KEGIATAN_LAIN}>Kegiatan Lain</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          {/* Status Filter */}
+          <Select
+            value={statusFilter || "all"}
+            onValueChange={(value) => {
+              setStatusFilter(value === "all" ? null : value);
+              resetPage();
+            }}
+          >
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Status</SelectItem>
+              <SelectItem value="terjadwal">Terjadwal</SelectItem>
+              <SelectItem value="selesai">Selesai</SelectItem>
+              <SelectItem value="dibatalkan">Dibatalkan</SelectItem>
+              <SelectItem value="menunggu">Menunggu Approval</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          {/* Reset button */}
+          {(searchTerm || statusFilter || jenisIbadatFilter) && (
+            <Button variant="outline" onClick={() => {
+              setSearchTerm("");
+              setStatusFilter(null);
+              setJenisIbadatFilter(null);
+              resetPage();
+            }} size="sm">
+              Reset
+            </Button>
+          )}
+        </div>
+      </div>
       
       {/* Dialog Detail Jadwal */}
       <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Detail Jadwal Doa Lingkungan</DialogTitle>
+            <DialogTitle>Detail Jadwal</DialogTitle>
           </DialogHeader>
-          
           {selectedJadwal && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h4 className="text-sm font-semibold">Tanggal</h4>
-                  <p>{format(selectedJadwal.tanggal, "dd MMMM yyyy", { locale: id })}</p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold">Waktu</h4>
-                  <p>{selectedJadwal.waktu} WIB</p>
-                </div>
-              </div>
-              
-              <div>
-                <h4 className="text-sm font-semibold">Tuan Rumah</h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <p className="font-medium">Tanggal:</p>
+                <p>{formatTanggalWaktu(selectedJadwal.tanggal, selectedJadwal.waktu)}</p>
+                
+                <p className="font-medium">Tuan Rumah:</p>
                 <p>{selectedJadwal.tuanRumah}</p>
-              </div>
-              
-              <div>
-                <h4 className="text-sm font-semibold">Alamat</h4>
+                
+                <p className="font-medium">No. Telepon:</p>
+                <p>{selectedJadwal.nomorTelepon || "-"}</p>
+                
+                <p className="font-medium">Alamat:</p>
                 <p>{selectedJadwal.alamat}</p>
-              </div>
-              
-              {selectedJadwal.noTelepon && (
-                <div>
-                  <h4 className="text-sm font-semibold">Nomor Telepon</h4>
-                  <p>{selectedJadwal.noTelepon}</p>
-                </div>
-              )}
-              
-              <div>
-                <h4 className="text-sm font-semibold">Status</h4>
-                <div className="mt-1">{getStatusBadge(selectedJadwal.status)}</div>
-              </div>
-              
-              {selectedJadwal.catatan && (
-                <div>
-                  <h4 className="text-sm font-semibold">Catatan</h4>
-                  <p>{selectedJadwal.catatan}</p>
-                </div>
-              )}
-              
-              <div className="flex justify-center pt-4">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowDetailDialog(false)}
-                >
-                  Tutup
-                </Button>
+                
+                <p className="font-medium">Jenis Ibadat:</p>
+                <p>{getJenisIbadatBadge(selectedJadwal.jenisIbadat)}</p>
+                
+                <p className="font-medium">Sub Ibadat:</p>
+                <p>{selectedJadwal.subIbadat || "-"}</p>
+                
+                <p className="font-medium">Tema:</p>
+                <p>{selectedJadwal.temaIbadat || "-"}</p>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
       
-      {/* Filter Controls */}
-      <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 justify-between items-start sm:items-center">
-        <div className="relative w-full sm:w-64">
-          <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cari berdasarkan nama/alamat..."
-            className="pl-8"
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1); // Reset halaman saat pencarian berubah
-            }}
-          />
-        </div>
-        <div className="flex w-full sm:w-auto space-x-2">
-          <Select 
-            value={statusFilter} 
-            onValueChange={(value) => {
-              setStatusFilter(value);
-              setCurrentPage(1); // Reset halaman saat filter berubah
-            }}
-          >
-            <SelectTrigger className="w-full sm:w-[150px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="all">Semua Status</SelectItem>
-                <SelectItem value="terjadwal">Terjadwal</SelectItem>
-                <SelectItem value="selesai">Selesai</SelectItem>
-                <SelectItem value="dibatalkan">Dibatalkan</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-            className="h-10 w-10"
-          >
-            {sortOrder === "asc" ? "↑" : "↓"}
-          </Button>
-        </div>
-      </div>
-
       {/* Table */}
-      <div className="rounded-md border">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
+      <div className="border rounded-md overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[100px]">Tanggal</TableHead>
+              <TableHead className="min-w-[120px]">Tuan Rumah</TableHead>
+              <TableHead className="hidden md:table-cell">Alamat</TableHead>
+              <TableHead className="hidden md:table-cell">Telepon</TableHead>
+              <TableHead className="w-[120px] whitespace-nowrap">Status</TableHead>
+              <TableHead className="text-right">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {jadwal.length === 0 ? (
               <TableRow>
-                <TableHead className="w-[100px]">Tanggal</TableHead>
-                <TableHead>Waktu</TableHead>
-                <TableHead>Tuan Rumah</TableHead>
-                <TableHead className="hidden md:table-cell">Alamat</TableHead>
-                <TableHead className="hidden md:table-cell">No Telepon</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right sticky right-0 bg-white shadow-[-8px_0_10px_-6px_rgba(0,0,0,0.1)] z-10">Aksi</TableHead>
+                <TableCell colSpan={6} className="h-24 text-center">
+                  Tidak ada jadwal ditemukan
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedJadwal.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
-                    Tidak ada jadwal yang ditemukan.
+            ) : (
+              jadwal.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">
+                    {item.tanggal instanceof Date ? (
+                      format(item.tanggal, "dd MMM yyyy", { locale: id })
+                    ) : (
+                      format(new Date(item.tanggal), "dd MMM yyyy", { locale: id })
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{item.tuanRumah}</span>
+                      <span className="text-xs text-muted-foreground md:hidden">
+                        {item.alamat}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">{item.alamat}</TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {renderPhone(item)}
+                  </TableCell>
+                  <TableCell>{getStatusBadge(item.status)}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleShowDetail(item)}
+                      >
+                        <CalendarIcon className="h-4 w-4" />
+                        <span className="sr-only">View</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onEdit(item)}
+                      >
+                        <EditIcon className="h-4 w-4" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <TrashIcon className="h-4 w-4" />
+                            <span className="sr-only">Delete</span>
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Hapus Jadwal</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Apakah Anda yakin ingin menghapus jadwal ini? Tindakan ini tidak dapat dibatalkan.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Batal</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => onDelete(item.id)}>
+                              Hapus
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </TableCell>
                 </TableRow>
-              ) : (
-                paginatedJadwal.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">
-                      {format(item.tanggal, "dd MMM yyyy", { locale: id })}
-                    </TableCell>
-                    <TableCell>{item.waktu} WIB</TableCell>
-                    <TableCell>{item.tuanRumah}</TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <span className="truncate max-w-[200px]">{item.alamat}</span>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      {item.noTelepon ? (
-                        <span>{item.noTelepon}</span>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>{getStatusBadge(item.status)}</TableCell>
-                    <TableCell className="text-right sticky right-0 bg-white shadow-[-8px_0_10px_-6px_rgba(0,0,0,0.1)] z-10">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Buka menu</span>
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <DropdownMenuItem onClick={() => onEdit(item)}>
-                                  <span>Edit</span>
-                                </DropdownMenuItem>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Edit jadwal ini</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          
-                          <DropdownMenuSeparator />
-                          
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}>
-                                <span>Hapus</span>
-                              </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Apakah Anda yakin ingin menghapus jadwal pada 
-                                  {format(item.tanggal, " dd MMMM yyyy", { locale: id })} 
-                                  di rumah {item.tuanRumah}?
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Batal</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => onDelete(item.id)}
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
-                                  Hapus
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
       
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-between items-center mt-4">
-          <div className="text-sm text-muted-foreground">
-            Menampilkan {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredJadwal.length)} dari {filteredJadwal.length} jadwal
+      <div className="flex flex-col items-center justify-between gap-3 mt-2">
+        {/* Tombol Navigasi */}
+        <div className="flex items-center justify-center w-full gap-1 border rounded-md p-1.5 bg-gray-50">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage === 1}
+          >
+            <ChevronsLeftIcon className="h-3.5 w-3.5" />
+            <span className="sr-only">Halaman pertama</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeftIcon className="h-3.5 w-3.5" />
+            <span className="sr-only">Halaman sebelumnya</span>
+          </Button>
+          <div className="text-xs px-3 py-1 bg-white rounded border min-w-[60px] text-center">
+            {currentPage}/{Math.max(1, Math.ceil(jadwal.length / pageSize))}
           </div>
-          <div className="flex space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => setCurrentPage(prev => Math.min(Math.max(1, Math.ceil(jadwal.length / pageSize)), prev + 1))}
+            disabled={currentPage === Math.max(1, Math.ceil(jadwal.length / pageSize))}
+          >
+            <ChevronRightIcon className="h-3.5 w-3.5" />
+            <span className="sr-only">Halaman berikutnya</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => setCurrentPage(Math.max(1, Math.ceil(jadwal.length / pageSize)))}
+            disabled={currentPage === Math.max(1, Math.ceil(jadwal.length / pageSize))}
+          >
+            <ChevronsRightIcon className="h-3.5 w-3.5" />
+            <span className="sr-only">Halaman terakhir</span>
+          </Button>
+        </div>
+        
+        {/* Info Pages */}
+        <div className="flex items-center justify-center text-xs text-muted-foreground w-full">
+          <div className="flex items-center gap-1.5">
+            <span className="whitespace-nowrap">
+              {jadwal.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, jadwal.length)} dari {jadwal.length} jadwal
+            </span>
+            <span className="mx-1">•</span>
+            <Select
+              value={pageSize.toString()}
+              onValueChange={(value) => {
+                setPageSize(Number(value));
+                setCurrentPage(1); // Reset to first page when changing page size
+              }}
             >
-              Sebelumnya
-            </Button>
-            <div className="flex items-center space-x-1">
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                // Logic untuk menampilkan 5 halaman di sekitar halaman saat ini
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                
-                return (
-                  <Button
-                    key={pageNum}
-                    variant={currentPage === pageNum ? "default" : "outline"}
-                    size="sm"
-                    className={cn(
-                      "h-8 w-8 p-0",
-                      currentPage === pageNum && "bg-primary"
-                    )}
-                    onClick={() => setCurrentPage(pageNum)}
-                  >
-                    {pageNum}
-                  </Button>
-                );
-              })}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-            >
-              Berikutnya
-            </Button>
+              <SelectTrigger className="h-6 w-[54px] text-xs border-dashed">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent side="top">
+                {[5, 10, 20, 50, 100].map((size) => (
+                  <SelectItem key={size} value={size.toString()} className="text-xs">
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="whitespace-nowrap">per halaman</span>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 } 

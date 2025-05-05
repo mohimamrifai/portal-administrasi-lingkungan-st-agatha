@@ -3,41 +3,57 @@ import LoadingSkeleton from "./components/loading-skeleton";
 import AgendaContent from "./components/agenda-content";
 import { getAgendas } from "./actions";
 import { Agenda, ProcessTarget, AgendaStatus } from "./types";
+import { Pengajuan, TujuanPengajuan } from "@prisma/client";
+import { prisma } from "@/lib/db";
 
 export default async function AgendaPage() {
-  // Mengambil data agenda menggunakan server action
-  const agendaData = await getAgendas();
+  // Mengambil data agenda menggunakan server action dengan include user data
+  const agendaData = await prisma.pengajuan.findMany({
+    include: {
+      pengaju: {
+        select: {
+          id: true,
+          username: true,
+        }
+      }
+    },
+    orderBy: {
+      updatedAt: 'desc'
+    }
+  });
   
   // Mengkonversi tipe data dari database ke tipe Agenda
-  const agendas = agendaData.map(agenda => {
+  const agendas = agendaData.map((agenda) => {
     // Validasi target
-    const targetValue = ['lingkungan', 'stasi', 'paroki'].includes(agenda.target) 
-      ? agenda.target as ProcessTarget
-      : 'lingkungan' as ProcessTarget;
+    const targetValue = (() => {
+      switch (agenda.tujuan) {
+        case TujuanPengajuan.DPL: return 'lingkungan';
+        case TujuanPengajuan.STASI: return 'stasi';
+        case TujuanPengajuan.PAROKI: return 'paroki';
+        default: return 'lingkungan';
+      }
+    })() as ProcessTarget;
     
     // Validasi status
-    const validStatus = [
-      'open', 'processing_lingkungan', 'processing_stasi', 
-      'processing_paroki', 'forwarded_to_paroki', 'rejected', 'completed'
-    ];
-    const statusValue = validStatus.includes(agenda.status)
-      ? agenda.status as AgendaStatus
-      : 'open' as AgendaStatus;
+    const statusValue = agenda.status === 'OPEN' ? 'open' : 'completed' as AgendaStatus;
     
     return {
       id: agenda.id,
-      title: agenda.title,
-      description: agenda.description,
-      date: new Date(agenda.date),
-      location: agenda.location,
+      title: agenda.perihal,
+      description: agenda.alasanPenolakan || "",
+      date: new Date(agenda.tanggal),
+      location: agenda.alasanPenolakan || "", // Gunakan field lain yang tersedia
       target: targetValue,
       status: statusValue,
-      createdBy: agenda.createdBy,
+      createdBy: {
+        id: agenda.pengaju.id,
+        name: agenda.pengaju.username
+      },
       createdAt: new Date(agenda.createdAt),
       updatedAt: new Date(agenda.updatedAt),
       // Menambahkan completedAt jika statusnya completed, atau undefined
       completedAt: statusValue === 'completed' ? new Date() : undefined,
-      rejectionReason: agenda.rejectionReason || undefined
+      rejectionReason: agenda.alasanPenolakan || undefined
     } as Agenda;
   });
   

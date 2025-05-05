@@ -30,12 +30,12 @@ import { AgendaViewDialog } from "./agenda-view-dialog";
 
 interface AgendaTableProps {
   agendas: Agenda[];
-  onProcess: (id: number) => void;
-  onUpdateStatus: (id: number) => void;
-  onFinalResult: (id: number) => void;
-  onDelete: (id: number) => void;
-  onReject: (id: number) => void;
-  onEdit: (id: number) => void;
+  onProcess: (id: string) => void;
+  onUpdateStatus: (id: string) => void;
+  onFinalResult: (id: string) => void;
+  onDelete: (id: string) => void;
+  onReject: (id: string) => void;
+  onEdit: (id: string) => void;
   userRole?: string;
 }
 
@@ -54,14 +54,14 @@ export function AgendaTable({
   const [selectedAgenda, setSelectedAgenda] = useState<Agenda | undefined>(undefined);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   
-  // Helper untuk mendapatkan ID dari createdBy (yang bisa number atau object)
-  const getCreatedById = (createdBy: number | { id: number; name: string }): number => {
-    return typeof createdBy === 'number' ? createdBy : createdBy.id;
+  // Helper untuk mendapatkan ID dari createdBy (yang bisa string atau object)
+  const getCreatedById = (createdBy: string | { id: string; name: string }): string => {
+    return typeof createdBy === 'string' ? createdBy : createdBy.id;
   };
   
   // Helper untuk mendapatkan nama dari createdBy
-  const getCreatedByName = (createdBy: number | { id: number; name: string }): string => {
-    return typeof createdBy === 'number' ? `User ${createdBy}` : createdBy.name;
+  const getCreatedByName = (createdBy: string | { id: string; name: string }): string => {
+    return typeof createdBy === 'string' ? `User ${createdBy}` : createdBy.name;
   };
   
   const handleViewDetail = (agenda: Agenda) => {
@@ -157,7 +157,7 @@ export function AgendaTable({
     }
     
     const creatorId = getCreatedById(agenda.createdBy);
-    return creatorId === Number(userId);
+    return creatorId === userId;
   };
 
   const canDelete = (agenda: Agenda, role: string | undefined) => {

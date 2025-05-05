@@ -25,7 +25,7 @@ interface DeleteConfirmationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   familyHead: FamilyHead | null;
-  onConfirm: (id: number, reason: "moved" | "deceased", memberName?: string) => Promise<void>;
+  onConfirm: (id: string, reason: "moved" | "deceased", memberName?: string) => Promise<void>;
 }
 
 export function DeleteConfirmationDialog({
@@ -51,13 +51,13 @@ export function DeleteConfirmationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px] w-[95vw] max-w-[95vw] sm:w-auto">
         <DialogHeader>
-          <DialogTitle>Hapus Data Kepala Keluarga</DialogTitle>
+          <DialogTitle>Ubah Status Kepala Keluarga</DialogTitle>
           <DialogDescription>
-            Pilih alasan untuk menghapus data kepala keluarga ini
+            Pilih alasan untuk mengubah status kepala keluarga {familyHead?.nama}
           </DialogDescription>
         </DialogHeader>
         
-        <div className="py-4 space-y-4">
+        <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="delete-reason">Alasan</Label>
             <Select 
@@ -75,7 +75,7 @@ export function DeleteConfirmationDialog({
 
             {deleteReason === "moved" && (
               <p className="text-sm text-muted-foreground mt-2">
-                Memilih alasan "Pindah" akan mengubah status kepala keluarga menjadi "Pindah" dan menjadwalkan penghapusan data dalam 1 tahun 1 bulan.
+                Memilih alasan "Pindah" akan mencatat tanggal kepindahan keluarga dan mengubah statusnya di sistem.
               </p>
             )}
           </div>
@@ -90,13 +90,13 @@ export function DeleteConfirmationDialog({
                 onChange={(e) => setDeceasedMemberName(e.target.value)}
               />
               <p className="text-sm text-muted-foreground">
-                Informasi ini akan digunakan untuk memperbarui status anggota keluarga yang meninggal.
+                Informasi ini akan digunakan untuk mencatat data kematian anggota keluarga.
               </p>
             </div>
           )}
         </div>
 
-        <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
+        <DialogFooter className="flex sm:flex-row gap-2 mt-4">
           <Button 
             variant="outline" 
             onClick={() => onOpenChange(false)}

@@ -172,7 +172,7 @@ const PDFDocument = ({
                   <Text style={styles.tableCell}>{item.alamat}</Text>
                 </View>
                 <View style={styles.tableCol}>
-                  <Text style={styles.tableCell}>{item.catatan || "-"}</Text>
+                  <Text style={styles.tableCell}>{item.temaIbadat || "-"}</Text>
                 </View>
               </View>
             ))

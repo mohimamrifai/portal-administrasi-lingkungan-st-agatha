@@ -8,14 +8,15 @@ import { revalidatePath } from "next/cache";
 
 export type NotificationType = "info" | "success" | "warning" | "error";
 
+// Sesuaikan dengan model Notification di Prisma schema
 export interface NotificationData {
-  title: string;
-  message: string;
-  type: NotificationType;
-  recipientId?: number;
-  senderId?: number;
-  relatedItemId?: number;
-  relatedItemType?: string;
+  title?: string; // Tidak ada di model, untuk UI saja
+  message: string; // Ini akan disimpan ke field 'pesan'
+  type: NotificationType; // Untuk UI, tidak disimpan di model
+  recipientId?: string; // Akan disimpan sebagai userId
+  senderId?: string; // Tidak disimpan, hanya untuk referensi
+  relatedItemId?: number; // Tidak disimpan, hanya untuk referensi
+  relatedItemType?: string; // Tidak disimpan, hanya untuk referensi
 }
 
 export interface NotificationResponse {
@@ -37,20 +38,16 @@ export async function createNotification(data: NotificationData): Promise<Notifi
     if (!senderId) {
       const session = await getServerSession(authOptions);
       if (session?.user?.id) {
-        senderId = Number(session.user.id);
+        senderId = session.user.id;
       }
     }
     
-    // Buat notifikasi baru
+    // Buat notifikasi baru sesuai model Prisma
     const notification = await prisma.notification.create({
       data: {
-        title: data.title,
-        message: data.message,
-        type: data.type,
-        recipientId: data.recipientId,
-        senderId,
-        relatedItemId: data.relatedItemId,
-        relatedItemType: data.relatedItemType,
+        pesan: data.message,
+        dibaca: false,
+        userId: data.recipientId || "",
       }
     });
     
@@ -86,7 +83,7 @@ export async function getUserNotifications(limit = 10): Promise<any[]> {
       return [];
     }
     
-    const userId = Number(session.user.id);
+    const userId = session.user.id;
     
     // Hitung tanggal 1 hari yang lalu
     const oneDayAgo = new Date();
@@ -96,14 +93,14 @@ export async function getUserNotifications(limit = 10): Promise<any[]> {
     // Filter: hanya yang belum dibaca dan kurang dari 1 hari
     const notifications = await prisma.notification.findMany({
       where: {
-        recipientId: userId,
-        isRead: false,
-        timestamp: {
+        userId: userId,
+        dibaca: false,
+        createdAt: {
           gte: oneDayAgo
         }
       },
       orderBy: {
-        timestamp: 'desc'
+        createdAt: 'desc'
       },
       take: limit
     });
@@ -118,7 +115,7 @@ export async function getUserNotifications(limit = 10): Promise<any[]> {
 /**
  * Mendapatkan notifikasi berdasarkan ID
  */
-export async function getNotificationById(notificationId: number): Promise<any | null> {
+export async function getNotificationById(notificationId: string): Promise<any | null> {
   noStore();
   
   try {
@@ -128,7 +125,7 @@ export async function getNotificationById(notificationId: number): Promise<any |
       return null;
     }
     
-    const userId = Number(session.user.id);
+    const userId = session.user.id;
     
     // Ambil notifikasi berdasarkan ID
     const notification = await prisma.notification.findUnique({
@@ -138,7 +135,7 @@ export async function getNotificationById(notificationId: number): Promise<any |
     });
     
     // Pastikan user adalah penerima notifikasi tersebut
-    if (!notification || notification.recipientId !== userId) {
+    if (!notification || notification.userId !== userId) {
       return null;
     }
     
@@ -152,7 +149,7 @@ export async function getNotificationById(notificationId: number): Promise<any |
 /**
  * Menandai notifikasi sebagai telah dibaca
  */
-export async function markNotificationAsRead(notificationId: number): Promise<NotificationResponse> {
+export async function markNotificationAsRead(notificationId: string): Promise<NotificationResponse> {
   noStore();
   
   try {
@@ -165,14 +162,14 @@ export async function markNotificationAsRead(notificationId: number): Promise<No
       };
     }
     
-    const userId = Number(session.user.id);
+    const userId = session.user.id;
     
     // Periksa apakah notifikasi milik user
     const notification = await prisma.notification.findUnique({
       where: { id: notificationId }
     });
     
-    if (!notification || notification.recipientId !== userId) {
+    if (!notification || notification.userId !== userId) {
       return {
         success: false,
         message: "Notifikasi tidak ditemukan atau tidak berhak mengaksesnya"
@@ -182,7 +179,7 @@ export async function markNotificationAsRead(notificationId: number): Promise<No
     // Update notifikasi
     await prisma.notification.update({
       where: { id: notificationId },
-      data: { isRead: true }
+      data: { dibaca: true }
     });
     
     return {
@@ -214,15 +211,15 @@ export async function markAllNotificationsAsRead(): Promise<NotificationResponse
       };
     }
     
-    const userId = Number(session.user.id);
+    const userId = session.user.id;
     
     // Update semua notifikasi milik user yang belum dibaca
     await prisma.notification.updateMany({
       where: { 
-        recipientId: userId,
-        isRead: false
+        userId: userId,
+        dibaca: false
       },
-      data: { isRead: true }
+      data: { dibaca: true }
     });
     
     // Revalidasi path notifikasi
@@ -254,7 +251,7 @@ export async function getUnreadNotificationsCount(): Promise<number> {
       return 0;
     }
     
-    const userId = Number(session.user.id);
+    const userId = session.user.id;
     
     // Hitung tanggal 1 hari yang lalu
     const oneDayAgo = new Date();
@@ -263,9 +260,9 @@ export async function getUnreadNotificationsCount(): Promise<number> {
     // Hitung jumlah notifikasi yang belum dibaca
     const count = await prisma.notification.count({
       where: {
-        recipientId: userId,
-        isRead: false,
-        timestamp: {
+        userId: userId,
+        dibaca: false,
+        createdAt: {
           gte: oneDayAgo
         }
       }
@@ -281,7 +278,7 @@ export async function getUnreadNotificationsCount(): Promise<number> {
 /**
  * Menghapus notifikasi
  */
-export async function deleteNotification(notificationId: number): Promise<NotificationResponse> {
+export async function deleteNotification(notificationId: string): Promise<NotificationResponse> {
   noStore();
   
   try {
@@ -294,14 +291,14 @@ export async function deleteNotification(notificationId: number): Promise<Notifi
       };
     }
     
-    const userId = Number(session.user.id);
+    const userId = session.user.id;
     
     // Periksa apakah notifikasi milik user
     const notification = await prisma.notification.findUnique({
       where: { id: notificationId }
     });
     
-    if (!notification || notification.recipientId !== userId) {
+    if (!notification || notification.userId !== userId) {
       return {
         success: false,
         message: "Notifikasi tidak ditemukan atau tidak berhak mengaksesnya"

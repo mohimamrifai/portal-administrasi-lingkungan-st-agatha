@@ -1,87 +1,69 @@
-export interface JadwalDoling {
-  id: number
-  tanggal: Date
-  waktu: string
-  tuanRumahId?: number
-  tuanRumah: string
-  alamat: string
-  noTelepon?: string
-  catatan?: string
-  status: 'terjadwal' | 'selesai' | 'dibatalkan'
-  createdAt: Date
-  updatedAt: Date
-}
+import { JenisIbadat, SubIbadat, StatusApproval } from "@prisma/client";
+import { DolingData, AbsensiData, KeluargaForSelect } from "../actions";
 
-export interface DetilDoling {
-  id: number
-  jadwalId?: number
-  tanggal: Date
-  tuanRumah: string
-  jumlahHadir: number
-  jenisIbadat?: string
-  subIbadat?: string
-  temaIbadat?: string
-  kegiatan: string
-  biaya?: number
-  koleksi?: number
-  keterangan?: string
-  status: 'selesai' | 'dibatalkan'
-  sudahDiapprove?: boolean
-  createdAt: Date
-  updatedAt: Date
-  // Data kehadiran
-  jumlahKKHadir?: number // Jumlah KK yang hadir
-  jumlahBapak?: number
-  jumlahIbu?: number
-  jumlahOMK?: number
-  jumlahBIAKecil?: number  // BIA (0-6 tahun)
-  jumlahBIABesar?: number  // BIA (7-13 tahun)
-  jumlahBIR?: number
-  jumlahPeserta?: number   // Jumlah peserta (khusus Misa)
-  // Data kolekte
-  kolekte1?: number
-  kolekte2?: number
-  ucapanSyukur?: number
-  // Data petugas untuk Doa Lingkungan
-  pemimpinLiturgi?: string
-  petugasRosario?: string
-  pembawaRenungan?: string  // Tambahan sesuai brief
-  petugasLagu?: string
-  petugasDoaUmat?: string   // Tambahan sesuai brief
-  petugasBacaan?: string
-  // Data petugas untuk Misa
-  pemimpinMisa?: string     // Tambahan sesuai brief
-  bacaanPertama?: string    // Tambahan sesuai brief
-  pemazmur?: string         // Tambahan sesuai brief
-}
+// Re-export types dari action untuk penggunaan di komponen
+export type { DolingData, AbsensiData, KeluargaForSelect } from "../actions";
 
-export interface AbsensiDoling {
-  id: number
-  jadwalId: number        // ID jadwal doling terkait
-  detilDolingId?: number  // ID detail doling jika diperlukan
-  tanggalKehadiran: Date  // Tanggal kehadiran
-  nama: string
-  kepalaKeluarga: boolean
-  kehadiran: 'hadir' | 'tidak-hadir'
-  keterangan?: string
-  createdAt: Date
-  updatedAt: Date
-}
+// Menggantikan tipe-tipe lama dengan tipe-tipe yang kompatibel 
+// dengan Prisma dan server actions
 
+// Alias untuk JadwalDoling (kompatibilitas dengan kode lama)
+export type JadwalDoling = DolingData;
+
+// Alias untuk DetilDoling (kompatibilitas dengan kode lama)
+export type DetilDoling = DolingData;
+
+// Alias untuk AbsensiDoling (kompatibilitas dengan kode lama)
+export type AbsensiDoling = AbsensiData;
+
+// Tipe untuk riwayat kehadiran
 export interface RiwayatDoling {
-  nama: string
-  totalHadir: number
-  persentase: number
+  nama: string;
+  totalHadir: number;
+  persentase: number;
 }
 
+// Tipe untuk rekapitulasi kegiatan
 export interface RekapitulasiKegiatan {
-  bulan: string
-  jumlahKegiatan: number
-  rataRataHadir: number
+  bulan: string;
+  jumlahKegiatan: number;
+  rataRataHadir: number;
 }
 
+// Tipe untuk data kaleidoskop
 export interface KaleidoskopData {
-  totalKegiatan: number
-  rataRataKehadiran: number
-  totalKKAktif: number
-} 
+  totalKegiatan: number;
+  rataRataKehadiran: number;
+  totalKKAktif: number;
+}
+
+// Mapping untuk jenis ibadat yang dapat dibaca manusia
+export const jenisIbadatOptions = [
+  { value: JenisIbadat.DOA_LINGKUNGAN, label: "Doa Lingkungan" },
+  { value: JenisIbadat.MISA, label: "Misa" },
+  { value: JenisIbadat.PERTEMUAN, label: "Pertemuan" },
+  { value: JenisIbadat.BAKTI_SOSIAL, label: "Bakti Sosial" },
+  { value: JenisIbadat.KEGIATAN_LAIN, label: "Kegiatan Lain" },
+];
+
+// Mapping untuk sub ibadat yang dapat dibaca manusia
+export const subIbadatOptions = [
+  { value: SubIbadat.IBADAT_SABDA, label: "Ibadat Sabda" },
+  { value: SubIbadat.IBADAT_SABDA_TEMATIK, label: "Ibadat Sabda Tematik" },
+  { value: SubIbadat.PRAPASKAH, label: "Prapaskah" },
+  { value: SubIbadat.BKSN, label: "BKSN" },
+  { value: SubIbadat.BULAN_ROSARIO, label: "Bulan Rosario" },
+  { value: SubIbadat.NOVENA_NATAL, label: "Novena Natal" },
+  { value: SubIbadat.MISA_SYUKUR, label: "Misa Syukur" },
+  { value: SubIbadat.MISA_REQUEM, label: "Misa Requem" },
+  { value: SubIbadat.MISA_ARWAH, label: "Misa Arwah" },
+  { value: SubIbadat.MISA_PELINDUNG, label: "Misa Pelindung" },
+];
+
+// Mapping untuk status yang dapat dibaca manusia
+export const statusOptions = [
+  { value: "terjadwal", label: "Terjadwal", color: "bg-yellow-100 text-yellow-800 border-yellow-200" },
+  { value: "menunggu", label: "Menunggu Approval", color: "bg-blue-100 text-blue-800 border-blue-200" },
+  { value: "selesai", label: "Selesai", color: "bg-green-100 text-green-800 border-green-200" },
+  { value: "dibatalkan", label: "Dibatalkan", color: "bg-red-100 text-red-800 border-red-200" },
+]; 

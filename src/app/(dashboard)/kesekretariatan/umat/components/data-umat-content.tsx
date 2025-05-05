@@ -13,71 +13,67 @@ import { useRouter } from "next/navigation"
 import { AlertCircle, PlusIcon } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { exportFamilyHeadTemplate } from "../utils/export-template"
+import { addFamilyHead, getAllFamilyHeads, markFamilyAsDeceased, markFamilyAsMoved, updateFamilyHead } from "../actions"
+import { StatusKehidupan } from "@prisma/client"
 
-// Mock data - in a real app, this would come from an API
-const mockFamilyHeads: FamilyHead[] = [
-    {
-        id: 1,
-        name: "Budi Santoso",
-        address: "Jl. Merdeka No. 123",
-        phoneNumber: "081234567890",
-        joinDate: new Date(2020, 1, 15),
-        childrenCount: 2,
-        relativesCount: 0,
-        familyMembersCount: 4,
-        status: "active",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-    },
-    {
-        id: 2,
-        name: "Ani Wijaya",
-        address: "Jl. Sudirman No. 456",
-        phoneNumber: "089876543210",
-        joinDate: new Date(2021, 5, 10),
-        childrenCount: 1,
-        relativesCount: 1,
-        familyMembersCount: 3,
-        status: "moved",
-        scheduledDeleteDate: new Date(2022, 6, 10),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-    },
-]
+interface DataUmatContentProps {
+    initialFamilyHeads?: FamilyHead[];
+}
 
-export default function DataUmatContent() {
+export default function DataUmatContent({ initialFamilyHeads = [] }: DataUmatContentProps) {
     const { userRole } = useAuth()
     const router = useRouter()
     const [searchQuery, setSearchQuery] = useState("")
     const [isFormDialogOpen, setIsFormDialogOpen] = useState(false)
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
     const [selectedFamilyHead, setSelectedFamilyHead] = useState<FamilyHead | undefined>()
-    const [familyHeads, setFamilyHeads] = useState<FamilyHead[]>(mockFamilyHeads)
+    const [familyHeads, setFamilyHeads] = useState<FamilyHead[]>(initialFamilyHeads)
+    const [isLoading, setIsLoading] = useState(initialFamilyHeads.length === 0)
 
     // Cek apakah pengguna memiliki hak akses
-    const hasAccess = [
-        'SuperUser',
-        'ketuaLingkungan',
-        'sekretaris',
-        'wakilSekretaris',
-        'adminLingkungan'
-    ].includes(userRole)
+    const hasAccess = userRole ? [
+        'SUPER_USER',
+        'KETUA',
+        'WAKIL_KETUA',
+        'SEKRETARIS',
+        'WAKIL_SEKRETARIS',
+    ].includes(userRole) : false;
 
     // Redirect jika tidak memiliki akses
     useEffect(() => {
-        if (!hasAccess) {
+        if (userRole && !hasAccess) {
             toast.error("Anda tidak memiliki akses ke halaman ini")
             router.push("/dashboard")
         }
-    }, [hasAccess, router])
+    }, [hasAccess, router, userRole])
 
     // Cek akses untuk edit dan hapus data
-    const canModifyData = [
-        'SuperUser',
-        'sekretaris',
-        'wakilSekretaris',
-        'adminLingkungan'
-    ].includes(userRole)
+    const canModifyData = userRole ? [
+        'SUPER_USER',
+        'SEKRETARIS',
+        'WAKIL_SEKRETARIS',
+    ].includes(userRole) : false;
+
+    // Fetch data keluarga umat
+    useEffect(() => {
+        async function fetchData() {
+            try {
+                setIsLoading(true)
+                const data = await getAllFamilyHeads();
+                setFamilyHeads(data);
+            } catch (error) {
+                console.error("Error fetching family heads:", error);
+                toast.error("Gagal mengambil data keluarga umat");
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        // Hanya fetch data jika tidak ada initial data
+        if (initialFamilyHeads.length === 0) {
+            fetchData();
+        }
+    }, [initialFamilyHeads.length]);
 
     const handleAddFamilyHead = async (values: FamilyHeadFormValues) => {
         if (!canModifyData) {
@@ -85,14 +81,26 @@ export default function DataUmatContent() {
             return
         }
 
-        // In a real app, this would be an API call
-        const newFamilyHead: FamilyHead = {
-            id: familyHeads.length + 1,
-            ...values,
-            createdAt: new Date(),
-            updatedAt: new Date(),
+        try {
+            // Konversi tanggal dari null ke undefined
+            const formattedValues = {
+                ...values,
+                nomorTelepon: values.nomorTelepon || undefined,
+                tanggalKeluar: values.tanggalKeluar === null ? undefined : values.tanggalKeluar,
+                tanggalMeninggal: values.tanggalMeninggal === null ? undefined : values.tanggalMeninggal
+            };
+
+            await addFamilyHead(formattedValues);
+            
+            // Refresh data
+            const data = await getAllFamilyHeads();
+            setFamilyHeads(data);
+            toast.success("Berhasil menambahkan data keluarga baru");
+            setIsFormDialogOpen(false);
+        } catch (error) {
+            console.error("Error adding family head:", error);
+            toast.error("Gagal menambahkan data keluarga");
         }
-        setFamilyHeads([...familyHeads, newFamilyHead])
     }
 
     const handleEditFamilyHead = async (values: FamilyHeadFormValues) => {
@@ -101,63 +109,50 @@ export default function DataUmatContent() {
             return
         }
 
-        // In a real app, this would be an API call
-        const updatedFamilyHeads = familyHeads.map((familyHead) =>
-            familyHead.id === selectedFamilyHead.id
-                ? { ...familyHead, ...values, updatedAt: new Date() }
-                : familyHead
-        )
-        setFamilyHeads(updatedFamilyHeads)
+        try {
+            // Konversi tanggal dari null ke undefined
+            const formattedValues = {
+                ...values,
+                nomorTelepon: values.nomorTelepon || undefined,
+                tanggalKeluar: values.tanggalKeluar === null ? undefined : values.tanggalKeluar,
+                tanggalMeninggal: values.tanggalMeninggal === null ? undefined : values.tanggalMeninggal
+            };
+
+            await updateFamilyHead(selectedFamilyHead.id, formattedValues);
+            
+            // Refresh data
+            const data = await getAllFamilyHeads();
+            setFamilyHeads(data);
+            toast.success("Berhasil mengupdate data keluarga");
+            setIsFormDialogOpen(false);
+        } catch (error) {
+            console.error("Error updating family head:", error);
+            toast.error("Gagal mengupdate data keluarga");
+        }
     }
 
-    const handleDeleteFamilyHead = async (id: number, reason: "moved" | "deceased", memberName?: string) => {
+    const handleDeleteFamilyHead = async (id: string, reason: "moved" | "deceased", memberName?: string) => {
         if (!canModifyData) {
             toast.error("Anda tidak memiliki izin untuk menghapus data")
             return
         }
 
-        // In a real app, this would be an API call
-        const targetFamilyHead = familyHeads.find(familyHead => familyHead.id === id)
-        if (!targetFamilyHead) return;
-
-        let updatedFamilyHeads;
-
-        if (reason === "moved") {
-            // Jika alasan pindah, jadwalkan penghapusan 1 tahun 1 bulan dari sekarang
-            const deleteDate = new Date();
-            deleteDate.setMonth(deleteDate.getMonth() + 13); // 1 tahun 1 bulan
-
-            updatedFamilyHeads = familyHeads.map(familyHead => 
-                familyHead.id === id 
-                    ? { 
-                        ...familyHead, 
-                        status: "moved", 
-                        scheduledDeleteDate: deleteDate,
-                        updatedAt: new Date()
-                    } 
-                    : familyHead
-            );
+        try {
+            if (reason === "moved") {
+                await markFamilyAsMoved(id);
+                toast.success("Status keluarga berhasil diubah menjadi Pindah");
+            } else if (reason === "deceased") {
+                await markFamilyAsDeceased(id);
+                toast.success("Status keluarga berhasil diubah menjadi Meninggal");
+            }
             
-            // Dalam aplikasi sesungguhnya, kirim data ini ke backend untuk dijadwalkan
-            console.log(`Keluarga ${targetFamilyHead.name} akan dihapus pada ${deleteDate.toISOString()}`);
-        } else if (reason === "deceased") {
-            // Jika alasan meninggal, perbarui status dan catat anggota keluarga yang meninggal
-            updatedFamilyHeads = familyHeads.map(familyHead => 
-                familyHead.id === id 
-                    ? { 
-                        ...familyHead, 
-                        status: "deceased", 
-                        deceasedMemberName: memberName,
-                        updatedAt: new Date()
-                    } 
-                    : familyHead
-            );
-            
-            // Dalam aplikasi sesungguhnya, kirim data ini ke backend untuk memperbarui database
-            console.log(`Anggota keluarga ${memberName} dari keluarga ${targetFamilyHead.name} telah meninggal`);
+            // Refresh data
+            const data = await getAllFamilyHeads();
+            setFamilyHeads(data);
+        } catch (error) {
+            console.error("Error deleting family head:", error);
+            toast.error("Gagal memperbarui status keluarga");
         }
-
-        setFamilyHeads(updatedFamilyHeads as FamilyHead[]);
     }
 
     const handleDownloadTemplate = () => {
@@ -178,12 +173,23 @@ export default function DataUmatContent() {
         setIsImportDialogOpen(true);
     }
 
-    const handleImportComplete = (newFamilyHeads: FamilyHead[]) => {
-        setFamilyHeads([...familyHeads, ...newFamilyHeads]);
+    const handleImportComplete = async (newFamilyHeads: FamilyHead[]) => {
+        // Refresh data setelah import
+        try {
+            const data = await getAllFamilyHeads();
+            setFamilyHeads(data);
+            toast.success(`Berhasil mengimpor ${newFamilyHeads.length} data keluarga`);
+        } catch (error) {
+            console.error("Error refreshing data after import:", error);
+        }
     };
 
-    if (!hasAccess) {
+    if (userRole === undefined) {
         return <div className="flex justify-center items-center h-64">Memeriksa akses...</div>
+    }
+
+    if (!hasAccess && userRole !== null) {
+        return <div className="flex justify-center items-center h-64">Anda tidak memiliki akses ke halaman ini</div>
     }
 
     return (
@@ -198,7 +204,7 @@ export default function DataUmatContent() {
                 </Alert>
             )}
 
-                <h2 className="text-2xl font-bold">Data Umat</h2>
+            <h2 className="text-2xl font-bold">Data Umat</h2>
             <div className="flex flex-col sm:flex-row justify-between items-center w-full gap-4 mb-2">
                 {canModifyData && (
                     <Button
@@ -217,6 +223,7 @@ export default function DataUmatContent() {
 
             <FamilyHeadsTable
                 familyHeads={familyHeads}
+                isLoading={isLoading}
                 onEdit={(familyHead) => {
                     if (!canModifyData) {
                         toast.error("Anda tidak memiliki izin untuk mengubah data")

@@ -58,8 +58,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 interface DetilDolingTableProps {
   detil: DetilDoling[]
   onEdit: (detil: DetilDoling) => void
-  onDelete: (id: number) => void
-  onApprove?: (id: number) => void
+  onDelete: (id: string) => void
+  onApprove?: (id: string) => void
 }
 
 export function DetilDolingTable({ 
@@ -89,7 +89,7 @@ export function DetilDolingTable({
   };
 
   // Handle approve click
-  const handleApproveClick = (id: number) => {
+  const handleApproveClick = (id: string) => {
     if (onApprove) {
       onApprove(id);
     } else {
@@ -102,8 +102,8 @@ export function DetilDolingTable({
     const matchesSearch = 
       searchTerm === "" || 
       item.tuanRumah.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.kegiatan.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.keterangan && item.keterangan.toLowerCase().includes(searchTerm.toLowerCase()));
+      (item.temaIbadat && item.temaIbadat.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (item.jenisIbadat && item.jenisIbadat.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesStatus = 
       statusFilter === null || 
@@ -111,8 +111,8 @@ export function DetilDolingTable({
     
     const matchesApproval = 
       approveFilter === null || 
-      (approveFilter === "approved" && item.sudahDiapprove) ||
-      (approveFilter === "notApproved" && !item.sudahDiapprove);
+      (approveFilter === "approved" && item.approved) ||
+      (approveFilter === "notApproved" && !item.approved);
     
     return matchesSearch && matchesStatus && matchesApproval;
   });
@@ -180,8 +180,8 @@ export function DetilDolingTable({
   };
 
   // Helper untuk approval status
-  const getApprovalStatus = (sudahDiapprove?: boolean) => {
-    if (sudahDiapprove) {
+  const getApprovalStatus = (approved?: boolean) => {
+    if (approved) {
       return (
         <div className="flex items-center gap-1 text-green-600">
           <CheckCircleIcon className="h-4 w-4" />
@@ -301,15 +301,15 @@ export function DetilDolingTable({
                     {item.temaIbadat || "-"}
                   </TableCell>
                   <TableCell>
-                    {item.koleksi ? formatRupiah(item.koleksi) : "-"}
+                    {formatRupiah(item.kolekteI + item.kolekteII)}
                   </TableCell>
                   <TableCell>
-                    {item.jumlahHadir} orang
+                    {item.jumlahKKHadir} orang
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-1">
                       {getStatusBadge(item.status)}
-                      {getApprovalStatus(item.sudahDiapprove)}
+                      {getApprovalStatus(item.approved)}
                     </div>
                   </TableCell>
                   <TableCell className="sticky right-0 bg-white shadow-sm">
@@ -349,7 +349,7 @@ export function DetilDolingTable({
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
-                        {!item.sudahDiapprove && (
+                        {!item.approved && (
                           <>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleApproveClick(item.id)}>

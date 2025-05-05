@@ -10,6 +10,7 @@ import { z } from "zod";
 import { uploadFile, updateFile, deleteFile } from "@/lib/uploads";
 import { createNotification } from "@/lib/notifications";
 import { getCurrentJakartaTime } from '@/lib/date-utils';
+import { Prisma, Role, StatusApproval, StatusPengajuan, TindakLanjut, UpdateStatus, HasilAkhir, TujuanPengajuan } from "@prisma/client";
 
 // Schema validasi untuk agenda
 const agendaSchema = z.object({
@@ -27,12 +28,27 @@ type ActionResponse = {
   data?: any;
 };
 
+// Buat tipe untuk NotificationData dengan recipientId dan senderId sebagai string
+type NotificationData = {
+  title: string;
+  message: string;
+  type: "info" | "success" | "warning" | "error";
+  recipientId?: string;
+  senderId?: string;
+  relatedItemId?: number;
+  relatedItemType?: string;
+};
+
 // Fungsi untuk mendapatkan daftar agenda
 export async function getAgendas() {
   noStore();
   
   try {
-    const agendas = await prisma.agenda.findMany({
+    // Menggunakan model Agenda yang telah dibuat di Prisma
+    const agendas = await prisma.pengajuan.findMany({
+      where: { 
+        /* Gunakan kondisi yang sesuai atau tidak perlu filter tipe */
+      },
       orderBy: {
         updatedAt: 'desc'
       }
@@ -46,11 +62,11 @@ export async function getAgendas() {
 }
 
 // Fungsi untuk mendapatkan agenda berdasarkan ID
-export async function getAgendaById(id: number) {
+export async function getAgendaById(id: string) {
   noStore();
   
   try {
-    const agenda = await prisma.agenda.findUnique({
+    const agenda = await prisma.pengajuan.findUnique({
       where: { id }
     });
     
@@ -66,29 +82,6 @@ export async function createAgenda(formData: AgendaFormValues): Promise<ActionRe
   noStore();
   
   try {
-    // Proses file lampiran jika ada
-    let attachmentData: AgendaAttachment | undefined;
-    
-    if (formData.attachment) {
-      // Upload file
-      const fileBuffer = await formData.attachment.arrayBuffer();
-      const originalFilename = formData.attachment.name;
-      const fileType = formData.attachment.type;
-      
-      const { fileName, fileUrl } = await uploadFile(
-        Buffer.from(fileBuffer),
-        originalFilename,
-        'agenda'
-      );
-      
-      attachmentData = {
-        fileName,
-        originalName: originalFilename,
-        fileUrl,
-        fileType
-      };
-    }
-    
     // Dapatkan data user dari session
     const session = await getServerSession(authOptions);
     
@@ -107,11 +100,11 @@ export async function createAgenda(formData: AgendaFormValues): Promise<ActionRe
     }
     
     // Cara alternatif untuk mendapatkan userId jika tidak ada di session
-    let userId: number;
+    let userId: string;
     
     if (session.user.id) {
       // Gunakan ID yang ada di session
-      userId = Number(session.user.id);
+      userId = session.user.id;
     } else {
       // Cari user berdasarkan nama pengguna sebagai fallback
       const username = session.user.name;
@@ -137,17 +130,26 @@ export async function createAgenda(formData: AgendaFormValues): Promise<ActionRe
       userId = user.id;
     }
 
+    // Konversi target ke TujuanPengajuan enum
+    let targetEnum: TujuanPengajuan;
+    if (formData.target === 'lingkungan') {
+      targetEnum = TujuanPengajuan.DPL;
+    } else if (formData.target === 'stasi') {
+      targetEnum = TujuanPengajuan.STASI;
+    } else {
+      targetEnum = TujuanPengajuan.PAROKI;
+    }
+
     // Buat agenda baru dengan userId yang didapatkan
-    const newAgenda = await prisma.agenda.create({
+    const newAgenda = await prisma.pengajuan.create({
       data: {
-        title: formData.title,
-        description: formData.description,
-        date: formData.date,
-        location: formData.location,
-        target: formData.target,
-        status: "open",
-        attachment: attachmentData ? JSON.stringify(attachmentData) : null,
-        createdBy: userId
+        perihal: formData.title,
+        alasanPenolakan: formData.description,
+        tanggal: formData.date,
+        tindakLanjut: null,
+        tujuan: targetEnum,
+        status: StatusPengajuan.OPEN,
+        pengajuId: userId
       }
     });
 
@@ -156,10 +158,10 @@ export async function createAgenda(formData: AgendaFormValues): Promise<ActionRe
     if (formData.target === 'lingkungan' || formData.target === 'stasi' || formData.target === 'paroki') {
       // Fetch users with role that matches the target
       const adminRole = formData.target === 'lingkungan' 
-        ? 'ketuaLingkungan' 
+        ? Role.KETUA 
         : formData.target === 'stasi' 
-          ? 'wakilKetua' 
-          : 'SuperUser';
+          ? Role.WAKIL_KETUA 
+          : Role.SUPER_USER;
       
       // Get admins based on role
       const admins = await prisma.user.findMany({
@@ -171,7 +173,7 @@ export async function createAgenda(formData: AgendaFormValues): Promise<ActionRe
         }
       });
       
-      // Create notifications for each admin
+      // Create notifications for each admin using their string IDs directly
       for (const admin of admins) {
         await createNotification({
           title: "Agenda Baru Dibuat",
@@ -179,9 +181,9 @@ export async function createAgenda(formData: AgendaFormValues): Promise<ActionRe
           type: "info",
           recipientId: admin.id,
           senderId: userId,
-          relatedItemId: newAgenda.id,
+          relatedItemId: parseInt(newAgenda.id),
           relatedItemType: "Agenda"
-        });
+        } as NotificationData);
       }
     }
 
@@ -191,10 +193,7 @@ export async function createAgenda(formData: AgendaFormValues): Promise<ActionRe
     return {
       success: true,
       message: "Agenda berhasil dibuat",
-      data: {
-        ...newAgenda,
-        attachment: attachmentData
-      }
+      data: newAgenda
     };
   } catch (error) {
     console.error("Error creating agenda:", error);
@@ -215,12 +214,12 @@ export async function createAgenda(formData: AgendaFormValues): Promise<ActionRe
 }
 
 // Fungsi untuk memperbarui agenda yang sudah ada
-export async function updateAgenda(id: number, formData: AgendaFormValues): Promise<ActionResponse> {
+export async function updateAgenda(id: string, formData: AgendaFormValues): Promise<ActionResponse> {
   noStore();
   
   try {
-    // Ambil data agenda saat ini untuk pengecekan attachment
-    const currentAgenda = await prisma.agenda.findUnique({
+    // Ambil data agenda saat ini untuk pengecekan
+    const currentAgenda = await prisma.pengajuan.findUnique({
       where: { id }
     });
     
@@ -230,101 +229,48 @@ export async function updateAgenda(id: number, formData: AgendaFormValues): Prom
         message: "Agenda tidak ditemukan"
       };
     }
-    
-    // Parse attachment yang ada (jika ada)
-    let existingAttachment: AgendaAttachment | null = null;
-    if (currentAgenda.attachment) {
-      try {
-        existingAttachment = JSON.parse(currentAgenda.attachment as string);
-      } catch (e) {
-        console.error("Error parsing existing attachment:", e);
-      }
+
+    // Konversi target ke TujuanPengajuan enum
+    let targetEnum: TujuanPengajuan;
+    if (formData.target === 'lingkungan') {
+      targetEnum = TujuanPengajuan.DPL;
+    } else if (formData.target === 'stasi') {
+      targetEnum = TujuanPengajuan.STASI;
+    } else {
+      targetEnum = TujuanPengajuan.PAROKI;
     }
     
-    // Proses file lampiran baru jika ada
-    let attachmentData: AgendaAttachment | undefined | null = existingAttachment;
-    
-    // Jika user ingin menghapus lampiran
-    if (formData.removeAttachment && existingAttachment) {
-      try {
-        await deleteFile(existingAttachment.fileName, 'agenda');
-        attachmentData = null;
-      } catch (error) {
-        console.error("Error deleting file:", error);
-      }
-    }
-    // Jika ada file baru, upload
-    else if (formData.attachment) {
-      const fileBuffer = await formData.attachment.arrayBuffer();
-      const originalFilename = formData.attachment.name;
-      const fileType = formData.attachment.type;
-      
-      // Jika sudah ada lampiran, update file
-      if (existingAttachment) {
-        const { fileName, fileUrl } = await updateFile(
-          Buffer.from(fileBuffer),
-          originalFilename,
-          'agenda',
-          existingAttachment.fileName
-        );
-        
-        attachmentData = {
-          fileName,
-          originalName: originalFilename,
-          fileUrl,
-          fileType
-        };
-      }
-      // Jika belum ada lampiran, upload file baru
-      else {
-        const { fileName, fileUrl } = await uploadFile(
-          Buffer.from(fileBuffer),
-          originalFilename,
-          'agenda'
-        );
-        
-        attachmentData = {
-          fileName,
-          originalName: originalFilename,
-          fileUrl,
-          fileType
-        };
-      }
-    }
-    
-    // Update agenda
-    const updatedAgenda = await prisma.agenda.update({
+    // Update agenda tanpa memeriksa lampiran
+    const updatedAgenda = await prisma.pengajuan.update({
       where: { id },
       data: {
-        title: formData.title,
-        description: formData.description,
-        date: formData.date,
-        location: formData.location,
-        target: formData.target,
-        attachment: attachmentData ? JSON.stringify(attachmentData) : null,
+        perihal: formData.title,
+        alasanPenolakan: formData.description,
+        tanggal: formData.date,
+        tujuan: targetEnum,
         updatedAt: new Date()
       }
     });
     
     // Dapatkan data user untuk mengirim notifikasi
     const session = await getServerSession(authOptions);
-    let senderId: number | undefined;
+    let senderId: string | undefined;
     
     if (session?.user?.id) {
-      senderId = Number(session.user.id);
+      senderId = session.user.id;
     }
     
     // Kirim notifikasi ke pembuat agenda jika editor bukan pembuat
-    if (senderId && senderId !== updatedAgenda.createdBy) {
+    if (senderId && senderId !== updatedAgenda.pengajuId) {
       await createNotification({
         title: "Agenda Diperbarui",
         message: `Agenda "${formData.title}" telah diperbarui.`,
         type: "info",
-        recipientId: updatedAgenda.createdBy,
-        senderId,
-        relatedItemId: id,
+        recipientId: updatedAgenda.pengajuId,
+        senderId: senderId,
+        relatedItemId: parseInt(id),
         relatedItemType: "Agenda"
-      });
+      } as NotificationData);
     }
     
     // Revalidasi path agar data diperbarui
@@ -333,10 +279,7 @@ export async function updateAgenda(id: number, formData: AgendaFormValues): Prom
     return {
       success: true,
       message: "Agenda berhasil diperbarui",
-      data: {
-        ...updatedAgenda,
-        attachment: attachmentData
-      }
+      data: updatedAgenda
     };
   } catch (error) {
     console.error("Error updating agenda:", error);
@@ -355,8 +298,8 @@ export async function updateAgenda(id: number, formData: AgendaFormValues): Prom
   }
 }
 
-// Fungsi untuk menghapus agenda
-export async function deleteAgenda(agendaId: number): Promise<ActionResponse> {
+// Memperbaiki deleteAgenda untuk menghilangkan error
+export async function deleteAgenda(agendaId: string): Promise<ActionResponse> {
   noStore();
   
   try {
@@ -370,7 +313,7 @@ export async function deleteAgenda(agendaId: number): Promise<ActionResponse> {
     }
     
     // Dapatkan agenda yang akan dihapus
-    const agenda = await prisma.agenda.findUnique({
+    const agenda = await prisma.pengajuan.findUnique({
       where: { id: agendaId }
     });
     
@@ -383,45 +326,34 @@ export async function deleteAgenda(agendaId: number): Promise<ActionResponse> {
     }
     
     // Periksa apakah user adalah pembuat agenda atau admin
-    if (agenda.createdBy !== Number(session.user.id) && session.user.role !== 'SuperUser') {
+    if (agenda.pengajuId !== session.user.id && session.user.role !== Role.SUPER_USER) {
       return {
         success: false,
         message: "Anda tidak memiliki izin untuk menghapus agenda ini"
       };
     }
     
-    // Hapus file attachment jika ada
-    if (agenda.attachment) {
-      try {
-        const attachmentData = JSON.parse(agenda.attachment as string) as AgendaAttachment;
-        await deleteFile(attachmentData.fileName, 'agenda');
-      } catch (error) {
-        console.error("Error deleting attachment:", error);
-        // Lanjutkan meskipun gagal menghapus file
-      }
-    }
-    
-    // Hapus agenda
-    await prisma.agenda.delete({
+    // Hapus agenda tanpa mencoba menghapus lampiran
+    await prisma.pengajuan.delete({
       where: { id: agendaId }
     });
     
     // Dapatkan data user untuk mengirim notifikasi
-    let senderId: number | undefined;
+    let senderId: string | undefined;
     
     if (session?.user?.id) {
-      senderId = Number(session.user.id);
+      senderId = session.user.id;
       
       // Kirim notifikasi ke pembuat agenda jika deleter bukan pembuat
-      if (senderId !== agenda.createdBy) {
+      if (senderId !== agenda.pengajuId) {
         await createNotification({
           title: "Agenda Dihapus",
-          message: `Agenda "${agenda.title}" telah dihapus.`,
+          message: `Agenda "${agenda.perihal}" telah dihapus.`,
           type: "warning",
-          recipientId: agenda.createdBy,
-          senderId,
+          recipientId: agenda.pengajuId,
+          senderId: senderId,
           relatedItemType: "Agenda"
-        });
+        } as NotificationData);
       }
     }
     
@@ -450,11 +382,12 @@ export async function autoDeleteCompletedAgendas(): Promise<ActionResponse> {
     const cutoffDate = new Date(getCurrentJakartaTime());
     cutoffDate.setDate(cutoffDate.getDate() - 7); // 7 hari yang lalu
 
-    // Cari agenda yang akan dihapus
-    const agendasToDelete = await prisma.agenda.findMany({
+    // Cari agenda yang akan dihapus dengan status yang sesuai
+    const agendasToDelete = await prisma.pengajuan.findMany({
       where: {
-        status: {
-          in: ['completed', 'rejected']
+        status: StatusPengajuan.CLOSED,
+        hasilAkhir: {
+          in: [HasilAkhir.SELESAI, HasilAkhir.DITOLAK]
         },
         updatedAt: {
           lt: cutoffDate
@@ -462,23 +395,12 @@ export async function autoDeleteCompletedAgendas(): Promise<ActionResponse> {
       }
     });
 
-    // Hapus file attachment untuk setiap agenda jika ada
-    for (const agenda of agendasToDelete) {
-      if (agenda.attachment) {
-        try {
-          const attachmentData = JSON.parse(agenda.attachment as string) as AgendaAttachment;
-          await deleteFile(attachmentData.fileName, 'agenda');
-        } catch (error) {
-          console.error(`Error deleting attachment for agenda ${agenda.id}:`, error);
-        }
-      }
-    }
-
-    // Hapus agenda dari database
-    const result = await prisma.agenda.deleteMany({
+    // Hapus agenda dari database tanpa memeriksa lampiran
+    const result = await prisma.pengajuan.deleteMany({
       where: {
-        status: {
-          in: ['completed', 'rejected']
+        status: StatusPengajuan.CLOSED,
+        hasilAkhir: {
+          in: [HasilAkhir.SELESAI, HasilAkhir.DITOLAK] 
         },
         updatedAt: {
           lt: cutoffDate
@@ -490,7 +412,7 @@ export async function autoDeleteCompletedAgendas(): Promise<ActionResponse> {
     try {
       const admins = await prisma.user.findMany({
         where: {
-          role: 'SuperUser'
+          role: Role.SUPER_USER
         }
       });
 
@@ -501,7 +423,7 @@ export async function autoDeleteCompletedAgendas(): Promise<ActionResponse> {
           type: "info",
           recipientId: admin.id,
           relatedItemType: "Agenda"
-        });
+        } as NotificationData);
       }
     } catch (error) {
       console.error("Error sending notifications:", error);
@@ -530,9 +452,9 @@ export async function sendReminderNotifications(): Promise<ActionResponse> {
   
   try {
     // Hitung jumlah agenda open
-    const openAgendas = await prisma.agenda.count({
+    const openAgendas = await prisma.pengajuan.count({
       where: {
-        status: 'open'
+        status: StatusPengajuan.OPEN // Gunakan enum yang benar
       }
     });
 
@@ -542,13 +464,13 @@ export async function sendReminderNotifications(): Promise<ActionResponse> {
         where: {
           role: {
             in: [
-              'ketuaLingkungan',
-              'wakilKetua',
-              'sekretaris',
-              'wakilSekretaris',
-              'bendahara',
-              'wakilBendahara',
-              'SuperUser'
+              Role.KETUA,
+              Role.WAKIL_KETUA,
+              Role.SEKRETARIS,
+              Role.WAKIL_SEKRETARIS,
+              Role.BENDAHARA,
+              Role.WAKIL_BENDAHARA,
+              Role.SUPER_USER
             ]
           }
         }
@@ -562,7 +484,7 @@ export async function sendReminderNotifications(): Promise<ActionResponse> {
           type: "info",
           recipientId: user.id,
           relatedItemType: "Agenda"
-        });
+        } as NotificationData);
       }
     }
 

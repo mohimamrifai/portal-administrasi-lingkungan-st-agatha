@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { PeriodeSelector } from "./periode-selector";
-import { dolingData } from "../data/mock-data";
 import { filterDataByPeriode } from "../utils/data-utils";
+import { getKaleidoskopData, getStatistikPerJenisIbadat, getRingkasanKegiatan } from "../actions";
+import { JenisIbadat, SubIbadat } from "@prisma/client";
 import { ChartBarIcon, Calendar, Users2, Filter } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -11,45 +12,94 @@ import { AlertCircle, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { DolingData } from "../types";
+import { KaleidoskopActivityData, StatistikPerJenisIbadat, RingkasanKegiatan } from "../actions";
+
+// Definisi interface untuk props
+interface KaleidoskopContentProps {
+  activityData: KaleidoskopActivityData[];
+  summaryData: RingkasanKegiatan;
+  periodRange?: {
+    startDate: Date;
+    endDate: Date;
+  };
+}
 
 // Komponen utama untuk halaman Kaleidoskop
 export function KaleidoskopContent({
-  periodRange,
-  activityData,
-  isLoading,
-}: {
-  periodRange: string;
-  activityData: DolingData[];
-  isLoading: boolean;
-}) {
+  activityData: initialActivityData, 
+  summaryData: initialSummaryData,
+  periodRange
+}: KaleidoskopContentProps) {
   // State untuk filter periode
   const currentDate = new Date();
-  const [bulanAwal, setBulanAwal] = useState("0"); // Januari
-  const [tahunAwal, setTahunAwal] = useState("2024");
-  const [bulanAkhir, setBulanAkhir] = useState(currentDate.getMonth().toString()); // Bulan saat ini
-  const [tahunAkhir, setTahunAkhir] = useState(currentDate.getFullYear().toString());
-  
-  // State untuk menyimpan data terfilter saat ini
-  const [filteredData, setFilteredData] = useState(() => 
-    filterDataByPeriode(dolingData, bulanAwal, tahunAwal, bulanAkhir, tahunAkhir)
-  );
+  const defaultStartDate = periodRange?.startDate || new Date(currentDate.getFullYear(), 0, 1);
+  const defaultEndDate = periodRange?.endDate || currentDate;
+
+  const [bulanAwal, setBulanAwal] = useState(defaultStartDate.getMonth().toString());
+  const [tahunAwal, setTahunAwal] = useState(defaultStartDate.getFullYear().toString());
+  const [bulanAkhir, setBulanAkhir] = useState(defaultEndDate.getMonth().toString());
+  const [tahunAkhir, setTahunAkhir] = useState(defaultEndDate.getFullYear().toString());
   
   // State untuk menampilkan filter
   const [showFilter, setShowFilter] = useState(false);
   
+  // State untuk data
+  const [activityData, setActivityData] = useState<KaleidoskopActivityData[]>(initialActivityData);
+  const [statistikData, setStatistikData] = useState<StatistikPerJenisIbadat[]>([]);
+  const [ringkasanData, setRingkasanData] = useState<RingkasanKegiatan | null>(initialSummaryData);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Fungsi untuk memuat data
+  const loadData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      
+      // Konversi periode ke format Date
+      const startDate = new Date(parseInt(tahunAwal), parseInt(bulanAwal), 1);
+      const endDate = new Date(parseInt(tahunAkhir), parseInt(bulanAkhir) + 1, 0);
+      
+      // Panggil server actions
+      const [activities, statistik, ringkasan] = await Promise.all([
+        getKaleidoskopData(startDate, endDate),
+        getStatistikPerJenisIbadat(startDate, endDate),
+        getRingkasanKegiatan(startDate, endDate)
+      ]);
+      
+      setActivityData(activities);
+      setStatistikData(statistik);
+      setRingkasanData(ringkasan);
+    } catch (error) {
+      console.error("Error loading kaleidoskop data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [bulanAwal, tahunAwal, bulanAkhir, tahunAkhir]);
+  
+  // Memuat data ketika komponen dimount
+  useEffect(() => {
+    if (initialActivityData.length > 0 && initialSummaryData) {
+      // Gunakan data awal dan dapatkan statistiknya
+      const startDate = new Date(parseInt(tahunAwal), parseInt(bulanAwal), 1);
+      const endDate = new Date(parseInt(tahunAkhir), parseInt(bulanAkhir) + 1, 0);
+      
+      getStatistikPerJenisIbadat(startDate, endDate)
+        .then(statistik => {
+          setStatistikData(statistik);
+        })
+        .catch(error => {
+          console.error("Error fetching statistik:", error);
+        });
+    } else {
+      // Jika tidak ada data awal, lakukan fetch lengkap
+      loadData();
+    }
+  }, [loadData, initialActivityData, initialSummaryData, bulanAwal, bulanAkhir, tahunAwal, tahunAkhir]);
+  
   // Handler untuk tombol "Filter Sekarang"
   const handleFilter = useCallback(() => {
-    const newFilteredData = filterDataByPeriode(
-      dolingData,
-      bulanAwal,
-      tahunAwal,
-      bulanAkhir,
-      tahunAkhir
-    );
-    setFilteredData(newFilteredData);
+    loadData();
     setShowFilter(false);
-  }, [bulanAwal, tahunAwal, bulanAkhir, tahunAkhir]);
+  }, [loadData]);
 
   // Membuat label periode
   const getPeriodeLabel = () => {
@@ -70,75 +120,50 @@ export function KaleidoskopContent({
     }
   };
   
-  // Mengelompokkan data berdasarkan jenis ibadat dan sub ibadat
-  const groupedIbadatData = useMemo(() => {
-    const result: Record<string, Record<string, number>> = {};
-    
-    filteredData.forEach((item) => {
-      const jenisIbadat = item.jenisIbadat;
-      const subIbadat = item.subIbadat;
-      
-      if (!result[jenisIbadat]) {
-        result[jenisIbadat] = {};
-      }
-      
-      if (!result[jenisIbadat][subIbadat]) {
-        result[jenisIbadat][subIbadat] = 0;
-      }
-      
-      result[jenisIbadat][subIbadat]++;
-    });
-    
-    return result;
-  }, [filteredData]);
-  
-  // Mendapatkan unik jenis ibadat dan total pertemuan
-  const ibadatStats = useMemo(() => {
-    const jenisIbadatList = Object.keys(groupedIbadatData);
-    
-    // Hitung total pertemuan untuk setiap jenis ibadat
-    const totals = jenisIbadatList.map(jenis => {
-      const subIbadats = groupedIbadatData[jenis];
-      const total = Object.values(subIbadats).reduce((sum, count) => sum + count, 0);
-      const uniqueSubIbadat = Object.keys(subIbadats).length;
-      
-      return {
-        jenisIbadat: jenis,
-        totalPertemuan: total,
-        uniqueSubIbadat
-      };
-    });
-    
-    // Urutkan berdasarkan totalPertemuan (terbanyak dulu)
-    return totals.sort((a, b) => b.totalPertemuan - a.totalPertemuan);
-  }, [groupedIbadatData]);
-  
-  // Mendapatkan total statistik
-  const totalStats = useMemo(() => {
-    const totalPertemuan = filteredData.length;
-    const uniqueJenisIbadat = Object.keys(groupedIbadatData).length;
-    
-    let uniqueSubIbadat = 0;
-    Object.values(groupedIbadatData).forEach(subMap => {
-      uniqueSubIbadat += Object.keys(subMap).length;
-    });
-    
-    return {
-      totalPertemuan,
-      uniqueJenisIbadat,
-      uniqueSubIbadat
-    };
-  }, [filteredData, groupedIbadatData]);
-  
   // Mendapatkan warna berdasarkan jenisIbadat
-  const getColor = (jenisIbadat: string) => {
-    const colors = {
-      "Doa Bersama": "bg-blue-100 text-blue-700 border-blue-200",
-      "Doa Keluarga": "bg-purple-100 text-purple-700 border-purple-200",
-      "Makan Malam": "bg-amber-100 text-amber-700 border-amber-200",
+  const getColor = (jenisIbadat: JenisIbadat) => {
+    const colors: Record<JenisIbadat, string> = {
+      DOA_LINGKUNGAN: "bg-blue-100 text-blue-700 border-blue-200",
+      MISA: "bg-purple-100 text-purple-700 border-purple-200",
+      PERTEMUAN: "bg-amber-100 text-amber-700 border-amber-200",
+      BAKTI_SOSIAL: "bg-green-100 text-green-700 border-green-200",
+      KEGIATAN_LAIN: "bg-gray-100 text-gray-700 border-gray-200",
     };
     
-    return colors[jenisIbadat as keyof typeof colors] || "bg-gray-100 text-gray-700 border-gray-200";
+    return colors[jenisIbadat];
+  };
+  
+  // Mendapatkan nama yang mudah dibaca untuk jenis ibadat
+  const getReadableJenisIbadat = (jenisIbadat: JenisIbadat): string => {
+    const names: Record<JenisIbadat, string> = {
+      DOA_LINGKUNGAN: "Doa Lingkungan",
+      MISA: "Misa",
+      PERTEMUAN: "Pertemuan",
+      BAKTI_SOSIAL: "Bakti Sosial",
+      KEGIATAN_LAIN: "Kegiatan Lain",
+    };
+    
+    return names[jenisIbadat];
+  };
+  
+  // Mendapatkan nama yang mudah dibaca untuk sub ibadat
+  const getReadableSubIbadat = (subIbadat: SubIbadat | null): string => {
+    if (!subIbadat) return "Umum";
+    
+    const names: Record<SubIbadat, string> = {
+      IBADAT_SABDA: "Ibadat Sabda",
+      IBADAT_SABDA_TEMATIK: "Ibadat Sabda Tematik",
+      PRAPASKAH: "Prapaskah",
+      BKSN: "BKSN",
+      BULAN_ROSARIO: "Bulan Rosario",
+      NOVENA_NATAL: "Novena Natal",
+      MISA_SYUKUR: "Misa Syukur",
+      MISA_REQUEM: "Misa Requem",
+      MISA_ARWAH: "Misa Arwah",
+      MISA_PELINDUNG: "Misa Pelindung",
+    };
+    
+    return names[subIbadat];
   };
   
   // Mendapatkan background color
@@ -207,6 +232,16 @@ export function KaleidoskopContent({
         </div>
       )}
       
+      {/* Loading State */}
+      {isLoading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Memuat data kaleidoskop...</p>
+          </div>
+        </div>
+      ) : (
+        <>
       {/* Summary Cards */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-3 mb-6">
         <div className="bg-blue-50 border border-blue-100 rounded-lg shadow-sm">
@@ -214,7 +249,7 @@ export function KaleidoskopContent({
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-medium text-blue-600 mb-1">Total Kegiatan</p>
-                <h3 className="text-3xl font-bold text-blue-800">{totalStats.totalPertemuan}</h3>
+                    <h3 className="text-3xl font-bold text-blue-800">{ringkasanData?.totalKegiatan || 0}</h3>
                 <p className="text-xs text-blue-600 mt-1">Pertemuan dalam periode {getPeriodeLabel()}</p>
               </div>
               <div className="bg-blue-100 p-2 rounded-full">
@@ -229,7 +264,7 @@ export function KaleidoskopContent({
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-medium text-purple-600 mb-1">Jenis Ibadat</p>
-                <h3 className="text-3xl font-bold text-purple-800">{totalStats.uniqueJenisIbadat}</h3>
+                    <h3 className="text-3xl font-bold text-purple-800">{ringkasanData?.totalJenisIbadat || 0}</h3>
                 <p className="text-xs text-purple-600 mt-1">Kategori ibadat yang dilaksanakan</p>
               </div>
               <div className="bg-purple-100 p-2 rounded-full">
@@ -244,7 +279,7 @@ export function KaleidoskopContent({
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-medium text-amber-600 mb-1">Sub Ibadat</p>
-                <h3 className="text-3xl font-bold text-amber-800">{totalStats.uniqueSubIbadat}</h3>
+                    <h3 className="text-3xl font-bold text-amber-800">{ringkasanData?.totalSubIbadat || 0}</h3>
                 <p className="text-xs text-amber-600 mt-1">Variasi kegiatan dalam ibadat</p>
               </div>
               <div className="bg-amber-100 p-2 rounded-full">
@@ -255,141 +290,179 @@ export function KaleidoskopContent({
         </div>
       </div>
       
-      {/* Main Content */}
-      <div>
-        <Tabs defaultValue="kegiatan" className="w-full">
-          <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-2">
-            <TabsList>
-              <TabsTrigger value="kegiatan">Ringkasan Kegiatan</TabsTrigger>
-              <TabsTrigger value="detail">Detail Kegiatan</TabsTrigger>
+          {/* Tabs for different views */}
+          <Tabs defaultValue="statistik" className="mb-8">
+            <TabsList className="grid grid-cols-2 mb-4">
+              <TabsTrigger value="statistik">Statistik</TabsTrigger>
+              <TabsTrigger value="detil">Daftar Kegiatan</TabsTrigger>
             </TabsList>
             
-            <p className="text-xs text-muted-foreground italic">
-              Data periode: {getPeriodeLabel()}
-            </p>
-          </div>
-          
-          <TabsContent value="kegiatan" className="mt-0">
-            <div className="space-y-4">
-              {totalStats.totalPertemuan === 0 ? (
-                <Alert variant="default" className="bg-blue-50 text-blue-800 border-blue-100">
-                  <Info className="h-4 w-4 text-blue-500" />
+            {/* Statistik View */}
+            <TabsContent value="statistik">
+              <div className="space-y-6">
+                {statistikData.length === 0 ? (
+                  <Alert variant="default">
+                    <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Tidak ada data</AlertTitle>
-                  <AlertDescription>
-                    Tidak ada data kegiatan untuk periode {getPeriodeLabel()}. Silakan ubah filter periode atau tambahkan kegiatan baru.
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                <>
-                  <Alert variant="default" className="bg-blue-50 text-blue-800 border-blue-100">
-                    <Info className="h-4 w-4 text-blue-500" />
-                    <AlertTitle>Ringkasan Kegiatan</AlertTitle>
                     <AlertDescription>
-                      Terdapat {totalStats.totalPertemuan} kegiatan dari {totalStats.uniqueJenisIbadat} jenis ibadat dengan {totalStats.uniqueSubIbadat} variasi sub ibadat.
+                      Tidak ada kegiatan yang tercatat pada periode {getPeriodeLabel()}
                     </AlertDescription>
                   </Alert>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {ibadatStats.map((stat) => (
-                      <div key={stat.jenisIbadat} className="overflow-hidden border rounded-lg shadow-sm">
-                        <div className="bg-muted/10 py-3 px-4 border-b">
-                          <div className="flex justify-between items-center">
-                            <div className="text-base font-semibold flex items-center gap-2">
-                              <div className={`w-3 h-3 rounded-full ${getBgColor(getColor(stat.jenisIbadat))}`}></div>
-                              {stat.jenisIbadat}
+                ) : (
+                  <>
+                    <div className="bg-white rounded-lg border p-4">
+                      <h3 className="text-lg font-semibold mb-4">Distribusi Jenis Ibadat</h3>
+                      <div className="space-y-4">
+                        {statistikData.map((stat, index) => (
+                          <div key={index} className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Badge className={getColor(stat.jenisIbadat)}>
+                                  {getReadableJenisIbadat(stat.jenisIbadat)}
+                                </Badge>
+                                <span className="text-sm text-muted-foreground">
+                                  {stat.jumlah} kegiatan
+                                </span>
+                              </div>
+                              <span className="font-semibold">
+                                {stat.persentase.toFixed(1)}%
+                              </span>
                             </div>
-                            <Badge variant="outline" className={getColor(stat.jenisIbadat)}>
-                              {stat.totalPertemuan} kegiatan
+                            <Progress value={stat.persentase} className={getBgColor(getColor(stat.jenisIbadat))} />
+                            
+                            {/* Sub ibadat breakdown */}
+                            {stat.subIbadat.length > 0 && (
+                              <div className="ml-4 mt-2 text-sm">
+                                <div className="flex flex-wrap gap-2 mt-1">
+                                  {stat.subIbadat.map((sub, subIndex) => (
+                                    <Badge 
+                                      key={subIndex}
+                                      variant="outline"
+                                      className="text-xs font-normal"
+                                    >
+                                      {getReadableSubIbadat(sub.nama)}: {sub.jumlah}
                             </Badge>
-                          </div>
-                        </div>
-                        <div className="p-0">
-                          <div className="p-3 border-b bg-muted/5">
-                            <div className="flex justify-between items-center text-xs mb-1.5">
-                              <span className="text-muted-foreground">{Math.round((stat.totalPertemuan / totalStats.totalPertemuan) * 100)}% dari total kegiatan</span>
-                              <span className="font-medium">{stat.totalPertemuan}/{totalStats.totalPertemuan}</span>
-                            </div>
-                            <Progress value={(stat.totalPertemuan / totalStats.totalPertemuan) * 100} className="h-1.5" />
-                          </div>
-                          
-                          <div className="divide-y">
-                            {Object.entries(groupedIbadatData[stat.jenisIbadat] || {})
-                              .sort(([, countA], [, countB]) => countB - countA)
-                              .map(([subIbadat, count]) => (
-                                <div key={subIbadat} className="py-2.5 px-4 flex items-center justify-between hover:bg-muted/5">
-                                  <div className="text-sm">{subIbadat}</div>
-                                  <Badge variant="outline" className={getColor(stat.jenisIbadat)}>
-                                    {count} pertemuan
-                                  </Badge>
+                                  ))}
                                 </div>
-                              ))
-                            }
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        </div>
+                            </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-white rounded-lg border p-4">
+                        <h3 className="text-lg font-semibold mb-2">Kehadiran</h3>
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">Rata-rata KK per kegiatan</span>
+                            <span className="font-medium">{ringkasanData?.kehadiranRataRata.toFixed(1) || 0}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">Total kehadiran (semua kegiatan)</span>
+                            <span className="font-medium">{ringkasanData?.totalPeserta || 0} orang</span>
                           </div>
                         </div>
                       </div>
-                    ))}
+                      
+                      <div className="bg-white rounded-lg border p-4">
+                        <h3 className="text-lg font-semibold mb-2">Jenis Ibadat Terbanyak</h3>
+                        {ringkasanData?.jenisIbadatTerbanyak ? (
+                          <Badge className={`${getColor(ringkasanData.jenisIbadatTerbanyak)} text-base px-3 py-1.5`}>
+                            {getReadableJenisIbadat(ringkasanData.jenisIbadatTerbanyak)}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </div>
                   </div>
                 </>
               )}
             </div>
           </TabsContent>
           
-          <TabsContent value="detail" className="mt-0">
-            <div className="space-y-4">
-              {totalStats.totalPertemuan === 0 ? (
-                <Alert variant="default" className="bg-blue-50 text-blue-800 border-blue-100">
-                  <Info className="h-4 w-4 text-blue-500" />
-                  <AlertTitle>Tidak ada data</AlertTitle>
-                  <AlertDescription>
-                    Tidak ada data kegiatan untuk periode {getPeriodeLabel()}. Silakan ubah filter periode atau tambahkan kegiatan baru.
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                  {ibadatStats.map((stat) => (
-                    <div key={stat.jenisIbadat} className="overflow-hidden border rounded-lg shadow-sm">
-                      <div className={`py-3 px-4 ${getBgColor(getColor(stat.jenisIbadat))} border-b`}>
-                        <div className="text-base font-semibold flex items-center gap-2">
-                          <ChartBarIcon className={`h-4 w-4 ${getTextColor(getColor(stat.jenisIbadat))}`} />
-                          <span className={getTextColor(getColor(stat.jenisIbadat))}>{stat.jenisIbadat}</span>
+            {/* Detail View */}
+            <TabsContent value="detil">
+              <div className="bg-white rounded-lg border">
+                <div className="p-4 border-b">
+                  <h3 className="text-lg font-semibold">Daftar Kegiatan</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Total {activityData.length} kegiatan dalam periode {getPeriodeLabel()}
+                  </p>
                         </div>
+                
+                <ScrollArea className="h-[400px]">
+                  {activityData.length === 0 ? (
+                    <div className="p-8 text-center text-muted-foreground">
+                      Tidak ada kegiatan yang tercatat pada periode ini
                       </div>
-                      <div className="p-0">
-                        <ScrollArea className="h-[250px]">
-                          <div className="divide-y">
-                            {Object.entries(groupedIbadatData[stat.jenisIbadat] || {})
-                              .sort(([, countA], [, countB]) => countB - countA)
-                              .map(([subIbadat, count]) => (
-                                <div key={subIbadat} className="py-3 px-4 flex items-center justify-between">
+                  ) : (
+                    <ul className="divide-y">
+                      {activityData.map((activity) => (
+                        <li key={activity.id} className="p-4 hover:bg-muted/20">
+                          <div className="flex flex-col md:flex-row md:items-center md:justify-between">
                                   <div>
-                                    <div className="text-sm font-medium">{subIbadat}</div>
-                                    <div className="mt-1 flex items-center gap-2">
-                                      <Progress 
-                                        value={(count / stat.totalPertemuan) * 100} 
-                                        className="h-1 w-[100px]" 
-                                      />
-                                      <span className="text-xs text-muted-foreground">
-                                        {Math.round((count / stat.totalPertemuan) * 100)}%
-                                      </span>
-                                    </div>
-                                  </div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge className={getColor(activity.jenisIbadat)}>
+                                  {getReadableJenisIbadat(activity.jenisIbadat)}
+                                </Badge>
+                                {activity.subIbadat && (
                                   <Badge variant="outline">
-                                    {count} pertemuan
+                                    {getReadableSubIbadat(activity.subIbadat)}
                                   </Badge>
+                                )}
+                              </div>
+                              
+                              <h4 className="font-medium">
+                                {activity.temaIbadat || getReadableJenisIbadat(activity.jenisIbadat)}
+                              </h4>
+                              
+                              <div className="text-sm text-muted-foreground mt-1">
+                                Tuan Rumah: {activity.tuanRumah}
+                              </div>
+                            </div>
+                            
+                            <div className="mt-2 md:mt-0 flex flex-col items-start md:items-end">
+                              <div className="text-sm font-medium">
+                                {activity.tanggal.toLocaleDateString('id-ID', {
+                                  weekday: 'long',
+                                  day: 'numeric',
+                                  month: 'long',
+                                  year: 'numeric'
+                                })}
+                              </div>
+                              
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="outline" className="text-xs">
+                                  {activity.jumlahKKHadir} KK
+                                </Badge>
+                                <Badge variant="outline" className="text-xs">
+                                  {activity.totalPeserta} orang
+                                </Badge>
+                              </div>
                                 </div>
-                              ))
-                            }
                           </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                         </ScrollArea>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </TabsContent>
         </Tabs>
-      </div>
+          
+          {/* Info Section */}
+          <Alert variant="default" className="mt-8 bg-blue-50">
+            <Info className="h-4 w-4" />
+            <AlertTitle>Tentang Kaleidoskop</AlertTitle>
+            <AlertDescription>
+              Kaleidoskop menampilkan statistik dan rekapitulasi dari seluruh kegiatan doa lingkungan.
+              Gunakan filter periode untuk melihat data pada rentang waktu tertentu.
+            </AlertDescription>
+          </Alert>
+        </>
+      )}
     </div>
   );
 } 

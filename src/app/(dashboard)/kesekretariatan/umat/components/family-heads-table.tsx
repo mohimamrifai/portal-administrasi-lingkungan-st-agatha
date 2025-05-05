@@ -43,11 +43,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { StatusKehidupan } from "@prisma/client";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface FamilyHeadsTableProps {
   familyHeads: FamilyHead[];
+  isLoading?: boolean;
   onEdit: (familyHead: FamilyHead) => void;
-  onDelete: (id: number, reason: "moved" | "deceased", memberName?: string) => Promise<void>;
+  onDelete: (id: string, reason: "moved" | "deceased", memberName?: string) => Promise<void>;
   onExportTemplate: () => void;
   onImportData: () => void;
   canModifyData?: boolean;
@@ -55,6 +58,7 @@ interface FamilyHeadsTableProps {
 
 export function FamilyHeadsTable({
   familyHeads,
+  isLoading = false,
   onEdit,
   onDelete,
   onExportTemplate,
@@ -71,16 +75,15 @@ export function FamilyHeadsTable({
   
   // Search and filter state
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusKehidupan | null>(null);
   
   const statusOptions = [
     { value: null, label: "Semua Status", key: "all" },
-    { value: "active", label: "Aktif", key: "active" },
-    { value: "moved", label: "Pindah", key: "moved" },
-    { value: "deceased", label: "Meninggal", key: "deceased" },
+    { value: StatusKehidupan.HIDUP, label: "Aktif", key: "active" },
+    { value: StatusKehidupan.MENINGGAL, label: "Meninggal", key: "deceased" },
   ];
 
-  const handleDelete = async (id: number, reason: "moved" | "deceased", memberName?: string) => {
+  const handleDelete = async (id: string, reason: "moved" | "deceased", memberName?: string) => {
     try {
       await onDelete(id, reason, memberName);
       
@@ -97,13 +100,11 @@ export function FamilyHeadsTable({
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: StatusKehidupan) => {
     switch (status) {
-      case "active":
+      case StatusKehidupan.HIDUP:
         return <Badge variant="outline" className="bg-green-100 hover:bg-green-100">Aktif</Badge>;
-      case "moved":
-        return <Badge variant="outline" className="bg-yellow-100 hover:bg-yellow-100">Pindah</Badge>;
-      case "deceased":
+      case StatusKehidupan.MENINGGAL:
         return <Badge variant="outline" className="bg-gray-100 hover:bg-gray-100">Meninggal</Badge>;
       default:
         return <Badge variant="outline">Aktif</Badge>;
@@ -114,9 +115,9 @@ export function FamilyHeadsTable({
   const filteredFamilyHeads = familyHeads.filter(familyHead => {
     // Search term filter
     const matchesSearch = searchTerm === "" || 
-      familyHead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      familyHead.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      familyHead.phoneNumber.toLowerCase().includes(searchTerm.toLowerCase());
+      familyHead.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      familyHead.alamat.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (familyHead.nomorTelepon && familyHead.nomorTelepon.toLowerCase().includes(searchTerm.toLowerCase()));
     
     // Status filter
     const matchesStatus = statusFilter === null || familyHead.status === statusFilter;
@@ -137,7 +138,7 @@ export function FamilyHeadsTable({
   
   // Get current page data
   const currentData = filteredFamilyHeads
-    .sort((a, b) => a.name.localeCompare(b.name)) // Sort by name
+    .sort((a, b) => a.nama.localeCompare(b.nama)) // Sort by name
     .slice(startIndex, endIndex);
   
   // Pagination functions
@@ -196,79 +197,70 @@ export function FamilyHeadsTable({
           )}
         </div>
         
-        <div className="flex flex-wrap gap-2">
-          {/* Status Filter */}
-          <Select
-            value={statusFilter || "all"}
-            onValueChange={(value) => setStatusFilter(value === "all" ? null : value)}
-          >
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              {statusOptions.map((option) => (
-                <SelectItem 
-                  key={option.key} 
-                  value={option.value === null ? "all" : option.value}
-                >
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          {/* Export and Import buttons */}
-          {canModifyData && (
-            <>
-              <Button variant="outline" size="sm" onClick={onExportTemplate}>
+        {/* Filter Status */}
+        <div className="flex items-center gap-2">
+          <div className="w-40">
+            <Select
+              value={statusFilter || "all"}
+              onValueChange={(value) => setStatusFilter(value === "all" ? null : value as StatusKehidupan)}
+            >
+              <SelectTrigger id="status-filter" className="w-full">
+                <SelectValue placeholder="Filter Status" />
+              </SelectTrigger>
+              <SelectContent>
+                {statusOptions.map(option => (
+                  <SelectItem key={option.key} value={option.value || "all"}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        
+        {/* Actions */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full sm:w-auto"
+                disabled={!canModifyData}
+              >
                 <Download className="mr-2 h-4 w-4" />
-                Download Template
+                Template Excel
               </Button>
-              <Button variant="outline" size="sm" onClick={onImportData}>
-                <User className="mr-2 h-4 w-4" />
-                Impor Data
-              </Button>
-            </>
-          )}
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Unduh Template Excel</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Template ini dapat Anda gunakan untuk mempersiapkan data yang akan diimpor.
+                  Harap perhatikan format dan kolom yang dibutuhkan.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction onClick={onExportTemplate}>Unduh</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full sm:w-auto"
+            onClick={onImportData}
+            disabled={!canModifyData}
+          >
+            <User className="mr-2 h-4 w-4" />
+            Import Data
+          </Button>
         </div>
       </div>
       
-      {/* Active Filters */}
-      {(searchTerm || statusFilter) && (
-        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <span>Filter aktif:</span>
-          {searchTerm && (
-            <Badge variant="outline" className="gap-1 px-2 py-1">
-              <span>Pencarian: {searchTerm}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="ml-1 h-4 w-4 p-0"
-                onClick={() => setSearchTerm("")}
-              >
-                <X className="h-3 w-3" />
-                <span className="sr-only">Clear search</span>
-              </Button>
-            </Badge>
-          )}
-          
-          {statusFilter && (
-            <Badge variant="outline" className="gap-1 px-2 py-1">
-              <span>Status: {statusOptions.find(o => o.value === statusFilter)?.label}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="ml-1 h-4 w-4 p-0"
-                onClick={() => setStatusFilter(null)}
-              >
-                <X className="h-3 w-3" />
-                <span className="sr-only">Clear status</span>
-              </Button>
-            </Badge>
-          )}
-        </div>
-      )}
-
+      {/* Table */}
       <div className="border rounded-lg">
         <div className="overflow-x-auto relative">
           <Table className="table-auto min-w-[800px] lg:w-full">
@@ -281,12 +273,27 @@ export function FamilyHeadsTable({
                 <TableHead className="whitespace-nowrap min-w-[120px]">Tanggal Bergabung</TableHead>
                 <TableHead className="whitespace-nowrap min-w-[120px]">Jumlah Anggota</TableHead>
                 <TableHead className="whitespace-nowrap min-w-[80px]">Status</TableHead>
-                <TableHead className="whitespace-nowrap min-w-[120px]">Tanggal Update</TableHead>
+                <TableHead className="whitespace-nowrap min-w-[120px]">Tanggal Keluar</TableHead>
                 {canModifyData && <TableHead className="sticky right-0 bg-white shadow-[-4px_0_4px_rgba(0,0,0,0.05)] w-[70px]">Aksi</TableHead>}
               </TableRow>
             </TableHeader>
+            
             <TableBody>
-              {currentData.length === 0 ? (
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <TableRow key={`skeleton-${index}`}>
+                    <TableCell><Skeleton className="h-4 w-6" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-48" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    {canModifyData && <TableCell><Skeleton className="h-8 w-8" /></TableCell>}
+                  </TableRow>
+                ))
+              ) : currentData.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={canModifyData ? 9 : 8} className="h-24 text-center">
                     Tidak ada data yang sesuai dengan filter
@@ -297,40 +304,43 @@ export function FamilyHeadsTable({
                   <TableRow key={familyHead.id}>
                     <TableCell>{startIndex + index + 1}</TableCell>
                     <TableCell className="font-medium min-w-[120px]">
-                      {familyHead.name}
+                      {familyHead.nama}
                     </TableCell>
-                    <TableCell className="min-w-[180px]">{familyHead.address}</TableCell>
-                    <TableCell className="min-w-[110px]">{familyHead.phoneNumber}</TableCell>
+                    <TableCell className="min-w-[180px]">{familyHead.alamat}</TableCell>
+                    <TableCell className="min-w-[110px]">{familyHead.nomorTelepon || "-"}</TableCell>
                     <TableCell className="min-w-[120px]">
-                      {familyHead.joinDate && !isNaN(familyHead.joinDate.getTime()) 
-                        ? format(familyHead.joinDate, "dd MMM yyyy", {
+                      {familyHead.tanggalBergabung && !isNaN(familyHead.tanggalBergabung.getTime()) 
+                        ? format(familyHead.tanggalBergabung, "dd MMM yyyy", {
                             locale: id,
                           })
                         : "Tanggal tidak valid"}
                     </TableCell>
                     <TableCell className="min-w-[120px]">
-                      {familyHead.familyMembersCount} orang
-                      {familyHead.childrenCount > 0 && ` (${familyHead.childrenCount} anak)`}
-                      {familyHead.relativesCount > 0 && ` (${familyHead.relativesCount} kerabat)`}
+                      {familyHead.jumlahAnggotaKeluarga} orang
+                      {familyHead.jumlahAnakTertanggung > 0 && ` (${familyHead.jumlahAnakTertanggung} anak)`}
+                      {familyHead.jumlahKerabatTertanggung > 0 && ` (${familyHead.jumlahKerabatTertanggung} kerabat)`}
                     </TableCell>
                     <TableCell className="min-w-[80px]">{getStatusBadge(familyHead.status)}</TableCell>
                     <TableCell className="min-w-[120px]">
-                      {familyHead.updatedAt && !isNaN(familyHead.updatedAt.getTime())
-                        ? format(familyHead.updatedAt, "dd MMM yyyy", {
+                      {familyHead.tanggalKeluar && !isNaN(familyHead.tanggalKeluar.getTime()) 
+                        ? format(familyHead.tanggalKeluar, "dd MMM yyyy", {
                             locale: id,
                           })
-                        : "Tanggal tidak valid"}
+                        : "-"}
                     </TableCell>
                     {canModifyData && (
-                      <TableCell className="sticky right-0 bg-white shadow-[-4px_0_4px_rgba(0,0,0,0.05)] w-[70px]">
+                      <TableCell className="sticky right-0 bg-white shadow-[-4px_0_4px_rgba(0,0,0,0.05)]">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Buka menu</span>
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => onEdit(familyHead)}>
+                            <DropdownMenuItem
+                              onClick={() => onEdit(familyHead)}
+                            >
                               <Pencil className="mr-2 h-4 w-4" />
                               Edit
                             </DropdownMenuItem>
@@ -340,10 +350,10 @@ export function FamilyHeadsTable({
                                 setSelectedFamilyHead(familyHead);
                                 setDeleteDialogOpen(true);
                               }}
-                              className="text-red-600"
+                              className="text-destructive focus:text-destructive"
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
-                              Hapus
+                              Ubah Status
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -355,83 +365,78 @@ export function FamilyHeadsTable({
             </TableBody>
           </Table>
         </div>
-      </div>
-
-      {/* Pagination */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-2">
-        <div className="flex flex-col md:flex-row items-center gap-2 md:space-x-2 w-full md:w-auto text-center md:text-left">
-          <p className="text-sm text-muted-foreground">
-            Menampilkan {totalItems > 0 ? startIndex + 1 : 0}-{endIndex} dari {totalItems} data
-          </p>
-          <div className="flex items-center gap-2 mt-2 md:mt-0">
-            <p className="text-sm text-muted-foreground">Tampilkan</p>
-            <Select 
-              value={pageSize.toString()} 
-              onValueChange={handlePageSizeChange}
-            >
-              <SelectTrigger className="h-8 w-[70px]">
-                <SelectValue placeholder={pageSize.toString()} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5">5</SelectItem>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="20">20</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-sm text-muted-foreground">per halaman</p>
-          </div>
-        </div>
         
-        <div className="flex items-center justify-center mt-4 md:mt-0 w-full md:w-auto">
+        {/* Pagination */}
+        <div className="flex items-center justify-between p-4 border-t">
+          <div className="text-sm text-muted-foreground">
+            Menampilkan {totalItems === 0 ? 0 : startIndex + 1} hingga {endIndex} dari {totalItems} data
+          </div>
+          
           <div className="flex items-center space-x-2">
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={goToFirstPage} 
-              disabled={currentPage === 1}
-              className="h-8 w-8 hidden sm:flex"
+            <div className="flex items-center mr-4">
+              <Select
+                value={pageSize.toString()}
+                onValueChange={handlePageSizeChange}
+              >
+                <SelectTrigger className="h-8 w-16">
+                  <SelectValue placeholder={pageSize.toString()} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="ml-2 text-sm text-muted-foreground">per halaman</span>
+            </div>
+            
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={goToFirstPage}
+              disabled={currentPage === 1 || totalPages === 0}
             >
               <ChevronsLeft className="h-4 w-4" />
-              <span className="sr-only">Halaman Pertama</span>
             </Button>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={goToPreviousPage} 
-              disabled={currentPage === 1}
+            <Button
+              variant="outline"
+              size="icon"
               className="h-8 w-8"
+              onClick={goToPreviousPage}
+              disabled={currentPage === 1 || totalPages === 0}
             >
               <ChevronLeft className="h-4 w-4" />
-              <span className="sr-only">Halaman Sebelumnya</span>
             </Button>
-            <span className="text-sm text-muted-foreground px-2">
-              {currentPage}/{totalPages || 1}
+            
+            <span className="text-sm">
+              Halaman {totalPages === 0 ? 0 : currentPage} dari {totalPages}
             </span>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={goToNextPage} 
-              disabled={currentPage === totalPages || totalPages === 0}
+            
+            <Button
+              variant="outline"
+              size="icon"
               className="h-8 w-8"
+              onClick={goToNextPage}
+              disabled={currentPage === totalPages || totalPages === 0}
             >
               <ChevronRight className="h-4 w-4" />
-              <span className="sr-only">Halaman Selanjutnya</span>
             </Button>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={goToLastPage} 
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={goToLastPage}
               disabled={currentPage === totalPages || totalPages === 0}
-              className="h-8 w-8 hidden sm:flex"
             >
               <ChevronsRight className="h-4 w-4" />
-              <span className="sr-only">Halaman Terakhir</span>
             </Button>
           </div>
         </div>
       </div>
-
+      
+      {/* Delete Confirmation Dialog */}
       <DeleteConfirmationDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}

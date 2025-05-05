@@ -35,7 +35,7 @@ interface AbsensiDolingTableProps {
 export function AbsensiDolingTable({ absensi, onEdit, onAdd, jadwalDoling = [] }: AbsensiDolingTableProps) {
   // Get user role for authorized actions
   const { userRole } = useAuth();
-  const canAddAbsensi = ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris'].includes(userRole);
+  const canAddAbsensi = userRole ? ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'SEKRETARIS', 'WAKIL_SEKRETARIS'].includes(userRole) : false;
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -43,22 +43,18 @@ export function AbsensiDolingTable({ absensi, onEdit, onAdd, jadwalDoling = [] }
   const [searchTerm, setSearchTerm] = useState("");
   
   // Get kehadiran badge
-  const getKehadiranBadge = (kehadiran: string) => {
-    switch (kehadiran) {
-      case "hadir":
-        return <Badge variant="success">Hadir</Badge>;
-      case "tidak-hadir":
-        return <Badge variant="destructive">Tidak Hadir</Badge>;
-      default:
-        return null;
+  const getKehadiranBadge = (kehadiran: boolean) => {
+    if (kehadiran) {
+      return <Badge variant="success">Hadir</Badge>;
+    } else {
+      return <Badge variant="destructive">Tidak Hadir</Badge>;
     }
   };
 
   // Filter data based on search
   const filteredData = absensi.filter(item => 
     searchTerm === "" || 
-    item.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.keterangan && item.keterangan.toLowerCase().includes(searchTerm.toLowerCase()))
+    item.namaKeluarga.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
   // Calculate pagination
@@ -83,8 +79,8 @@ export function AbsensiDolingTable({ absensi, onEdit, onAdd, jadwalDoling = [] }
   };
 
   // Fungsi untuk mendapatkan nama tuanRumah dari jadwalId
-  const getJadwalInfo = (jadwalId: number) => {
-    const jadwal = jadwalDoling.find(j => j.id === jadwalId);
+  const getJadwalInfo = (doaLingkunganId: string) => {
+    const jadwal = jadwalDoling.find(j => j.id === doaLingkunganId);
     if (!jadwal) return { tuanRumah: "Tidak tersedia", tanggal: "-" };
     
     return { 
@@ -101,7 +97,7 @@ export function AbsensiDolingTable({ absensi, onEdit, onAdd, jadwalDoling = [] }
       <div className="relative w-full md:w-64">
         <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Cari nama atau keterangan..."
+          placeholder="Cari nama keluarga..."
           className="pl-8"
           value={searchTerm}
           onChange={(e) => {
@@ -133,30 +129,26 @@ export function AbsensiDolingTable({ absensi, onEdit, onAdd, jadwalDoling = [] }
                 <TableHead>No</TableHead>
                 <TableHead>Tanggal</TableHead>
                 <TableHead>Jadwal Doling</TableHead>
-                <TableHead>Nama</TableHead>
-                <TableHead>Kepala Keluarga</TableHead>
+                <TableHead>Nama Keluarga</TableHead>
                 <TableHead>Kehadiran</TableHead>
-                <TableHead>Keterangan</TableHead>
                 <TableHead className="sticky right-0 bg-white shadow-[-8px_0_10px_-6px_rgba(0,0,0,0.1)] z-10">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {currentData.length > 0 ? (
                 currentData.map((item, index) => {
-                  const jadwalInfo = getJadwalInfo(item.jadwalId);
+                  const jadwalInfo = getJadwalInfo(item.doaLingkunganId);
                   return (
                     <TableRow key={item.id}>
                       <TableCell>{startIndex + index + 1}</TableCell>
                       <TableCell>
-                        {item.tanggalKehadiran && item.tanggalKehadiran instanceof Date && !isNaN(item.tanggalKehadiran.getTime())
-                          ? format(item.tanggalKehadiran, "dd MMM yyyy", { locale: id })
+                        {item.createdAt && item.createdAt instanceof Date && !isNaN(item.createdAt.getTime())
+                          ? format(item.createdAt, "dd MMM yyyy", { locale: id })
                           : "Tanggal tidak valid"}
                       </TableCell>
                       <TableCell>{jadwalInfo.tuanRumah}</TableCell>
-                      <TableCell>{item.nama}</TableCell>
-                      <TableCell>{item.kepalaKeluarga ? "Ya" : "Tidak"}</TableCell>
-                      <TableCell>{getKehadiranBadge(item.kehadiran)}</TableCell>
-                      <TableCell>{item.keterangan || "-"}</TableCell>
+                      <TableCell>{item.namaKeluarga}</TableCell>
+                      <TableCell>{getKehadiranBadge(item.hadir)}</TableCell>
                       <TableCell className="sticky right-0 bg-white shadow-[-8px_0_10px_-6px_rgba(0,0,0,0.1)] z-10">
                         <Button variant="ghost" size="sm" onClick={() => onEdit(item)}>
                           Edit
@@ -167,7 +159,7 @@ export function AbsensiDolingTable({ absensi, onEdit, onAdd, jadwalDoling = [] }
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-4">
+                  <TableCell colSpan={6} className="text-center py-4">
                     {absensi.length === 0 ? "Belum ada data absensi" : "Tidak ada data yang ditemukan"}
                   </TableCell>
                 </TableRow>

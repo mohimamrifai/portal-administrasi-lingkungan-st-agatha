@@ -66,43 +66,52 @@ export function PrintRiwayatDialog({
 
   // Ambil data detil yang dipilih
   const selectedDetil = selectedDetilId 
-    ? detilDolingData.find(item => item.id === parseInt(selectedDetilId)) 
+    ? detilDolingData.find(item => item.id === selectedDetilId) 
     : null;
 
   // Buat data untuk PDF berdasarkan detil yang dipilih
   const getPDFData = () => {
     if (!selectedDetil) return null;
 
-    // Filter absensi yang terkait dengan jadwal yang dipilih (asumsikan ada relasi jadwalId)
-    // Ini hanya mock data untuk contoh
-    const kepalaKeluarga = [
-      { nama: "Budi Santoso", status: 'hadir' as const },
-      { nama: "Ahmad Wijaya", status: 'hanya_suami' as const },
-      { nama: "Siti Rahayu", status: 'hanya_istri' as const },
-      { nama: "Hendra Gunawan", status: 'tidak_hadir' as const },
-      { nama: "Dewi Lestari", status: 'hadir' as const },
-    ];
+    // Filter absensi yang terkait dengan jadwal yang dipilih berdasarkan ID
+    const relevantAbsensi = absensiDolingData.filter(
+      (absensi) => absensi.doaLingkunganId === selectedDetilId
+    );
+
+    // Transformasi data absensi ke format yang dibutuhkan untuk PDF
+    const kepalaKeluarga = relevantAbsensi.map((absensi) => {
+      let status: 'hadir' | 'tidak_hadir' | 'hanya_suami' | 'hanya_istri' = 'tidak_hadir';
+      
+      if (absensi.hadir) {
+        status = 'hadir';
+      }
+      
+      return {
+        nama: absensi.namaKeluarga,
+        status: status,
+      };
+    });
 
     return {
       tanggal: selectedDetil.tanggal,
-      jenisIbadat: selectedDetil.jenisIbadat || "Doa Rosario",
-      subIbadat: selectedDetil.subIbadat || "Devosi",
-      temaIbadat: selectedDetil.temaIbadat || "Kasih & Persaudaraan",
+      jenisIbadat: selectedDetil.jenisIbadat,
+      subIbadat: selectedDetil.subIbadat || "Umum",
+      temaIbadat: selectedDetil.temaIbadat || "Doa Lingkungan",
       tuanRumah: selectedDetil.tuanRumah,
       // Statistik kehadiran
-      jumlahKK: selectedDetil.jumlahHadir || 0,
-      jumlahBapak: selectedDetil.jumlahBapak || 0,
-      jumlahIbu: selectedDetil.jumlahIbu || 0,
-      jumlahOMK: selectedDetil.jumlahOMK || 0,
-      jumlahBIR: selectedDetil.jumlahBIR || 0,
-      jumlahBIA: selectedDetil.jumlahBIAKecil || 0, // BIA usia 0-6 tahun
-      jumlahBIA713: selectedDetil.jumlahBIABesar || 0, // BIA usia 7-13 tahun
+      jumlahKK: selectedDetil.jumlahKKHadir,
+      jumlahBapak: selectedDetil.bapak,
+      jumlahIbu: selectedDetil.ibu,
+      jumlahOMK: selectedDetil.omk,
+      jumlahBIR: selectedDetil.bir,
+      jumlahBIA: selectedDetil.biaBawah, // BIA usia rendah
+      jumlahBIA713: selectedDetil.biaAtas, // BIA usia lanjut
       // Penerimaan
-      kolekte1: selectedDetil.kolekte1 || 0,
-      kolekte2: selectedDetil.kolekte2 || 0,
-      ucapanSyukur: selectedDetil.ucapanSyukur || 0,
+      kolekte1: selectedDetil.kolekteI,
+      kolekte2: selectedDetil.kolekteII,
+      ucapanSyukur: selectedDetil.ucapanSyukur,
       // Kehadiran KK
-      kepalaKeluarga: kepalaKeluarga,
+      kepalaKeluarga: kepalaKeluarga.length > 0 ? kepalaKeluarga : [],
     };
   };
 
@@ -134,8 +143,8 @@ export function PrintRiwayatDialog({
                     className="w-full justify-between"
                   >
                     {selectedDetilId
-                      ? availableDetilDoling.find((item) => item.id.toString() === selectedDetilId)
-                        ? formatJadwalDisplay(availableDetilDoling.find((item) => item.id.toString() === selectedDetilId)!)
+                      ? availableDetilDoling.find((item) => item.id === selectedDetilId)
+                        ? formatJadwalDisplay(availableDetilDoling.find((item) => item.id === selectedDetilId)!)
                         : "Pilih jadwal..."
                       : "Pilih jadwal..."}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -152,14 +161,14 @@ export function PrintRiwayatDialog({
                             key={item.id}
                             value={formatJadwalDisplay(item)}
                             onSelect={() => {
-                              setSelectedDetilId(item.id.toString() === selectedDetilId ? "" : item.id.toString());
+                              setSelectedDetilId(item.id === selectedDetilId ? "" : item.id);
                               setOpenCombobox(false);
                             }}
                           >
                             <Check
                               className={cn(
                                 "mr-2 h-4 w-4",
-                                selectedDetilId === item.id.toString() ? "opacity-100" : "opacity-0"
+                                selectedDetilId === item.id ? "opacity-100" : "opacity-0"
                               )}
                             />
                             {formatJadwalDisplay(item)}

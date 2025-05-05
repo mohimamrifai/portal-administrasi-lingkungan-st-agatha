@@ -18,7 +18,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { JadwalDoling } from "../types";
+import { DolingData } from "../types";
+import { JenisIbadat, SubIbadat } from "@prisma/client";
 
 // Validasi untuk tanggal
 const disabledDays = [
@@ -28,7 +29,7 @@ const disabledDays = [
   new Date(2023, 10, 20),
 ];
 
-// Membuat skema validasi form
+// Membuat skema validasi form dengan tipe-tipe yang sesuai
 const formSchema = z.object({
   tuanRumah: z
     .string()
@@ -53,24 +54,38 @@ const formSchema = z.object({
   waktu: z
     .string()
     .min(5, "Format waktu tidak valid"),
-  noTelepon: z
+  nomorTelepon: z
     .string()
     .min(10, "Nomor telepon minimal 10 digit")
     .max(15, "Nomor telepon maksimal 15 digit"),
-  catatan: z
+  jenisIbadat: z.nativeEnum(JenisIbadat, {
+    required_error: "Jenis ibadat harus dipilih",
+  }),
+  subIbadat: z.string().optional(),
+  temaIbadat: z
     .string()
     .max(500, "Catatan maksimal 500 karakter")
     .optional(),
-  status: z.enum(["terjadwal", "selesai", "dibatalkan"], {
+  status: z.enum(["terjadwal", "selesai", "dibatalkan", "menunggu"], {
     required_error: "Status harus dipilih",
   }),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = {
+  tuanRumah: string;
+  alamat: string;
+  tanggal: Date;
+  waktu: string;
+  nomorTelepon: string;
+  jenisIbadat: JenisIbadat;
+  subIbadat?: string;
+  temaIbadat?: string;
+  status: "terjadwal" | "selesai" | "dibatalkan" | "menunggu";
+}
 
 interface FormJadwalDolingProps {
-  initialData?: JadwalDoling;
-  onSubmit: (data: JadwalDoling) => void;
+  initialData?: DolingData;
+  onSubmit: (data: DolingData) => void;
   onCancel: () => void;
 }
 
@@ -82,25 +97,111 @@ export function FormJadwalDoling({ initialData, onSubmit, onCancel }: FormJadwal
       alamat: initialData.alamat,
       tanggal: initialData.tanggal,
       waktu: initialData.waktu,
-      noTelepon: initialData.noTelepon || "",
-      catatan: initialData.catatan || "",
-      status: initialData.status,
+      nomorTelepon: initialData.nomorTelepon || "",
+      jenisIbadat: initialData.jenisIbadat,
+      subIbadat: initialData.subIbadat ? initialData.subIbadat : "NONE",
+      temaIbadat: initialData.temaIbadat || undefined,
+      status: initialData.status as "terjadwal" | "selesai" | "dibatalkan" | "menunggu",
     } : {
       tuanRumah: "",
       alamat: "",
       tanggal: new Date(),
       waktu: "19:00",
-      noTelepon: "",
-      catatan: "",
+      nomorTelepon: "",
+      jenisIbadat: JenisIbadat.DOA_LINGKUNGAN,
+      subIbadat: "NONE",
+      temaIbadat: undefined,
       status: "terjadwal",
     },
   });
 
+  // Mengamati perubahan jenis ibadat untuk menampilkan/menyembunyikan field subIbadat yang sesuai
+  const jenisIbadat = form.watch("jenisIbadat");
+
+  // Mendapatkan subIbadat berdasarkan jenisIbadat yang dipilih
+  const getSubIbadatOptions = () => {
+    switch (jenisIbadat) {
+      case JenisIbadat.DOA_LINGKUNGAN:
+        return [
+          SubIbadat.IBADAT_SABDA,
+          SubIbadat.IBADAT_SABDA_TEMATIK,
+          SubIbadat.PRAPASKAH,
+          SubIbadat.BKSN,
+          SubIbadat.BULAN_ROSARIO,
+          SubIbadat.NOVENA_NATAL
+        ];
+      case JenisIbadat.MISA:
+        return [
+          SubIbadat.MISA_SYUKUR,
+          SubIbadat.MISA_REQUEM,
+          SubIbadat.MISA_ARWAH,
+          SubIbadat.MISA_PELINDUNG
+        ];
+      default:
+        return [];
+    }
+  };
+
+  // Mapping untuk menampilkan jenis ibadat dalam bahasa yang lebih mudah dibaca
+  const jenisIbadatMap: Record<JenisIbadat, string> = {
+    [JenisIbadat.DOA_LINGKUNGAN]: "Doa Lingkungan",
+    [JenisIbadat.MISA]: "Misa",
+    [JenisIbadat.PERTEMUAN]: "Pertemuan",
+    [JenisIbadat.BAKTI_SOSIAL]: "Bakti Sosial",
+    [JenisIbadat.KEGIATAN_LAIN]: "Kegiatan Lain"
+  };
+
+  // Mapping untuk menampilkan sub ibadat dalam bahasa yang lebih mudah dibaca
+  const subIbadatMap: Record<SubIbadat, string> = {
+    [SubIbadat.IBADAT_SABDA]: "Ibadat Sabda",
+    [SubIbadat.IBADAT_SABDA_TEMATIK]: "Ibadat Sabda Tematik",
+    [SubIbadat.PRAPASKAH]: "Prapaskah (APP)",
+    [SubIbadat.BKSN]: "BKSN",
+    [SubIbadat.BULAN_ROSARIO]: "Bulan Rosario",
+    [SubIbadat.NOVENA_NATAL]: "Novena Natal",
+    [SubIbadat.MISA_SYUKUR]: "Misa Syukur",
+    [SubIbadat.MISA_REQUEM]: "Misa Requem",
+    [SubIbadat.MISA_ARWAH]: "Misa Arwah",
+    [SubIbadat.MISA_PELINDUNG]: "Misa Pelindung"
+  };
+
   function handleSubmit(values: FormValues) {
+    // Proses values.subIbadat agar sesuai dengan yang diharapkan
+    let subIbadatValue: SubIbadat | undefined = undefined;
+    if (values.subIbadat && values.subIbadat !== "NONE") {
+      subIbadatValue = values.subIbadat as SubIbadat;
+    }
+    
+    // Karena kita tidak bisa membuat DolingData lengkap di sini (banyak properti dari database),
+    // kita kirim hanya yang kita edit dan biarkan handler di komponen parent mengurus sisanya
     onSubmit({
-      id: initialData?.id || Math.floor(Math.random() * 1000),
+      ...(initialData || {
+        id: "",
+        tuanRumahId: "",
+        jumlahKKHadir: 0,
+        bapak: 0,
+        ibu: 0,
+        omk: 0,
+        bir: 0,
+        biaBawah: 0,
+        biaAtas: 0,
+        kolekteI: 0,
+        kolekteII: 0,
+        ucapanSyukur: 0,
+        pemimpinIbadat: null,
+        pemimpinRosario: null,
+        pembawaRenungan: null,
+        pembawaLagu: null,
+        doaUmat: null,
+        pemimpinMisa: null,
+        bacaanI: null,
+        pemazmur: null,
+        jumlahPeserta: 0,
+        approved: false,
+        createdAt: new Date(),
+      } as DolingData),
       ...values,
-      createdAt: initialData?.createdAt || new Date(),
+      subIbadat: subIbadatValue || null,
       updatedAt: new Date(),
     });
   }
@@ -140,7 +241,7 @@ export function FormJadwalDoling({ initialData, onSubmit, onCancel }: FormJadwal
                 
                 <FormField
                   control={form.control}
-                  name="noTelepon"
+                  name="nomorTelepon"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Nomor Telepon <span className="text-destructive">*</span></FormLabel>
@@ -169,7 +270,7 @@ export function FormJadwalDoling({ initialData, onSubmit, onCancel }: FormJadwal
                               )}
                             >
                               {field.value ? (
-                                format(field.value, "EEEE, dd MMMM yyyy", { locale: id })
+                                format(field.value, "PPP", { locale: id })
                               ) : (
                                 <span>Pilih tanggal</span>
                               )}
@@ -183,14 +284,15 @@ export function FormJadwalDoling({ initialData, onSubmit, onCancel }: FormJadwal
                             selected={field.value}
                             onSelect={field.onChange}
                             disabled={(date) => 
+                              disabledDays.some(disabled => 
+                                disabled.getDate() === date.getDate() &&
+                                disabled.getMonth() === date.getMonth() &&
+                                disabled.getFullYear() === date.getFullYear()
+                              ) ||
                               isBefore(date, new Date()) || 
-                              disabledDays.some(
-                                (disabledDate) => 
-                                  format(disabledDate, "yyyy-MM-dd") === format(date, "yyyy-MM-dd")
-                              )
+                              isAfter(date, addMonths(new Date(), 6))
                             }
                             initialFocus
-                            locale={id}
                           />
                         </PopoverContent>
                       </Popover>
@@ -205,14 +307,10 @@ export function FormJadwalDoling({ initialData, onSubmit, onCancel }: FormJadwal
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Waktu <span className="text-destructive">*</span></FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
+                      <Select value={field.value} onValueChange={field.onChange}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Pilih waktu" />
-                            <Clock className="h-4 w-4 opacity-50" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -238,8 +336,8 @@ export function FormJadwalDoling({ initialData, onSubmit, onCancel }: FormJadwal
                       <FormLabel>Alamat <span className="text-destructive">*</span></FormLabel>
                       <FormControl>
                         <Textarea 
-                          placeholder="Masukkan alamat lengkap" 
-                          className="min-h-[100px]" 
+                          placeholder="Masukkan alamat tuan rumah" 
+                          className="min-h-[120px]" 
                           {...field} 
                         />
                       </FormControl>
@@ -250,15 +348,79 @@ export function FormJadwalDoling({ initialData, onSubmit, onCancel }: FormJadwal
                 
                 <FormField
                   control={form.control}
-                  name="catatan"
+                  name="jenisIbadat"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Catatan</FormLabel>
+                      <FormLabel>Jenis Ibadat <span className="text-destructive">*</span></FormLabel>
+                      <Select 
+                        value={field.value} 
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          // Reset subIbadat when jenisIbadat changes
+                          form.setValue("subIbadat", "NONE");
+                        }}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih jenis ibadat" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Object.values(JenisIbadat).map((jenis) => (
+                            <SelectItem key={jenis} value={jenis}>
+                              {jenisIbadatMap[jenis]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {(jenisIbadat === JenisIbadat.DOA_LINGKUNGAN || jenisIbadat === JenisIbadat.MISA) && (
+                  <FormField
+                    control={form.control}
+                    name="subIbadat"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sub Ibadat</FormLabel>
+                        <Select 
+                          value={field.value || "NONE"} 
+                          onValueChange={field.onChange}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Pilih sub ibadat" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="NONE">-- Tidak Ada --</SelectItem>
+                            {getSubIbadatOptions().map((sub) => (
+                              <SelectItem key={sub} value={sub}>
+                                {subIbadatMap[sub]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                <FormField
+                  control={form.control}
+                  name="temaIbadat"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tema Ibadat</FormLabel>
                       <FormControl>
                         <Textarea 
-                          placeholder="Catatan tambahan (opsional)" 
-                          className="min-h-[100px]" 
+                          placeholder="Masukkan tema ibadat (opsional)" 
+                          className="min-h-[80px]" 
                           {...field} 
+                          value={field.value || ""}
                         />
                       </FormControl>
                       <FormMessage />
@@ -272,11 +434,8 @@ export function FormJadwalDoling({ initialData, onSubmit, onCancel }: FormJadwal
                     name="status"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Status <span className="text-destructive">*</span></FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
+                        <FormLabel>Status</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Pilih status" />
@@ -284,6 +443,7 @@ export function FormJadwalDoling({ initialData, onSubmit, onCancel }: FormJadwal
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="terjadwal">Terjadwal</SelectItem>
+                            <SelectItem value="menunggu">Menunggu</SelectItem>
                             <SelectItem value="selesai">Selesai</SelectItem>
                             <SelectItem value="dibatalkan">Dibatalkan</SelectItem>
                           </SelectContent>
@@ -296,26 +456,22 @@ export function FormJadwalDoling({ initialData, onSubmit, onCancel }: FormJadwal
               </div>
             </div>
             
-            <Alert variant="default" className="bg-primary/5 border-primary/20">
-              <AlertCircle className="h-4 w-4 text-primary" />
+            <Alert variant="default" className="mt-4">
+              <AlertCircle className="h-4 w-4" />
               <AlertTitle>Perhatian</AlertTitle>
               <AlertDescription>
-                Jadwal yang telah dibuat akan dikirimkan notifikasi ke admin lingkungan dan pengurus seksi doaling.
+                Pastikan semua informasi yang Anda masukkan sudah benar. Data jadwal doa lingkungan akan digunakan untuk notifikasi otomatis.
               </AlertDescription>
             </Alert>
             
-            <Separator />
+            <Separator className="my-4" />
             
-            <div className="flex justify-end gap-2">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={onCancel}
-              >
+            <div className="flex justify-between">
+              <Button type="button" variant="outline" onClick={onCancel}>
                 Batal
               </Button>
               <Button type="submit">
-                {isEditMode ? "Perbarui Jadwal" : "Simpan Jadwal"}
+                {isEditMode ? "Perbarui" : "Simpan"}
               </Button>
             </div>
           </form>

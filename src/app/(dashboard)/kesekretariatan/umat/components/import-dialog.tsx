@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import * as XLSX from 'xlsx';
 import { FamilyHead } from "../types";
+import { StatusKehidupan } from "@prisma/client";
 
 interface ImportDialogProps {
   open: boolean;
@@ -32,14 +33,14 @@ export function ImportDialog({
 }: ImportDialogProps) {
   const [importFile, setImportFile] = useState<File | null>(null);
 
-  const processImportFile = () => {
+  const processImportFile = async () => {
     if (!importFile) {
       toast.error('Silakan pilih file terlebih dahulu');
       return;
     }
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
@@ -56,65 +57,87 @@ export function ImportDialog({
           return;
         }
         
-        // Simulasi penambahan data
-        const newFamilyHeads = jsonData.map((row: any, index) => {
-          // Parse tanggal
-          let joinDate = new Date();
-          try {
-            const dateStr = row['Tanggal Bergabung (DD/MM/YYYY)'];
-            if (dateStr && typeof dateStr === 'string') {
-              const dateParts = dateStr.split('/');
-              if (dateParts.length === 3) {
-                const day = parseInt(dateParts[0]);
-                const month = parseInt(dateParts[1]) - 1; // Bulan di JavaScript dimulai dari 0
-                const year = parseInt(dateParts[2]);
-                
-                // Validasi nilai tanggal
-                if (!isNaN(day) && !isNaN(month) && !isNaN(year) && 
-                  day > 0 && day <= 31 && month >= 0 && month <= 11 && year > 1900) {
-                  const tempDate = new Date(year, month, day);
-                  // Pastikan tanggal valid (mis. 31 Feb tidak valid)
-                  if (tempDate.getDate() === day) {
-                    joinDate = tempDate;
+        // Memproses data dari Excel dan menyiapkannya untuk dikirim ke server
+        try {
+          const familyHeadDataArray = jsonData.map((row: any) => {
+            // Parse tanggal
+            let tanggalBergabung = new Date();
+            try {
+              const dateStr = row['Tanggal Bergabung (DD/MM/YYYY)'];
+              if (dateStr && typeof dateStr === 'string') {
+                const dateParts = dateStr.split('/');
+                if (dateParts.length === 3) {
+                  const day = parseInt(dateParts[0]);
+                  const month = parseInt(dateParts[1]) - 1; // Bulan di JavaScript dimulai dari 0
+                  const year = parseInt(dateParts[2]);
+                  
+                  // Validasi nilai tanggal
+                  if (!isNaN(day) && !isNaN(month) && !isNaN(year) && 
+                    day > 0 && day <= 31 && month >= 0 && month <= 11 && year > 1900) {
+                    const tempDate = new Date(year, month, day);
+                    // Pastikan tanggal valid (mis. 31 Feb tidak valid)
+                    if (tempDate.getDate() === day) {
+                      tanggalBergabung = tempDate;
+                    }
                   }
                 }
+              } else if (dateStr instanceof Date) {
+                // Jika dateStr sudah berupa objek Date
+                tanggalBergabung = dateStr;
               }
-            } else if (dateStr instanceof Date) {
-              // Jika dateStr sudah berupa objek Date
-              joinDate = dateStr;
+            } catch (error) {
+              console.error('Format tanggal tidak valid:', error);
+              // Gunakan tanggal hari ini jika format tidak valid
             }
-          } catch (error) {
-            console.error('Format tanggal tidak valid:', error);
-            // Gunakan tanggal hari ini jika format tidak valid
+            
+            // Konversi nilai numerik dengan validasi
+            const parseIntSafe = (value: any): number => {
+              if (value === undefined || value === null || value === '') return 0;
+              const parsed = parseInt(value);
+              return isNaN(parsed) ? 0 : parsed;
+            };
+            
+            return {
+              namaKepalaKeluarga: row['Nama Kepala Keluarga'] || 'Tidak Ada Nama',
+              alamat: row['Alamat'] || '',
+              nomorTelepon: row['No. Telepon'] || undefined,
+              tanggalBergabung: tanggalBergabung,
+              jumlahAnakTertanggung: parseIntSafe(row['Jumlah Anak Tertanggung']),
+              jumlahKerabatTertanggung: parseIntSafe(row['Jumlah Kerabat Tertanggung']),
+              jumlahAnggotaKeluarga: Math.max(1, parseIntSafe(row['Jumlah Anggota Keluarga'])),
+              status: StatusKehidupan.HIDUP,
+              tanggalKeluar: undefined,
+              tanggalMeninggal: undefined,
+            };
+          });
+          
+          // Lakukan import satu per satu menggunakan server action
+          let importedCount = 0;
+          const importedHeads: FamilyHead[] = [];
+          
+          for (const familyHeadData of familyHeadDataArray) {
+            try {
+              const result = await import('../actions').then(module => 
+                module.addFamilyHead(familyHeadData)
+              );
+              
+              if (result) {
+                importedCount++;
+                importedHeads.push(result);
+              }
+            } catch (error) {
+              console.error(`Error importing family head ${familyHeadData.namaKepalaKeluarga}:`, error);
+            }
           }
           
-          // Konversi nilai numerik dengan validasi
-          const parseIntSafe = (value: any): number => {
-            if (value === undefined || value === null || value === '') return 0;
-            const parsed = parseInt(value);
-            return isNaN(parsed) ? 0 : parsed;
-          };
-          
-          return {
-            id: existingDataCount + index + 1,
-            name: row['Nama Kepala Keluarga'] || 'Tidak Ada Nama',
-            address: row['Alamat'] || '',
-            phoneNumber: row['No. Telepon'] || '',
-            joinDate: joinDate,
-            childrenCount: parseIntSafe(row['Jumlah Anak Tertanggung']),
-            relativesCount: parseIntSafe(row['Jumlah Kerabat Tertanggung']),
-            familyMembersCount: Math.max(1, parseIntSafe(row['Jumlah Anggota Keluarga'])),
-            status: 'active',
-            createdAt: new Date(),
-            updatedAt: new Date()
-          } as FamilyHead;
-        });
-        
-        onImportComplete(newFamilyHeads);
-        toast.success(`${newFamilyHeads.length} data berhasil diimpor`);
-        onOpenChange(false);
-        setImportFile(null);
-        
+          onImportComplete(importedHeads);
+          toast.success(`${importedCount} data berhasil diimpor`);
+          onOpenChange(false);
+          setImportFile(null);
+        } catch (error) {
+          console.error('Error processing data:', error);
+          toast.error('Terjadi kesalahan saat memproses data');
+        }
       } catch (error) {
         console.error('Error processing file:', error);
         let errorMessage = 'Terjadi kesalahan saat memproses file';

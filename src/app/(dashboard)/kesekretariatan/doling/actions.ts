@@ -1,0 +1,708 @@
+"use server";
+
+import { prisma } from "@/lib/db";
+import { JenisIbadat, SubIbadat, StatusApproval } from "@prisma/client";
+import { revalidatePath } from "next/cache";
+
+// Tipe data yang digunakan UI
+export interface DolingData {
+  id: string;
+  tanggal: Date;
+  waktu: string;
+  tuanRumah: string;
+  tuanRumahId: string;
+  alamat: string;
+  nomorTelepon: string | null;
+  jenisIbadat: JenisIbadat;
+  subIbadat: SubIbadat | null;
+  temaIbadat: string | null;
+  status: string;
+  jumlahKKHadir: number;
+  bapak: number;
+  ibu: number;
+  omk: number;
+  bir: number;
+  biaBawah: number;
+  biaAtas: number;
+  kolekteI: number;
+  kolekteII: number;
+  ucapanSyukur: number;
+  pemimpinIbadat: string | null;
+  pemimpinRosario: string | null;
+  pembawaRenungan: string | null;
+  pembawaLagu: string | null;
+  doaUmat: string | null;
+  pemimpinMisa: string | null;
+  bacaanI: string | null;
+  pemazmur: string | null;
+  jumlahPeserta: number;
+  approved: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AbsensiData {
+  id: string;
+  doaLingkunganId: string;
+  keluargaId: string;
+  namaKeluarga: string;
+  hadir: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface KeluargaForSelect {
+  id: string;
+  nama: string;
+  alamat: string;
+  nomorTelepon: string | null;
+  sudahTerpilih: boolean;
+}
+
+/**
+ * Mendapatkan semua data doa lingkungan
+ */
+export async function getAllDoling(): Promise<DolingData[]> {
+  try {
+    const dolingData = await prisma.doaLingkungan.findMany({
+      include: {
+        tuanRumah: true,
+        approval: true,
+      },
+      orderBy: {
+        tanggal: 'desc',
+      },
+    });
+
+    return dolingData.map(doling => ({
+      id: doling.id,
+      tanggal: doling.tanggal,
+      waktu: doling.tanggal.toLocaleTimeString('id-ID', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false
+      }),
+      tuanRumah: doling.tuanRumah.namaKepalaKeluarga,
+      tuanRumahId: doling.tuanRumahId,
+      alamat: doling.tuanRumah.alamat,
+      nomorTelepon: doling.tuanRumah.nomorTelepon,
+      jenisIbadat: doling.jenisIbadat,
+      subIbadat: doling.subIbadat,
+      temaIbadat: doling.temaIbadat,
+      status: doling.approval ? 
+        (doling.approval.status === StatusApproval.APPROVED ? 'selesai' : 
+         doling.approval.status === StatusApproval.REJECTED ? 'dibatalkan' : 'menunggu') : 
+        'terjadwal',
+      jumlahKKHadir: doling.jumlahKKHadir,
+      bapak: doling.bapak,
+      ibu: doling.ibu,
+      omk: doling.omk,
+      bir: doling.bir,
+      biaBawah: doling.biaBawah,
+      biaAtas: doling.biaAtas,
+      kolekteI: doling.kolekteI,
+      kolekteII: doling.kolekteII,
+      ucapanSyukur: doling.ucapanSyukur,
+      pemimpinIbadat: doling.pemimpinIbadat,
+      pemimpinRosario: doling.pemimpinRosario,
+      pembawaRenungan: doling.pembawaRenungan,
+      pembawaLagu: doling.pembawaLagu,
+      doaUmat: doling.doaUmat,
+      pemimpinMisa: doling.pemimpinMisa,
+      bacaanI: doling.bacaanI,
+      pemazmur: doling.pemazmur,
+      jumlahPeserta: doling.jumlahPeserta,
+      approved: doling.approval?.status === StatusApproval.APPROVED,
+      createdAt: doling.createdAt,
+      updatedAt: doling.updatedAt,
+    }));
+  } catch (error) {
+    console.error("Error getting doa lingkungan data:", error);
+    throw new Error("Gagal mengambil data doa lingkungan");
+  }
+}
+
+/**
+ * Mendapatkan data doa lingkungan berdasarkan ID
+ */
+export async function getDolingById(id: string): Promise<DolingData | null> {
+  try {
+    const doling = await prisma.doaLingkungan.findUnique({
+      where: { id },
+      include: {
+        tuanRumah: true,
+        approval: true,
+      },
+    });
+
+    if (!doling) return null;
+
+    return {
+      id: doling.id,
+      tanggal: doling.tanggal,
+      waktu: doling.tanggal.toLocaleTimeString('id-ID', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false
+      }),
+      tuanRumah: doling.tuanRumah.namaKepalaKeluarga,
+      tuanRumahId: doling.tuanRumahId,
+      alamat: doling.tuanRumah.alamat,
+      nomorTelepon: doling.tuanRumah.nomorTelepon,
+      jenisIbadat: doling.jenisIbadat,
+      subIbadat: doling.subIbadat,
+      temaIbadat: doling.temaIbadat,
+      status: doling.approval ? 
+        (doling.approval.status === StatusApproval.APPROVED ? 'selesai' : 
+         doling.approval.status === StatusApproval.REJECTED ? 'dibatalkan' : 'menunggu') : 
+        'terjadwal',
+      jumlahKKHadir: doling.jumlahKKHadir,
+      bapak: doling.bapak,
+      ibu: doling.ibu,
+      omk: doling.omk,
+      bir: doling.bir,
+      biaBawah: doling.biaBawah,
+      biaAtas: doling.biaAtas,
+      kolekteI: doling.kolekteI,
+      kolekteII: doling.kolekteII,
+      ucapanSyukur: doling.ucapanSyukur,
+      pemimpinIbadat: doling.pemimpinIbadat,
+      pemimpinRosario: doling.pemimpinRosario,
+      pembawaRenungan: doling.pembawaRenungan,
+      pembawaLagu: doling.pembawaLagu,
+      doaUmat: doling.doaUmat,
+      pemimpinMisa: doling.pemimpinMisa,
+      bacaanI: doling.bacaanI,
+      pemazmur: doling.pemazmur,
+      jumlahPeserta: doling.jumlahPeserta,
+      approved: doling.approval?.status === StatusApproval.APPROVED,
+      createdAt: doling.createdAt,
+      updatedAt: doling.updatedAt,
+    };
+  } catch (error) {
+    console.error("Error getting doa lingkungan by ID:", error);
+    throw new Error("Gagal mengambil data doa lingkungan");
+  }
+}
+
+/**
+ * Mendapatkan data keluarga yang tersedia sebagai tuan rumah
+ */
+export async function getKeluargaForSelection(): Promise<KeluargaForSelect[]> {
+  try {
+    const keluargaData = await prisma.keluargaUmat.findMany({
+      where: {
+        status: 'HIDUP',
+        tanggalKeluar: null,
+      },
+      orderBy: {
+        namaKepalaKeluarga: 'asc',
+      },
+    });
+
+    // Mendapatkan keluarga yang baru saja menjadi tuan rumah (3 bulan terakhir)
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    
+    const recentHosts = await prisma.doaLingkungan.findMany({
+      where: {
+        tanggal: {
+          gte: threeMonthsAgo,
+        },
+      },
+      select: {
+        tuanRumahId: true,
+      },
+    });
+    
+    const recentHostIds = new Set(recentHosts.map(host => host.tuanRumahId));
+
+    return keluargaData.map(keluarga => ({
+      id: keluarga.id,
+      nama: keluarga.namaKepalaKeluarga,
+      alamat: keluarga.alamat,
+      nomorTelepon: keluarga.nomorTelepon,
+      sudahTerpilih: recentHostIds.has(keluarga.id),
+    }));
+  } catch (error) {
+    console.error("Error getting keluarga data:", error);
+    throw new Error("Gagal mengambil data keluarga");
+  }
+}
+
+/**
+ * Menambahkan jadwal doa lingkungan baru
+ */
+export async function addDoling(data: {
+  tanggal: Date;
+  tuanRumahId: string;
+  jenisIbadat: JenisIbadat;
+  subIbadat?: SubIbadat;
+  temaIbadat?: string;
+}): Promise<DolingData> {
+  try {
+    const newDoling = await prisma.doaLingkungan.create({
+      data: {
+        tanggal: data.tanggal,
+        tuanRumahId: data.tuanRumahId,
+        jenisIbadat: data.jenisIbadat,
+        subIbadat: data.subIbadat,
+        temaIbadat: data.temaIbadat,
+      },
+      include: {
+        tuanRumah: true,
+      },
+    });
+
+    revalidatePath("/kesekretariatan/doling");
+
+    return {
+      id: newDoling.id,
+      tanggal: newDoling.tanggal,
+      waktu: newDoling.tanggal.toLocaleTimeString('id-ID', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false
+      }),
+      tuanRumah: newDoling.tuanRumah.namaKepalaKeluarga,
+      tuanRumahId: newDoling.tuanRumahId,
+      alamat: newDoling.tuanRumah.alamat,
+      nomorTelepon: newDoling.tuanRumah.nomorTelepon,
+      jenisIbadat: newDoling.jenisIbadat,
+      subIbadat: newDoling.subIbadat,
+      temaIbadat: newDoling.temaIbadat,
+      status: 'terjadwal',
+      jumlahKKHadir: 0,
+      bapak: 0,
+      ibu: 0,
+      omk: 0,
+      bir: 0,
+      biaBawah: 0,
+      biaAtas: 0,
+      kolekteI: 0,
+      kolekteII: 0,
+      ucapanSyukur: 0,
+      pemimpinIbadat: null,
+      pemimpinRosario: null,
+      pembawaRenungan: null,
+      pembawaLagu: null,
+      doaUmat: null,
+      pemimpinMisa: null,
+      bacaanI: null,
+      pemazmur: null,
+      jumlahPeserta: 0,
+      approved: false,
+      createdAt: newDoling.createdAt,
+      updatedAt: newDoling.updatedAt,
+    };
+  } catch (error) {
+    console.error("Error adding doa lingkungan:", error);
+    throw new Error("Gagal menambahkan jadwal doa lingkungan");
+  }
+}
+
+/**
+ * Mengupdate detail doa lingkungan
+ */
+export async function updateDolingDetail(id: string, data: {
+  jumlahKKHadir?: number;
+  bapak?: number;
+  ibu?: number;
+  omk?: number;
+  bir?: number;
+  biaBawah?: number;
+  biaAtas?: number;
+  kolekteI?: number;
+  kolekteII?: number;
+  ucapanSyukur?: number;
+  pemimpinIbadat?: string;
+  pemimpinRosario?: string;
+  pembawaRenungan?: string;
+  pembawaLagu?: string;
+  doaUmat?: string;
+  pemimpinMisa?: string;
+  bacaanI?: string;
+  pemazmur?: string;
+  jumlahPeserta?: number;
+}): Promise<DolingData> {
+  try {
+    const updatedDoling = await prisma.doaLingkungan.update({
+      where: { id },
+      data,
+      include: {
+        tuanRumah: true,
+        approval: true,
+      },
+    });
+
+    // Jika belum ada approval, buat approval baru dengan status PENDING
+    if (!updatedDoling.approval) {
+      await prisma.approval.create({
+        data: {
+          doaLingkungan: {
+            connect: { id: updatedDoling.id }
+          },
+          status: StatusApproval.PENDING
+        }
+      });
+    }
+
+    revalidatePath("/kesekretariatan/doling");
+
+    return {
+      id: updatedDoling.id,
+      tanggal: updatedDoling.tanggal,
+      waktu: updatedDoling.tanggal.toLocaleTimeString('id-ID', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false
+      }),
+      tuanRumah: updatedDoling.tuanRumah.namaKepalaKeluarga,
+      tuanRumahId: updatedDoling.tuanRumahId,
+      alamat: updatedDoling.tuanRumah.alamat,
+      nomorTelepon: updatedDoling.tuanRumah.nomorTelepon,
+      jenisIbadat: updatedDoling.jenisIbadat,
+      subIbadat: updatedDoling.subIbadat,
+      temaIbadat: updatedDoling.temaIbadat,
+      status: updatedDoling.approval ? 
+        (updatedDoling.approval.status === StatusApproval.APPROVED ? 'selesai' : 
+         updatedDoling.approval.status === StatusApproval.REJECTED ? 'dibatalkan' : 'menunggu') : 
+        'menunggu',
+      jumlahKKHadir: updatedDoling.jumlahKKHadir,
+      bapak: updatedDoling.bapak,
+      ibu: updatedDoling.ibu,
+      omk: updatedDoling.omk,
+      bir: updatedDoling.bir,
+      biaBawah: updatedDoling.biaBawah,
+      biaAtas: updatedDoling.biaAtas,
+      kolekteI: updatedDoling.kolekteI,
+      kolekteII: updatedDoling.kolekteII,
+      ucapanSyukur: updatedDoling.ucapanSyukur,
+      pemimpinIbadat: updatedDoling.pemimpinIbadat,
+      pemimpinRosario: updatedDoling.pemimpinRosario,
+      pembawaRenungan: updatedDoling.pembawaRenungan,
+      pembawaLagu: updatedDoling.pembawaLagu,
+      doaUmat: updatedDoling.doaUmat,
+      pemimpinMisa: updatedDoling.pemimpinMisa,
+      bacaanI: updatedDoling.bacaanI,
+      pemazmur: updatedDoling.pemazmur,
+      jumlahPeserta: updatedDoling.jumlahPeserta,
+      approved: updatedDoling.approval?.status === StatusApproval.APPROVED,
+      createdAt: updatedDoling.createdAt,
+      updatedAt: updatedDoling.updatedAt,
+    };
+  } catch (error) {
+    console.error("Error updating doa lingkungan detail:", error);
+    throw new Error("Gagal mengupdate detail doa lingkungan");
+  }
+}
+
+/**
+ * Mendapatkan absensi untuk doa lingkungan tertentu
+ */
+export async function getAbsensiByDolingId(dolingId: string): Promise<AbsensiData[]> {
+  try {
+    const absensiData = await prisma.absensiDoling.findMany({
+      where: {
+        doaLingkunganId: dolingId,
+      },
+      include: {
+        keluarga: true,
+      },
+      orderBy: {
+        keluarga: {
+          namaKepalaKeluarga: 'asc',
+        },
+      },
+    });
+
+    return absensiData.map(absensi => ({
+      id: absensi.id,
+      doaLingkunganId: absensi.doaLingkunganId,
+      keluargaId: absensi.keluargaId,
+      namaKeluarga: absensi.keluarga.namaKepalaKeluarga,
+      hadir: absensi.hadir,
+      createdAt: absensi.createdAt,
+      updatedAt: absensi.updatedAt,
+    }));
+  } catch (error) {
+    console.error("Error getting absensi data:", error);
+    throw new Error("Gagal mengambil data absensi doa lingkungan");
+  }
+}
+
+/**
+ * Menambahkan atau mengupdate data absensi
+ */
+export async function updateAbsensi(dolingId: string, data: { keluargaId: string, hadir: boolean }[]): Promise<void> {
+  try {
+    // Transaksi untuk memastikan semua data absensi terupdate secara konsisten
+    await prisma.$transaction(async (tx) => {
+      // Iterasi semua data yang akan diupdate
+      for (const item of data) {
+        // Cek apakah data absensi sudah ada
+        const existingAbsensi = await tx.absensiDoling.findFirst({
+          where: {
+            doaLingkunganId: dolingId,
+            keluargaId: item.keluargaId,
+          },
+        });
+
+        if (existingAbsensi) {
+          // Update jika sudah ada
+          await tx.absensiDoling.update({
+            where: { id: existingAbsensi.id },
+            data: { hadir: item.hadir }
+          });
+        } else {
+          // Buat baru jika belum ada
+          await tx.absensiDoling.create({
+            data: {
+              doaLingkungan: { connect: { id: dolingId } },
+              keluarga: { connect: { id: item.keluargaId } },
+              hadir: item.hadir,
+            }
+          });
+        }
+      }
+
+      // Update jumlahKKHadir pada doa lingkungan
+      const hadirCount = await tx.absensiDoling.count({
+        where: {
+          doaLingkunganId: dolingId,
+          hadir: true,
+        },
+      });
+
+      await tx.doaLingkungan.update({
+        where: { id: dolingId },
+        data: { jumlahKKHadir: hadirCount }
+      });
+    });
+
+    revalidatePath("/kesekretariatan/doling");
+  } catch (error) {
+    console.error("Error updating absensi:", error);
+    throw new Error("Gagal mengupdate data absensi");
+  }
+}
+
+/**
+ * Mengubah status approval
+ */
+export async function updateApprovalStatus(dolingId: string, status: StatusApproval): Promise<void> {
+  try {
+    // Cek apakah approval sudah ada
+    const existingApproval = await prisma.approval.findFirst({
+      where: {
+        doaLingkunganId: dolingId,
+      },
+    });
+
+    if (existingApproval) {
+      // Update approval yang sudah ada
+      await prisma.approval.update({
+        where: { id: existingApproval.id },
+        data: { status }
+      });
+    } else {
+      // Buat approval baru
+      await prisma.approval.create({
+        data: {
+          doaLingkungan: { connect: { id: dolingId } },
+          status
+        }
+      });
+    }
+
+    revalidatePath("/kesekretariatan/doling");
+  } catch (error) {
+    console.error("Error updating approval status:", error);
+    throw new Error("Gagal mengupdate status approval");
+  }
+}
+
+/**
+ * Menghapus jadwal doa lingkungan
+ */
+export async function deleteDoling(id: string): Promise<void> {
+  try {
+    // Hapus terlebih dahulu data absensi yang terkait
+    await prisma.absensiDoling.deleteMany({
+      where: {
+        doaLingkunganId: id,
+      },
+    });
+
+    // Hapus approval jika ada
+    await prisma.approval.deleteMany({
+      where: {
+        doaLingkunganId: id,
+      },
+    });
+
+    // Hapus doa lingkungan
+    await prisma.doaLingkungan.delete({
+      where: { id },
+    });
+
+    revalidatePath("/kesekretariatan/doling");
+  } catch (error) {
+    console.error("Error deleting doa lingkungan:", error);
+    throw new Error("Gagal menghapus jadwal doa lingkungan");
+  }
+}
+
+/**
+ * Mendapatkan data riwayat kehadiran keluarga
+ */
+export async function getRiwayatKehadiran(): Promise<{
+  nama: string;
+  totalHadir: number;
+  persentase: number;
+}[]> {
+  try {
+    // Get all families
+    const keluarga = await prisma.keluargaUmat.findMany({
+      where: {
+        status: 'HIDUP',
+        tanggalKeluar: null,
+      },
+      select: {
+        id: true,
+        namaKepalaKeluarga: true,
+        absensiDoling: {
+          select: {
+            hadir: true,
+          },
+        },
+      },
+    });
+
+    // Calculate attendance statistics
+    return keluarga.map(k => {
+      const totalAbsensi = k.absensiDoling.length;
+      const totalHadir = k.absensiDoling.filter(a => a.hadir).length;
+      const persentase = totalAbsensi > 0 ? (totalHadir / totalAbsensi) * 100 : 0;
+
+      return {
+        nama: k.namaKepalaKeluarga,
+        totalHadir,
+        persentase,
+      };
+    }).sort((a, b) => b.persentase - a.persentase);
+  } catch (error) {
+    console.error("Error getting attendance history:", error);
+    throw new Error("Gagal mengambil riwayat kehadiran");
+  }
+}
+
+/**
+ * Mendapatkan rekapitulasi kegiatan per bulan
+ */
+export async function getRekapitulasiBulanan(tahun: number): Promise<{
+  bulan: string;
+  jumlahKegiatan: number;
+  rataRataHadir: number;
+}[]> {
+  try {
+    const namaBulan = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ];
+    
+    const hasil = [];
+    
+    // Loop through months
+    for (let bulan = 0; bulan < 12; bulan++) {
+      const startDate = new Date(tahun, bulan, 1);
+      const endDate = new Date(tahun, bulan + 1, 0);
+      
+      // Get doling data for this month
+      const dolingData = await prisma.doaLingkungan.findMany({
+        where: {
+          tanggal: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+        select: {
+          jumlahKKHadir: true,
+        },
+      });
+      
+      const jumlahKegiatan = dolingData.length;
+      const totalHadir = dolingData.reduce((sum, d) => sum + d.jumlahKKHadir, 0);
+      const rataRataHadir = jumlahKegiatan > 0 ? totalHadir / jumlahKegiatan : 0;
+      
+      hasil.push({
+        bulan: namaBulan[bulan],
+        jumlahKegiatan,
+        rataRataHadir,
+      });
+    }
+    
+    return hasil;
+  } catch (error) {
+    console.error("Error getting monthly recap:", error);
+    throw new Error("Gagal mengambil rekapitulasi bulanan");
+  }
+}
+
+/**
+ * Mendapatkan data kaleidoskop
+ */
+export async function getKaleidoskopData(): Promise<{
+  totalKegiatan: number;
+  rataRataKehadiran: number;
+  totalKKAktif: number;
+}> {
+  try {
+    // Get total kegiatan this year
+    const currentYear = new Date().getFullYear();
+    const startDate = new Date(currentYear, 0, 1);
+    const endDate = new Date(currentYear, 11, 31);
+    
+    const kegiatanCount = await prisma.doaLingkungan.count({
+      where: {
+        tanggal: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+    });
+    
+    // Calculate average attendance
+    const dolingData = await prisma.doaLingkungan.findMany({
+      where: {
+        tanggal: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      select: {
+        jumlahKKHadir: true,
+      },
+    });
+    
+    const totalHadir = dolingData.reduce((sum, d) => sum + d.jumlahKKHadir, 0);
+    const rataRataKehadiran = kegiatanCount > 0 ? totalHadir / kegiatanCount : 0;
+    
+    // Get total active families
+    const totalKKAktif = await prisma.keluargaUmat.count({
+      where: {
+        status: 'HIDUP',
+        tanggalKeluar: null,
+      },
+    });
+    
+    return {
+      totalKegiatan: kegiatanCount,
+      rataRataKehadiran,
+      totalKKAktif,
+    };
+  } catch (error) {
+    console.error("Error getting kaleidoskop data:", error);
+    throw new Error("Gagal mengambil data kaleidoskop");
+  }
+} 

@@ -12,7 +12,11 @@ export function exportFamilyHeadTemplate() {
         'No. Telepon': 'Contoh: 081234567890',
         'Jumlah Anak Tertanggung': '2',
         'Jumlah Kerabat Tertanggung': '1',
-        'Jumlah Anggota Keluarga': '4'
+        'Jumlah Anggota Keluarga': '4',
+        'Tempat Lahir (opsional)': 'Contoh: Jakarta',
+        'Tanggal Lahir (DD/MM/YYYY) (opsional)': '15/08/1980',
+        'Kota Domisili (opsional)': 'Contoh: Jakarta Selatan',
+        'Pendidikan Terakhir (opsional)': 'Contoh: S1'
       },
       {
         'Nama Kepala Keluarga': '',
@@ -21,13 +25,33 @@ export function exportFamilyHeadTemplate() {
         'No. Telepon': '',
         'Jumlah Anak Tertanggung': '',
         'Jumlah Kerabat Tertanggung': '',
-        'Jumlah Anggota Keluarga': ''
+        'Jumlah Anggota Keluarga': '',
+        'Tempat Lahir (opsional)': '',
+        'Tanggal Lahir (DD/MM/YYYY) (opsional)': '',
+        'Kota Domisili (opsional)': '',
+        'Pendidikan Terakhir (opsional)': ''
       }
     ];
 
     // Buat workbook baru
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(template);
+    
+    // Sesuaikan lebar kolom
+    const wscols = [
+      { wch: 25 }, // Nama Kepala Keluarga
+      { wch: 25 }, // Tanggal Bergabung
+      { wch: 40 }, // Alamat
+      { wch: 20 }, // No. Telepon
+      { wch: 20 }, // Jumlah Anak Tertanggung
+      { wch: 20 }, // Jumlah Kerabat Tertanggung
+      { wch: 20 }, // Jumlah Anggota Keluarga
+      { wch: 25 }, // Tempat Lahir
+      { wch: 30 }, // Tanggal Lahir
+      { wch: 25 }, // Kota Domisili
+      { wch: 25 }, // Pendidikan Terakhir
+    ];
+    ws['!cols'] = wscols;
     
     // Tambahkan worksheet ke workbook
     XLSX.utils.book_append_sheet(wb, ws, 'Template Data Umat');

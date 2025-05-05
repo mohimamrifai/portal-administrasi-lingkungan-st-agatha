@@ -29,7 +29,7 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedAgenda, setSelectedAgenda] = useState<Agenda | undefined>();
-  const [agendaToDelete, setAgendaToDelete] = useState<number | null>(null);
+  const [agendaToDelete, setAgendaToDelete] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Validasi dan normalisasi initialAgendas
@@ -57,7 +57,7 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
   });
 
   // Cek apakah pengguna adalah umat atau pengurus
-  const isUmatRole = userRole === 'umat';
+  const isUmatRole = userRole === 'UMAT';
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -69,7 +69,13 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
     ).length / itemsPerPage
   );
 
-  // Function to safely convert userId to number
+  // Fungsi untuk konversi antara tipe
+  const convertStringToNumber = (value: string): number => {
+    const num = parseInt(value, 10);
+    return isNaN(num) ? 0 : num;
+  };
+
+  // Pada bagian getUserIdAsNumber, ubah tipe return
   const getUserIdAsNumber = (userIdValue: string | null): number | undefined => {
     if (!userIdValue) return undefined;
     const parsedId = parseInt(userIdValue, 10);
@@ -113,25 +119,17 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
           const openAgendas = agendas.filter(agenda => agenda.status === 'open').length;
 
           if (openAgendas > 0 && userId) {
-            // Tampilkan toast
-            toast.info(`Anda memiliki ${openAgendas} agenda yang menunggu tindak lanjut.`, {
-              duration: 10000,
-            });
-            
             // Tambahkan ke database notifikasi jika userId adalah number
-            const userIdNum = getUserIdAsNumber(userId);
-            if (userIdNum) {
-              try {
-                await createNotification({
-                  title: "Pengingat Agenda",
-                  message: `Anda memiliki ${openAgendas} agenda yang menunggu tindak lanjut.`,
-                  type: "info",
-                  recipientId: userIdNum,
-                  relatedItemType: "Agenda"
-                });
-              } catch (error) {
-                console.error("Failed to create notification:", error);
-              }
+            try {
+              await createNotification({
+                title: "Pengingat Agenda",
+                message: `Anda memiliki ${openAgendas} agenda yang menunggu tindak lanjut.`,
+                type: "info",
+                recipientId: userId,
+                relatedItemType: "Agenda"
+              });
+            } catch (error) {
+              console.error("Failed to create notification:", error);
             }
             
             // Tampilkan notifikasi browser
@@ -221,7 +219,7 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
     }
   };
 
-  const handleEditAgenda = (id: number) => {
+  const handleEditAgenda = (id: string) => {
     const agenda = agendas.find(a => a.id === id);
     if (agenda) {
       setSelectedAgenda(agenda);
@@ -230,7 +228,7 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
     }
   };
 
-  const handleProcessAgenda = (id: number) => {
+  const handleProcessAgenda = (id: string) => {
     const agenda = agendas.find(a => a.id === id);
     if (agenda) {
       setSelectedAgenda(agenda);
@@ -238,7 +236,7 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
     }
   };
 
-  const handleUpdateStatusAgenda = (id: number) => {
+  const handleUpdateStatusAgenda = (id: string) => {
     const agenda = agendas.find(a => a.id === id);
     if (agenda) {
       setSelectedAgenda(agenda);
@@ -246,7 +244,7 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
     }
   };
 
-  const handleFinalResultAgenda = (id: number): void => {
+  const handleFinalResultAgenda = (id: string): void => {
     const agenda = agendas.find(a => a.id === id);
     if (agenda) {
       setSelectedAgenda(agenda);
@@ -254,7 +252,7 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
     }
   };
 
-  const handleRejectAgenda = (id: number) => {
+  const handleRejectAgenda = (id: string) => {
     const agenda = agendas.find(a => a.id === id);
     if (agenda) {
       setSelectedAgenda(agenda);
@@ -290,19 +288,19 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
       // Konversi userId ke number
       const userIdNum = getUserIdAsNumber(userId);
       const creatorId = typeof selectedAgenda.createdBy === 'object' 
-        ? selectedAgenda.createdBy.id 
-        : selectedAgenda.createdBy;
+        ? selectedAgenda.createdBy.id.toString() // Konversi ke string
+        : selectedAgenda.createdBy.toString(); // Konversi ke string
       
       // Cek apakah user saat ini bukan pembuat agenda
-      if (userIdNum && userIdNum !== creatorId) {
+      if (userIdNum && userIdNum !== parseInt(creatorId)) {
         try {
           await createNotification({
             title: "Agenda Diproses",
             message: `Agenda "${selectedAgenda.title}" sedang diproses di ${processTarget === 'lingkungan' ? 'Lingkungan' : processTarget === 'stasi' ? 'Stasi' : 'Paroki'}`,
             type: "info",
             recipientId: creatorId,
-            senderId: userIdNum,
-            relatedItemId: selectedAgenda.id,
+            senderId: userId,
+            relatedItemId: convertStringToNumber(selectedAgenda.id),
             relatedItemType: "Agenda"
           });
         } catch (error) {
@@ -356,11 +354,11 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
       // Konversi userId ke number
       const userIdNum = getUserIdAsNumber(userId);
       const creatorId = typeof selectedAgenda.createdBy === 'object' 
-        ? selectedAgenda.createdBy.id 
-        : selectedAgenda.createdBy;
+        ? selectedAgenda.createdBy.id.toString() // Konversi ke string
+        : selectedAgenda.createdBy.toString(); // Konversi ke string
       
       // Cek apakah user saat ini bukan pembuat agenda
-      if (userIdNum && userIdNum !== creatorId) {
+      if (userIdNum && userIdNum !== parseInt(creatorId)) {
         try {
           await createNotification({
             title: status === 'completed' 
@@ -371,8 +369,8 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
             message,
             type: notificationType,
             recipientId: creatorId,
-            senderId: userIdNum,
-            relatedItemId: selectedAgenda.id,
+            senderId: userId,
+            relatedItemId: convertStringToNumber(selectedAgenda.id),
             relatedItemType: "Agenda"
           });
         } catch (error) {
@@ -420,19 +418,19 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
       // Konversi userId ke number
       const userIdNum = getUserIdAsNumber(userId);
       const creatorId = typeof selectedAgenda.createdBy === 'object' 
-        ? selectedAgenda.createdBy.id 
-        : selectedAgenda.createdBy;
+        ? selectedAgenda.createdBy.id.toString() // Konversi ke string
+        : selectedAgenda.createdBy.toString(); // Konversi ke string
       
       // Cek apakah user saat ini bukan pembuat agenda
-      if (userIdNum && userIdNum !== creatorId) {
+      if (userIdNum && userIdNum !== parseInt(creatorId)) {
         try {
           await createNotification({
             title: result === 'completed' ? "Agenda Selesai" : "Agenda Ditolak",
             message,
             type: notificationType,
             recipientId: creatorId,
-            senderId: userIdNum,
-            relatedItemId: selectedAgenda.id,
+            senderId: userId,
+            relatedItemId: convertStringToNumber(selectedAgenda.id),
             relatedItemType: "Agenda"
           });
         } catch (error) {
@@ -472,19 +470,19 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
       // Konversi userId ke number
       const userIdNum = getUserIdAsNumber(userId);
       const creatorId = typeof selectedAgenda.createdBy === 'object' 
-        ? selectedAgenda.createdBy.id 
-        : selectedAgenda.createdBy;
+        ? selectedAgenda.createdBy.id.toString() // Konversi ke string
+        : selectedAgenda.createdBy.toString(); // Konversi ke string
       
       // Cek apakah user saat ini bukan pembuat agenda
-      if (userIdNum && userIdNum !== creatorId) {
+      if (userIdNum && userIdNum !== parseInt(creatorId)) {
         try {
           await createNotification({
             title: "Agenda Ditolak",
             message,
             type: "error",
             recipientId: creatorId,
-            senderId: userIdNum,
-            relatedItemId: selectedAgenda.id,
+            senderId: userId,
+            relatedItemId: convertStringToNumber(selectedAgenda.id),
             relatedItemType: "Agenda"
           });
         } catch (error) {
@@ -501,7 +499,7 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
     );
   };
 
-  const handleConfirmDelete = (id: number) => {
+  const handleConfirmDelete = (id: string) => {
     // Menyimpan ID agenda yang akan dihapus
     setAgendaToDelete(id);
     
@@ -583,7 +581,7 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
           onDelete={handleConfirmDelete}
           onReject={handleRejectAgenda}
           onEdit={handleEditAgenda}
-          userRole={userRole}
+          userRole={userRole || undefined}
         />
       )}
 

@@ -1,6 +1,7 @@
 import { JadwalDoling, DetilDoling } from "../types";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
+import { JenisIbadat } from "@prisma/client";
 
 /**
  * Format currency to Indonesian Rupiah
@@ -40,9 +41,11 @@ export const formatTanggalWaktu = (date: Date, waktu?: string): string => {
 /**
  * Generate a new unique ID based on existing array
  */
-export const generateNewId = <T extends { id: number }>(items: T[]): number => {
-  if (items.length === 0) return 1;
-  return Math.max(0, ...items.map(item => item.id)) + 1;
+export const generateNewId = <T extends { id: string }>(items: T[]): string => {
+  if (items.length === 0) return '1';
+  
+  // Menggunakan UUID secara default
+  return crypto.randomUUID();
 };
 
 /**
@@ -78,18 +81,18 @@ export const getDetilStatistics = (detil: DetilDoling[]) => {
   const total = detil.length;
   const selesai = detil.filter(d => d.status === "selesai").length;
   const dibatalkan = detil.filter(d => d.status === "dibatalkan").length;
-  const disetujui = detil.filter(d => d.sudahDiapprove).length;
+  const disetujui = detil.filter(d => d.approved).length;
   
   // Hitung total kehadiran
-  const totalKehadiran = detil.reduce((sum, item) => sum + (item.jumlahHadir || 0), 0);
+  const totalKehadiran = detil.reduce((sum, item) => sum + (item.jumlahKKHadir || 0), 0);
   const rataRataKehadiran = total > 0 ? Math.round(totalKehadiran / total) : 0;
   
   // Hitung total per jenis ibadat
-  const doaLingkungan = detil.filter(d => d.jenisIbadat === "doa-lingkungan").length;
-  const misa = detil.filter(d => d.jenisIbadat === "misa").length;
-  const pertemuan = detil.filter(d => d.jenisIbadat === "pertemuan").length;
-  const baktiSosial = detil.filter(d => d.jenisIbadat === "bakti-sosial").length;
-  const lainnya = detil.filter(d => d.jenisIbadat === "kegiatan-lainnya").length;
+  const doaLingkungan = detil.filter(d => d.jenisIbadat === JenisIbadat.DOA_LINGKUNGAN).length;
+  const misa = detil.filter(d => d.jenisIbadat === JenisIbadat.MISA).length;
+  const pertemuan = detil.filter(d => d.jenisIbadat === JenisIbadat.PERTEMUAN).length;
+  const baktiSosial = detil.filter(d => d.jenisIbadat === JenisIbadat.BAKTI_SOSIAL).length;
+  const lainnya = detil.filter(d => d.jenisIbadat === JenisIbadat.KEGIATAN_LAIN).length;
   
   return { 
     total, 

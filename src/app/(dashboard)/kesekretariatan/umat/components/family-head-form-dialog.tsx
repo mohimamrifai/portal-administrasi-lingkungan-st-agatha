@@ -36,6 +36,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { StatusKehidupan } from "@prisma/client";
 
 interface FamilyHeadFormDialogProps {
   open: boolean;
@@ -53,14 +54,16 @@ export function FamilyHeadFormDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const defaultValues: FamilyHeadFormValues = {
-    name: "",
-    address: "",
-    phoneNumber: "",
-    joinDate: new Date(),
-    childrenCount: 0,
-    relativesCount: 0,
-    familyMembersCount: 1,
-    status: "active",
+    namaKepalaKeluarga: "",
+    alamat: "",
+    nomorTelepon: "",
+    tanggalBergabung: new Date(),
+    jumlahAnakTertanggung: 0,
+    jumlahKerabatTertanggung: 0,
+    jumlahAnggotaKeluarga: 1,
+    status: StatusKehidupan.HIDUP,
+    tanggalKeluar: null,
+    tanggalMeninggal: null,
   };
 
   const form = useForm<FamilyHeadFormValues>({
@@ -74,15 +77,16 @@ export function FamilyHeadFormDialog({
       if (familyHead) {
         // Editing existing family head
         form.reset({
-          name: familyHead.name,
-          address: familyHead.address,
-          phoneNumber: familyHead.phoneNumber,
-          joinDate: familyHead.joinDate,
-          childrenCount: familyHead.childrenCount,
-          relativesCount: familyHead.relativesCount,
-          familyMembersCount: familyHead.familyMembersCount,
+          namaKepalaKeluarga: familyHead.nama,
+          alamat: familyHead.alamat,
+          nomorTelepon: familyHead.nomorTelepon || "",
+          tanggalBergabung: familyHead.tanggalBergabung,
+          jumlahAnakTertanggung: familyHead.jumlahAnakTertanggung,
+          jumlahKerabatTertanggung: familyHead.jumlahKerabatTertanggung,
+          jumlahAnggotaKeluarga: familyHead.jumlahAnggotaKeluarga,
           status: familyHead.status,
-          deceasedMemberName: familyHead.deceasedMemberName,
+          tanggalKeluar: familyHead.tanggalKeluar || null,
+          tanggalMeninggal: familyHead.tanggalMeninggal || null,
         });
       } else {
         // Adding new family head
@@ -94,10 +98,12 @@ export function FamilyHeadFormDialog({
   // Mengawasi perubahan status
   const statusValue = form.watch("status");
   
-  // Atur deceasedMemberName menjadi undefined jika status bukan deceased
+  // Atur tanggal meninggal jika status adalah Meninggal
   useEffect(() => {
-    if (statusValue !== "deceased") {
-      form.setValue("deceasedMemberName", undefined);
+    if (statusValue === StatusKehidupan.MENINGGAL && !form.getValues("tanggalMeninggal")) {
+      form.setValue("tanggalMeninggal", new Date());
+    } else if (statusValue === StatusKehidupan.HIDUP) {
+      form.setValue("tanggalMeninggal", null);
     }
   }, [statusValue, form]);
 
@@ -129,7 +135,7 @@ export function FamilyHeadFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleDialogClose}>
-      <DialogContent className="sm:max-w-[500px] w-[95vw] max-w-[95vw] sm:w-auto">
+      <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {familyHead ? "Edit Kepala Keluarga" : "Tambah Kepala Keluarga"}
@@ -144,7 +150,7 @@ export function FamilyHeadFormDialog({
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="name"
+              name="namaKepalaKeluarga"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nama</FormLabel>
@@ -158,7 +164,21 @@ export function FamilyHeadFormDialog({
             
             <FormField
               control={form.control}
-              name="joinDate"
+              name="alamat"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Alamat</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Alamat" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="tanggalBergabung"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Tanggal Bergabung</FormLabel>
@@ -173,7 +193,7 @@ export function FamilyHeadFormDialog({
                           )}
                         >
                           {field.value ? (
-                            format(field.value, "dd MMM yyyy", { locale: id })
+                            format(field.value, "dd MMMM yyyy", { locale: id })
                           ) : (
                             <span>Pilih tanggal</span>
                           )}
@@ -187,7 +207,6 @@ export function FamilyHeadFormDialog({
                         selected={field.value}
                         onSelect={field.onChange}
                         initialFocus
-                        locale={id}
                       />
                     </PopoverContent>
                   </Popover>
@@ -196,24 +215,10 @@ export function FamilyHeadFormDialog({
               )}
             />
             
-            <FormField
-              control={form.control}
-              name="address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Alamat</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Alamat" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <FormField
                 control={form.control}
-                name="childrenCount"
+                name="jumlahAnakTertanggung"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Jumlah Anak Tertanggung</FormLabel>
@@ -234,7 +239,7 @@ export function FamilyHeadFormDialog({
               
               <FormField
                 control={form.control}
-                name="relativesCount"
+                name="jumlahKerabatTertanggung"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Jumlah Kerabat Tertanggung</FormLabel>
@@ -255,7 +260,7 @@ export function FamilyHeadFormDialog({
               
               <FormField
                 control={form.control}
-                name="familyMembersCount"
+                name="jumlahAnggotaKeluarga"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Jumlah Anggota Keluarga</FormLabel>
@@ -277,12 +282,12 @@ export function FamilyHeadFormDialog({
             
             <FormField
               control={form.control}
-              name="phoneNumber"
+              name="nomorTelepon"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nomor Telepon</FormLabel>
                   <FormControl>
-                    <Input placeholder="Nomor telepon" {...field} />
+                    <Input placeholder="Nomor telepon" {...field} value={field.value || ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -317,16 +322,83 @@ export function FamilyHeadFormDialog({
               )}
             />
             
-            {statusValue === "deceased" && (
+            {statusValue === StatusKehidupan.HIDUP && (
               <FormField
                 control={form.control}
-                name="deceasedMemberName"
+                name="tanggalKeluar"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nama Anggota Keluarga yang Meninggal</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Nama anggota keluarga yang meninggal" {...field} value={field.value || ""} />
-                    </FormControl>
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Tanggal Keluar (Opsional)</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                            onClick={(e) => e.preventDefault()}
+                          >
+                            {field.value ? (
+                              format(field.value, "dd MMMM yyyy", { locale: id })
+                            ) : (
+                              <span>Pilih tanggal</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value || undefined}
+                          onSelect={(date) => field.onChange(date)}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            
+            {statusValue === StatusKehidupan.MENINGGAL && (
+              <FormField
+                control={form.control}
+                name="tanggalMeninggal"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Tanggal Meninggal</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "dd MMMM yyyy", { locale: id })
+                            ) : (
+                              <span>Pilih tanggal</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value || undefined}
+                          onSelect={(date) => field.onChange(date)}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}

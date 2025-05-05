@@ -84,8 +84,9 @@ export function AgendaDetailDialog({
   };
 
   // Helper untuk mendapatkan nama dari createdBy
-  const getCreatedByName = (createdBy: number | { id: number; name: string }): string => {
-    return typeof createdBy === 'number' ? `User ${createdBy}` : createdBy.name;
+  const getCreatedByName = (createdBy: string | { id: string; name: string }): string => {
+    if (!createdBy) return "Unknown";
+    return typeof createdBy === 'object' ? createdBy.name : `User ${createdBy}`;
   };
 
   return (

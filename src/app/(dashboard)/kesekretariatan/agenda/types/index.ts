@@ -18,7 +18,7 @@ export interface AgendaAttachment {
 }
 
 export interface Agenda {
-  id: number;
+  id: string;
   title: string;
   description: string;
   date: Date;
@@ -27,8 +27,8 @@ export interface Agenda {
   status: AgendaStatus;
   rejectionReason?: string;
   attachment?: AgendaAttachment; // Menambahkan properti opsional untuk lampiran
-  createdBy: number | {
-    id: number;
+  createdBy: string | {
+    id: string;
     name: string;
   };
   createdAt: Date;
