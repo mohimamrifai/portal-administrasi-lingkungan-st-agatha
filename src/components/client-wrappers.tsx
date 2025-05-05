@@ -6,10 +6,12 @@ import { SiteHeader } from "@/components/site-header"
 
 export function AppClientWrapper() {
   const { userRole } = useAuth()
-  return <AppSidebar variant="inset" userRole={userRole} />
+  console.log("AppClientWrapper: Auth context provides role", userRole)
+  return <AppSidebar variant="inset" userRole={userRole || undefined} />
 }
 
 export function HeaderClientWrapper() {
   const { userRole } = useAuth()
-  return <SiteHeader userRole={userRole} />
+  console.log("HeaderClientWrapper: Auth context provides role", userRole)
+  return <SiteHeader userRole={userRole || undefined} />
 } 

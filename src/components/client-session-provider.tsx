@@ -5,7 +5,10 @@ import { AuthProvider } from "@/contexts/auth-context";
 
 export function ClientSessionProvider({ children }: { children: ReactNode }) {
   return (
-    <SessionProvider>
+    <SessionProvider
+      refetchInterval={300}
+      refetchOnWindowFocus={true}
+    >
       <AuthProvider>
         {children}
       </AuthProvider>

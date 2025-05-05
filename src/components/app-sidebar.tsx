@@ -22,7 +22,7 @@ import {
 import { navMain } from "@/lib/nav-menu"
 
 interface AppSidebarProps extends Omit<React.ComponentProps<typeof Sidebar>, 'userRole'> {
-  userRole?: string
+  userRole?: string | null;
 }
 
 export function AppSidebar({
@@ -37,9 +37,14 @@ export function AppSidebar({
     return null // Atau komponen loading
   }
 
-  // Gunakan role dari session jika tersedia, jika tidak gunakan prop userRole, atau fallback ke "umat"
-  const effectiveRole = session?.user?.role || userRole || "umat"
-  const validRole = navMain[effectiveRole] ? effectiveRole : "umat"
+  // Gunakan role dari session jika tersedia, jika tidak gunakan prop userRole, atau fallback ke "UMAT"
+  const sessionRole = session?.user?.role as string | undefined
+  const effectiveRole = sessionRole || userRole || "UMAT"
+  
+  console.log("AppSidebar: Using role", effectiveRole)
+  
+  // Pastikan role yang digunakan ada dalam navMain
+  const validRole = navMain[effectiveRole] ? effectiveRole : "UMAT"
   const menuItems = navMain[validRole] || []
 
   const userData = {

@@ -12,7 +12,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { signIn, useSession } from "next-auth/react"
@@ -28,7 +28,15 @@ export function LoginForm({
   const [error, setError] = useState<string | null>(null)
   
   const router = useRouter()
-  const { status } = useSession()
+  const { data: session, status } = useSession()
+
+  // Redirect jika sudah login menggunakan useEffect
+  useEffect(() => {
+    if (status === "authenticated" && session) {
+      console.log("User authenticated, redirecting to dashboard", session)
+      router.push("/dashboard")
+    }
+  }, [status, router, session])
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword)
@@ -40,21 +48,42 @@ export function LoginForm({
     setError(null)
     
     try {
+      console.log("Attempting login with username:", username)
       const res = await signIn("credentials", {
         redirect: false,
         username,
         password,
+        callbackUrl: "/dashboard"
       })
-      if (res?.ok) {
-        router.push("/dashboard")
-      } else {
-        setError("Login gagal, silahkan cek username/password.")
+
+      console.log("Login response:", res)
+
+      if (res?.error) {
+        if (res.error === "CredentialsSignin") {
+          setError("Username atau password tidak valid")
+        } else {
+          setError(`Login gagal: ${res.error}`)
+        }
+      } else if (res?.ok) {
+        console.log("Login successful, navigating to:", res.url)
+        // Gunakan window.location untuk hard redirect
+        window.location.href = res.url || "/dashboard"
       }
     } catch (error) {
-      setError("Login gagal, silahkan coba lagi")
+      console.error("Login error:", error)
+      setError("Terjadi kesalahan saat login. Silakan coba lagi.")
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Menampilkan indikator loading saat sedang checking status
+  if (status === "loading") {
+    return (
+      <div className="flex justify-center items-center min-h-[200px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (

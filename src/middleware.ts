@@ -3,30 +3,33 @@ import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
 const routeAccessMap: { [key: string]: string[] } = {
-  '/dashboard': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'umat'],
-  '/lingkungan': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'bendahara'],
-  '/lingkungan/kas': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'bendahara'],
-  '/lingkungan/mandiri': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'bendahara'],
-  '/ikata': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'wakilBendahara'],
-  '/ikata/kas': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'wakilBendahara'],
-  '/ikata/monitoring': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'wakilBendahara'],
-  '/kesekretariatan': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'umat'],
-  '/kesekretariatan/umat': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris'],
-  '/kesekretariatan/doling': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris'],
-  '/kesekretariatan/kaleidoskop': ['SuperUser', 'sekretaris', 'wakilSekretaris'],
-  '/kesekretariatan/agenda': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'umat'],
-  '/publikasi': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara'],
-  '/approval': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'bendahara'],
-  '/histori-pembayaran': ['SuperUser', 'umat'],
-  '/pengaturan': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'umat'],
-  '/pengaturan/profil': ['SuperUser', 'umat'],
-  '/pengaturan/password': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'umat'],
-  '/pengaturan/wipe': ['SuperUser'],
-  '/notifications': ['SuperUser', 'ketuaLingkungan', 'wakilKetua', 'sekretaris', 'wakilSekretaris', 'bendahara', 'wakilBendahara', 'umat'],
+  '/dashboard': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'SEKRETARIS', 'WAKIL_SEKRETARIS', 'BENDAHARA', 'WAKIL_BENDAHARA', 'UMAT'],
+  '/lingkungan': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'BENDAHARA'],
+  '/lingkungan/kas': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'BENDAHARA'],
+  '/lingkungan/mandiri': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'BENDAHARA'],
+  '/ikata': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'WAKIL_BENDAHARA'],
+  '/ikata/kas': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'WAKIL_BENDAHARA'],
+  '/ikata/monitoring': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'WAKIL_BENDAHARA'],
+  '/kesekretariatan': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'SEKRETARIS', 'WAKIL_SEKRETARIS', 'BENDAHARA', 'WAKIL_BENDAHARA', 'UMAT'],
+  '/kesekretariatan/umat': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'SEKRETARIS', 'WAKIL_SEKRETARIS'],
+  '/kesekretariatan/doling': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'SEKRETARIS', 'WAKIL_SEKRETARIS'],
+  '/kesekretariatan/kaleidoskop': ['SUPER_USER', 'SEKRETARIS', 'WAKIL_SEKRETARIS'],
+  '/kesekretariatan/agenda': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'SEKRETARIS', 'WAKIL_SEKRETARIS', 'BENDAHARA', 'WAKIL_BENDAHARA', 'UMAT'],
+  '/publikasi': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'SEKRETARIS', 'WAKIL_SEKRETARIS', 'BENDAHARA', 'WAKIL_BENDAHARA'],
+  '/approval': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'BENDAHARA'],
+  '/histori-pembayaran': ['SUPER_USER', 'UMAT'],
+  '/pengaturan': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'SEKRETARIS', 'WAKIL_SEKRETARIS', 'BENDAHARA', 'WAKIL_BENDAHARA', 'UMAT'],
+  '/pengaturan/profil': ['SUPER_USER', 'UMAT'],
+  '/pengaturan/password': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'SEKRETARIS', 'WAKIL_SEKRETARIS', 'BENDAHARA', 'WAKIL_BENDAHARA', 'UMAT'],
+  '/pengaturan/wipe': ['SUPER_USER'],
+  '/notifications': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'SEKRETARIS', 'WAKIL_SEKRETARIS', 'BENDAHARA', 'WAKIL_BENDAHARA', 'UMAT'],
 }
 
 const checkAccess = (path: string, role: string): boolean => {
   if (!role) return false
+  
+  console.log(`[Middleware] Checking access for role: ${role} to path: ${path}`)
+  
   if (routeAccessMap[path]) {
     return routeAccessMap[path].includes(role)
   }
@@ -58,25 +61,56 @@ export async function middleware(request: NextRequest) {
   ) {
     return NextResponse.next()
   }
+  
   // Allow public routes (login, register, forgot-password, dsb)
   const publicRoutes = ['/login', '/register', '/forgot-password', '/verify', '/__nextjs_original-stack-frame']
+  
   if (publicRoutes.includes(path)) {
     // Jika sudah login, redirect ke dashboard
-    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
-    if (token?.role) {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+    try {
+      const token = await getToken({ 
+        req: request, 
+        secret: process.env.NEXTAUTH_SECRET,
+        secureCookie: process.env.NODE_ENV === 'production'
+      })
+      
+      if (token?.role) {
+        console.log(`[Middleware] User sudah login (${token.role}), redirect ke dashboard dari ${path}`)
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
+    } catch (error) {
+      console.error('[Middleware] Error checking token:', error)
     }
+    
     return NextResponse.next()
   }
+  
   // Ambil session NextAuth.js
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
-  const userRole = token?.role as string | undefined
-  if (!userRole) {
+  try {
+    const token = await getToken({ 
+      req: request, 
+      secret: process.env.NEXTAUTH_SECRET,
+      secureCookie: process.env.NODE_ENV === 'production'
+    })
+    
+    const userRole = token?.role as string | undefined
+    
+    if (!userRole) {
+      console.log(`[Middleware] User belum login, redirect ke login dari ${path}`)
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+    
+    if (!checkAccess(path, userRole)) {
+      console.log(`[Middleware] User (${userRole}) tidak memiliki akses ke ${path}, redirect ke dashboard`)
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+    
+    console.log(`[Middleware] User (${userRole}) mengakses ${path} - Diizinkan`)
+  } catch (error) {
+    console.error('[Middleware] Error checking token:', error)
     return NextResponse.redirect(new URL('/login', request.url))
   }
-  if (!checkAccess(path, userRole)) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
+  
   return NextResponse.next()
 }
 

@@ -11,30 +11,32 @@ interface SiteHeaderProps {
 }
 
 // Format nama role untuk tampilan
-const formatRoleName = (role: string) => {
+const formatRoleName = (role: string | null) => {
+  if (!role) return 'Tamu';
+  
   switch(role) {
-    case 'SuperUser':
+    case 'SUPER_USER':
       return 'Super User';
-    case 'ketuaLingkungan':
+    case 'KETUA':
       return 'Ketua Lingkungan';
-    case 'wakilKetua':
+    case 'WAKIL_KETUA':
       return 'Wakil Ketua';
-    case 'sekretaris':
+    case 'SEKRETARIS':
       return 'Sekretaris';
-    case 'wakilSekretaris':
+    case 'WAKIL_SEKRETARIS':
       return 'Wakil Sekretaris';
-    case 'bendahara':
+    case 'BENDAHARA':
       return 'Bendahara';
-    case 'wakilBendahara':
+    case 'WAKIL_BENDAHARA':
       return 'Wakil Bendahara';
-    case 'umat':
+    case 'UMAT':
       return 'Umat';
     default:
       return role;
   }
 }
 
-export function SiteHeader({ userRole = "umat" }: SiteHeaderProps) {
+export function SiteHeader({ userRole = "UMAT" }: SiteHeaderProps) {
   const { userRole: currentRole } = useAuth()
   
   return (

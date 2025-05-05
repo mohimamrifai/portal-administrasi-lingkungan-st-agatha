@@ -21,32 +21,50 @@ export const authOptions: NextAuthOptions = {
         // Cari user berdasarkan username
         const user = await prisma.user.findUnique({
           where: { username: credentials.username },
-          include: { familyHead: true },
+          include: { keluarga: true },
         })
         if (!user) return null
         // Bandingkan password hash
         const isValid = await compare(credentials.password, user.password)
         if (!isValid) return null
-        return {
-          id: user.id.toString(),
-          name: user.username,
+        
+        console.log("User authenticated:", {
+          id: user.id,
+          username: user.username,
           role: user.role,
-          familyHeadId: user.familyHeadId,
-          familyHeadName: user.familyHead?.fullName || null,
+          keluargaId: user.keluargaId
+        })
+        
+        return {
+          id: user.id,
+          name: user.username,
+          role: user.role, // Enum 'Role' already in correct format
+          keluargaId: user.keluargaId,
+          keluargaNama: user.keluarga?.namaKepalaKeluarga || null,
         }
       },
     }),
   ],
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 hari
+  },
+  jwt: {
+    secret: process.env.NEXTAUTH_SECRET,
+    maxAge: 30 * 24 * 60 * 60, // 30 hari
   },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
         token.role = user.role as string
-        token.familyHeadId = user.familyHeadId as number | null
-        token.familyHeadName = user.familyHeadName as string | null
+        token.keluargaId = user.keluargaId as string | null
+        token.keluargaNama = user.keluargaNama as string | null
+        
+        console.log("JWT token generated:", {
+          id: token.id,
+          role: token.role
+        })
       }
       return token
     },
@@ -54,8 +72,13 @@ export const authOptions: NextAuthOptions = {
       if (token && session.user) {
         session.user.id = token.id as string
         session.user.role = token.role as string
-        session.user.familyHeadId = token.familyHeadId as number | null
-        session.user.familyHeadName = token.familyHeadName as string | null
+        session.user.keluargaId = token.keluargaId as string | null
+        session.user.keluargaNama = token.keluargaNama as string | null
+        
+        console.log("Session created:", {
+          id: session.user.id,
+          role: session.user.role
+        })
       }
       return session
     },
@@ -64,6 +87,18 @@ export const authOptions: NextAuthOptions = {
     signIn: "/login",
     error: "/login",
   },
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+  },
+  debug: process.env.NODE_ENV === "development",
   secret: process.env.NEXTAUTH_SECRET,
 }
 

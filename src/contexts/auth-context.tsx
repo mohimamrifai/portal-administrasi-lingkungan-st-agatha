@@ -7,25 +7,23 @@ import {
   useEffect,
   ReactNode
 } from "react"
-import { useSession } from "next-auth/react"
+import { useSession, signOut } from "next-auth/react"
 
-// Tipe role pengguna
+// Tipe role pengguna - sesuai dengan enum Role di schema.prisma
 type UserRole = 
-  | 'SuperUser' 
-  | 'ketuaLingkungan' 
-  | 'bendahara' 
-  | 'wakilBendahara'
-  | 'sekretaris'
-  | 'wakilSekretaris'
-  | 'adminLingkungan'
-  | 'anggota'
-  | 'umat'
-  | 'guest'
+  | 'SUPER_USER' 
+  | 'KETUA' 
+  | 'WAKIL_KETUA'
+  | 'BENDAHARA' 
+  | 'WAKIL_BENDAHARA'
+  | 'SEKRETARIS'
+  | 'WAKIL_SEKRETARIS'
+  | 'UMAT'
 
 // Interface konteks autentikasi
 interface AuthContextType {
   isAuthenticated: boolean
-  userRole: UserRole
+  userRole: UserRole | null
   userId: string | null
   username: string | null
   logout: () => void
@@ -34,7 +32,7 @@ interface AuthContextType {
 // Nilai default untuk konteks
 const defaultContext: AuthContextType = {
   isAuthenticated: false,
-  userRole: 'guest',
+  userRole: null,
   userId: null,
   username: null,
   logout: () => {}
@@ -50,7 +48,7 @@ export const useAuth = () => useContext(AuthContext)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [userRole, setUserRole] = useState<UserRole>('guest')
+  const [userRole, setUserRole] = useState<UserRole | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [username, setUsername] = useState<string | null>(null)
 
@@ -61,14 +59,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsAuthenticated(true)
       
       // Ambil role dari session (ditambahkan ke session di NextAuth callbacks)
-      const sessionRole = (session.user as any).role
+      const sessionRole = (session.user as any).role as string
+      
+      console.log("Auth context received session role:", sessionRole)
       
       // Validasi role, pastikan role ada dalam daftar UserRole yang valid
       if (sessionRole && isValidUserRole(sessionRole)) {
         setUserRole(sessionRole as UserRole)
       } else {
-        // Fallback ke guest jika role tidak valid
-        setUserRole('guest')
+        // Fallback ke null jika role tidak valid
+        setUserRole(null)
+        console.warn(`Invalid role received from session: ${sessionRole}`)
       }
       
       // Ambil userId dan username
@@ -79,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       // Reset ke default jika tidak ada session
       setIsAuthenticated(false)
-      setUserRole('guest')
+      setUserRole(null)
       setUserId(null)
       setUsername(null)
     }
@@ -88,18 +89,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Fungsi untuk memvalidasi user role
   function isValidUserRole(role: string): role is UserRole {
     return [
-      'SuperUser', 
-      'ketuaLingkungan', 
-      'bendahara', 
-      'wakilBendahara',
-      'sekretaris',
-      'wakilSekretaris',
-      'adminLingkungan',
-      'anggota',
-      'umat',
-      'guest'
+      'SUPER_USER', 
+      'KETUA', 
+      'WAKIL_KETUA',
+      'BENDAHARA', 
+      'WAKIL_BENDAHARA',
+      'SEKRETARIS',
+      'WAKIL_SEKRETARIS',
+      'UMAT'
     ].includes(role as UserRole)
   }
+
+  // Implementasi fungsi logout
+  const handleLogout = () => {
+    signOut({ callbackUrl: '/login' });
+  };
 
   // Nilai konteks yang akan disediakan
   const contextValue: AuthContextType = {
@@ -107,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userRole,
     userId,
     username,
-    logout: () => {} // Kosong, karena logout sebenarnya menggunakan signOut dari next-auth
+    logout: handleLogout
   }
 
   return (

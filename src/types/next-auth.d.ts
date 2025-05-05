@@ -8,8 +8,8 @@ declare module "next-auth" {
     user: {
       id?: string
       role?: string
-      familyHeadId?: number | null
-      familyHeadName?: string | null
+      keluargaId?: string | null
+      keluargaNama?: string | null
     } & DefaultSession["user"]
   }
 
@@ -18,8 +18,8 @@ declare module "next-auth" {
    */
   interface User {
     role?: string
-    familyHeadId?: number | null
-    familyHeadName?: string | null
+    keluargaId?: string | null
+    keluargaNama?: string | null
   }
 }
 
@@ -30,7 +30,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     id?: string
     role?: string
-    familyHeadId?: number | null
-    familyHeadName?: string | null
+    keluargaId?: string | null
+    keluargaNama?: string | null
   }
 } 

@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 
 export const navMain: Record<string, MenuItem[]> = {
-    SuperUser: [
+    SUPER_USER: [
         { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         {
             label: 'Lingkungan',
@@ -56,7 +56,7 @@ export const navMain: Record<string, MenuItem[]> = {
         },
     ],
 
-    ketuaLingkungan: [
+    KETUA: [
         { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         {
             label: 'Kesekretariatan',
@@ -77,7 +77,7 @@ export const navMain: Record<string, MenuItem[]> = {
         },
     ],
 
-    wakilKetua: [
+    WAKIL_KETUA: [
         { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         {
             label: 'Kesekretariatan',
@@ -98,29 +98,7 @@ export const navMain: Record<string, MenuItem[]> = {
         },
     ],
 
-    sekretaris: [
-        { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-        {
-            label: 'Kesekretariatan',
-            icon: Users,
-            children: [
-                { label: 'Data Umat', path: '/kesekretariatan/umat' },
-                { label: 'Doa Lingkungan', path: '/kesekretariatan/doling' },
-                { label: 'Kaleidoskop', path: '/kesekretariatan/kaleidoskop' },
-                { label: 'Agenda', path: '/kesekretariatan/agenda' },
-            ],
-        },
-        { label: 'Publikasi', path: '/publikasi', icon: FileText },
-        {
-            label: 'Pengaturan',
-            icon: Settings,
-            children: [
-                { label: 'Ganti Password', path: '/pengaturan/password' },
-            ],
-        },
-    ],
-
-    wakilSekretaris: [
+    SEKRETARIS: [
         { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         {
             label: 'Kesekretariatan',
@@ -142,7 +120,29 @@ export const navMain: Record<string, MenuItem[]> = {
         },
     ],
 
-    bendahara: [
+    WAKIL_SEKRETARIS: [
+        { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+        {
+            label: 'Kesekretariatan',
+            icon: Users,
+            children: [
+                { label: 'Data Umat', path: '/kesekretariatan/umat' },
+                { label: 'Doa Lingkungan', path: '/kesekretariatan/doling' },
+                { label: 'Kaleidoskop', path: '/kesekretariatan/kaleidoskop' },
+                { label: 'Agenda', path: '/kesekretariatan/agenda' },
+            ],
+        },
+        { label: 'Publikasi', path: '/publikasi', icon: FileText },
+        {
+            label: 'Pengaturan',
+            icon: Settings,
+            children: [
+                { label: 'Ganti Password', path: '/pengaturan/password' },
+            ],
+        },
+    ],
+
+    BENDAHARA: [
         { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         {
             label: 'Lingkungan',
@@ -170,7 +170,7 @@ export const navMain: Record<string, MenuItem[]> = {
         },
     ],
 
-    wakilBendahara: [
+    WAKIL_BENDAHARA: [
         { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         { 
             label: 'IKATA', 
@@ -197,43 +197,7 @@ export const navMain: Record<string, MenuItem[]> = {
         },
     ],
 
-    adminLingkungan: [
-        { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-        {
-            label: 'Lingkungan',
-            icon: Home,
-            children: [
-                { label: 'Kas Lingkungan', path: '/lingkungan/kas' },
-                { label: 'Dana Mandiri', path: '/lingkungan/mandiri' },
-            ],
-        },
-        { 
-            label: 'IKATA', 
-            icon: Banknote,
-            children: [
-                { label: 'Kas IKATA', path: '/ikata/kas' },
-                { label: 'Monitoring Penunggak', path: '/ikata/monitoring' },
-            ],
-        },
-        {
-            label: 'Kesekretariatan',
-            icon: Users,
-            children: [
-                { label: 'Data Umat', path: '/kesekretariatan/umat' },
-                { label: 'Agenda', path: '/kesekretariatan/agenda' },
-            ],
-        },
-        { label: 'Publikasi', path: '/publikasi', icon: FileText },
-        {
-            label: 'Pengaturan',
-            icon: Settings,
-            children: [
-                { label: 'Ganti Password', path: '/pengaturan/password' },
-            ],
-        },
-    ],
-
-    umat: [
+    UMAT: [
         { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         {
             label: 'Kesekretariatan',
