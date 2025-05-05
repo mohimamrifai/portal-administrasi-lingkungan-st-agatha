@@ -30,7 +30,7 @@ export default async function DashboardPage({
   
   // Ambil data session untuk mendapatkan role user
   const session = await getServerSession(authOptions);
-  const userRole = session?.user?.role || "umat";
+  const userRole = session?.user?.role || "UMAT";
 
   // Ambil data untuk dashboard dengan server actions
   const [

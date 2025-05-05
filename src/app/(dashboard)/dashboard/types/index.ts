@@ -29,7 +29,7 @@ export interface KesekretariatanSummary {
 
 // Tipe data untuk Kepala Keluarga Penunggak
 export interface PenunggakDanaMandiri {
-  id: number;
+  id: string;
   nama: string;
   periodeTunggakan: string;
   jumlahTunggakan: number;
@@ -37,7 +37,7 @@ export interface PenunggakDanaMandiri {
 
 // Tipe data untuk Kepala Keluarga Penunggak IKATA
 export interface PenunggakIkata {
-  id: number;
+  id: string;
   nama: string;
   periodeTunggakan: string;
   jumlahTunggakan: number;

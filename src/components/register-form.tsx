@@ -13,9 +13,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useState } from "react"
-import { AlertCircle, Eye, EyeOff } from "lucide-react"
+import { AlertCircle, Eye, EyeOff, CheckCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { registerAction } from "@/app/register/actions/register"
+import { checkFamilyHead } from "@/app/register/actions/check-family-head"
 import { useRouter } from "next/navigation"
 
 export function RegisterForm({
@@ -36,6 +37,11 @@ export function RegisterForm({
   }>({})
   const [isChecking, setIsChecking] = useState(false)
   const [isVerified, setIsVerified] = useState(false)
+  const [familyHeadData, setFamilyHeadData] = useState<{
+    id: string;
+    name: string;
+    address: string;
+  } | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [showPassphrase, setShowPassphrase] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
@@ -58,26 +64,37 @@ export function RegisterForm({
     if (errors[id as keyof typeof errors]) {
       setErrors(prev => ({ ...prev, [id]: undefined }))
     }
+    
+    // Reset verification when changing kepala keluarga
+    if (id === "kepalakeluarga" && isVerified) {
+      setIsVerified(false)
+      setFamilyHeadData(null)
+    }
   }
 
   const checkKepalakeluarga = async () => {
     setIsChecking(true)
-    // Simulate API call to check if Kepala Keluarga exists in database
+    setServerError(null)
+    
     try {
-      // Replace with actual API call
-      setTimeout(() => {
-        if (formData.kepalakeluarga.trim() === "") {
-          setErrors(prev => ({ ...prev, kepalakeluarga: "Nama Kepala Keluarga tidak boleh kosong" }))
-          setIsVerified(false)
-        } else {
-          // Assume verification is successful for demo
-          setIsVerified(true)
-          setErrors(prev => ({ ...prev, kepalakeluarga: undefined }))
-        }
-        setIsChecking(false)
-      }, 1000)
+      // Panggil server action untuk memeriksa kepala keluarga
+      const response = await checkFamilyHead(formData.kepalakeluarga)
+      
+      if (response.error) {
+        setErrors(prev => ({ ...prev, kepalakeluarga: response.error }))
+        setIsVerified(false)
+        setFamilyHeadData(null)
+      } else if (response.verified && response.familyHead) {
+        setIsVerified(true)
+        setFamilyHeadData(response.familyHead)
+        setErrors(prev => ({ ...prev, kepalakeluarga: undefined }))
+      }
     } catch (error) {
-      setErrors(prev => ({ ...prev, kepalakeluarga: "Terjadi kesalahan saat verifikasi" }))
+      setErrors(prev => ({ 
+        ...prev, 
+        kepalakeluarga: "Terjadi kesalahan saat verifikasi" 
+      }))
+    } finally {
       setIsChecking(false)
     }
   }
@@ -86,9 +103,10 @@ export function RegisterForm({
     e.preventDefault()
     setServerError(null)
     setSuccess(false)
-    // Validate form
+    
+    // Validasi form
     const newErrors: typeof errors = {}
-    if (!isVerified) {
+    if (!isVerified || !familyHeadData) {
       newErrors.kepalakeluarga = "Silahkan verifikasi Nama Kepala Keluarga terlebih dahulu"
     }
     if (!formData.username) {
@@ -104,20 +122,27 @@ export function RegisterForm({
     } else if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/.test(formData.passphrase)) {
       newErrors.passphrase = "Passphrase harus terdiri dari minimal 8 karakter, mengandung huruf dan angka"
     }
+    
     setErrors(newErrors)
+    
     if (Object.keys(newErrors).length === 0) {
-      // Submit ke server action
-      const res = await registerAction({
-        username: formData.username,
-        password: formData.password,
-        passphrase: formData.passphrase,
-        familyHeadName: formData.kepalakeluarga,
-      })
-      if (res.error) {
-        setServerError(res.error)
-      } else {
-        setSuccess(true)
-        setTimeout(() => router.push("/login"), 1500)
+      try {
+        // Submit ke server action
+        const res = await registerAction({
+          username: formData.username,
+          password: formData.password,
+          passphrase: formData.passphrase,
+          familyHeadName: formData.kepalakeluarga,
+        })
+        
+        if (res.error) {
+          setServerError(res.error)
+        } else {
+          setSuccess(true)
+          setTimeout(() => router.push("/login"), 1500)
+        }
+      } catch (error) {
+        setServerError("Terjadi kesalahan saat mendaftar")
       }
     }
   }
@@ -149,7 +174,7 @@ export function RegisterForm({
                   <Button 
                     type="button" 
                     onClick={checkKepalakeluarga} 
-                    disabled={isChecking || isVerified}
+                    disabled={isChecking || isVerified || !formData.kepalakeluarga.trim()}
                     className="whitespace-nowrap"
                   >
                     {isChecking ? "Memeriksa..." : isVerified ? "Terverifikasi" : "Verifikasi"}
@@ -161,9 +186,17 @@ export function RegisterForm({
                     <AlertDescription>{errors.kepalakeluarga}</AlertDescription>
                   </Alert>
                 )}
-                {isVerified && (
+                {isVerified && familyHeadData && (
                   <Alert className="py-2 bg-green-50 text-green-800 border-green-200">
-                    <AlertDescription>Nama Kepala Keluarga terverifikasi</AlertDescription>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    <div className="space-y-1">
+                      <AlertDescription className="font-medium">
+                        Nama Kepala Keluarga terverifikasi
+                      </AlertDescription>
+                      <p className="text-xs">
+                        Alamat: {familyHeadData.address}
+                      </p>
+                    </div>
                   </Alert>
                 )}
               </div>
@@ -255,36 +288,46 @@ export function RegisterForm({
                   </Alert>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Passphrase digunakan untuk reset password. Harus terdiri dari minimal 8 karakter, mengandung huruf dan angka
+                  Passphrase harus terdiri dari minimal 8 karakter, mengandung huruf dan angka
                 </p>
               </div>
               
-              <div className="flex flex-col gap-3">
-                <Button type="submit" className="w-full" disabled={!isVerified}>
-                  Daftar
-                </Button>
+              {serverError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{serverError}</AlertDescription>
+                </Alert>
+              )}
+              
+              {success && (
+                <Alert className="bg-green-50 text-green-800 border-green-200">
+                  <CheckCircle className="h-4 w-4" />
+                  <AlertDescription>Pendaftaran berhasil! Anda akan diarahkan ke halaman login...</AlertDescription>
+                </Alert>
+              )}
+              
+              <Button 
+                type="submit"
+                disabled={!isVerified || isChecking || success}
+                className="w-full"
+              >
+                Register
+              </Button>
+              
+              <div className="text-center text-sm">
+                Sudah punya akun?{" "}
+                <Link
+                  href="/login"
+                  className="underline underline-offset-4 hover:text-primary"
+                >
+                  Login
+                </Link>
               </div>
             </div>
-            <div className="mt-4 text-center text-sm">
-              Sudah punya akun?{" "}
-              <Link href="/login" className="underline underline-offset-4">
-                Silahkan Login
-              </Link>
-            </div>
-            {serverError && (
-              <Alert variant="destructive" className="py-2">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{serverError}</AlertDescription>
-              </Alert>
-            )}
-            {success && (
-              <Alert className="py-2 bg-green-50 text-green-800 border-green-200">
-                <AlertDescription>Registrasi berhasil! Mengarahkan ke halaman login...</AlertDescription>
-              </Alert>
-            )}
           </form>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
+

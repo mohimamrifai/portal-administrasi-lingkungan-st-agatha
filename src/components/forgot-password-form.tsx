@@ -13,8 +13,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useState } from "react"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, Eye, EyeOff, CheckCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { 
+  verifyFamilyHead, 
+  verifyPassphrase, 
+  resetPassword 
+} from "@/app/forgot-password/actions"
+import { useRouter } from "next/navigation"
 
 export function ForgotPasswordForm({
   className,
@@ -32,9 +38,22 @@ export function ForgotPasswordForm({
     passphrase?: string;
     newPassword?: string;
     confirmPassword?: string;
+    general?: string;
   }>({})
+  
   const [isChecking, setIsChecking] = useState(false)
   const [isVerified, setIsVerified] = useState(false)
+  const [showPassphrase, setShowPassphrase] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [userData, setUserData] = useState<{
+    userId: string;
+    familyHeadId: string;
+    familyHeadName: string;
+  } | null>(null)
+  const [success, setSuccess] = useState(false)
+  
+  const router = useRouter()
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target
@@ -46,42 +65,85 @@ export function ForgotPasswordForm({
     }
   }
 
-  const verifyKepalakeluarga = async () => {
+  const togglePassphraseVisibility = () => {
+    setShowPassphrase(!showPassphrase)
+  }
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword)
+  }
+
+  const toggleConfirmPasswordVisibility = () => {
+    setShowConfirmPassword(!showConfirmPassword)
+  }
+
+  const handleVerifyKepalakeluarga = async () => {
     setIsChecking(true)
-    // Simulate API call to check if Kepala Keluarga exists in database
+    setErrors({})
+    
     try {
-      // Replace with actual API call
-      setTimeout(() => {
-        if (formData.kepalakeluarga.trim() === "") {
-          setErrors(prev => ({ ...prev, kepalakeluarga: "Nama Kepala Keluarga tidak boleh kosong" }))
-          setIsVerified(false)
-        } else {
-          // Assume verification is successful for demo
-          setIsVerified(true)
-          setErrors(prev => ({ ...prev, kepalakeluarga: undefined }))
-          setStep(2)
-        }
-        setIsChecking(false)
-      }, 1000)
+      // Panggil server action untuk verifikasi kepala keluarga
+      const response = await verifyFamilyHead(formData.kepalakeluarga)
+      
+      if (response.error) {
+        setErrors(prev => ({ ...prev, kepalakeluarga: response.error }))
+        setIsVerified(false)
+        setUserData(null)
+      } else if (response.verified && response.familyHead) {
+        setIsVerified(true)
+        setUserData({
+          userId: response.familyHead.userId,
+          familyHeadId: response.familyHead.id,
+          familyHeadName: response.familyHead.name
+        })
+        setStep(2)
+      }
     } catch (error) {
-      setErrors(prev => ({ ...prev, kepalakeluarga: "Terjadi kesalahan saat verifikasi" }))
+      setErrors(prev => ({ 
+        ...prev, 
+        kepalakeluarga: "Terjadi kesalahan saat verifikasi data" 
+      }))
+    } finally {
       setIsChecking(false)
     }
   }
 
-  const verifyPassphrase = () => {
+  const handleVerifyPassphrase = async () => {
+    if (!userData || !userData.userId) {
+      setErrors(prev => ({ ...prev, general: "Data user tidak tersedia" }))
+      return
+    }
+    
     if (!formData.passphrase.trim()) {
       setErrors(prev => ({ ...prev, passphrase: "Passphrase tidak boleh kosong" }))
       return
     }
     
-    // Simulate passphrase verification
-    // Replace with actual API call
-    setStep(3)
-    setErrors(prev => ({ ...prev, passphrase: undefined }))
+    setIsChecking(true)
+    setErrors({})
+    
+    try {
+      // Verifikasi passphrase dengan server action
+      const response = await verifyPassphrase(userData.userId, formData.passphrase)
+      
+      if (response.error) {
+        setErrors(prev => ({ ...prev, passphrase: response.error }))
+      } else if (response.verified) {
+        setStep(3)
+      }
+    } catch (error) {
+      setErrors(prev => ({ ...prev, passphrase: "Terjadi kesalahan saat verifikasi" }))
+    } finally {
+      setIsChecking(false)
+    }
   }
 
-  const resetPassword = () => {
+  const handleResetPassword = async () => {
+    if (!userData || !userData.userId) {
+      setErrors(prev => ({ ...prev, general: "Data user tidak tersedia" }))
+      return
+    }
+    
     const newErrors: typeof errors = {}
     
     if (!formData.newPassword) {
@@ -101,10 +163,25 @@ export function ForgotPasswordForm({
       return
     }
     
-    // Submit password reset
-    // Replace with actual API call
-    alert("Password berhasil diubah")
-    // Redirect to login page
+    setIsChecking(true)
+    setErrors({})
+    
+    try {
+      // Reset password dengan server action
+      const response = await resetPassword(userData.userId, formData.newPassword)
+      
+      if (response.error) {
+        setErrors(prev => ({ ...prev, general: response.error }))
+      } else if (response.success) {
+        setSuccess(true)
+        // Redirect ke login setelah 2 detik
+        setTimeout(() => router.push("/login"), 2000)
+      }
+    } catch (error) {
+      setErrors(prev => ({ ...prev, general: "Terjadi kesalahan saat reset password" }))
+    } finally {
+      setIsChecking(false)
+    }
   }
 
   return (
@@ -119,6 +196,7 @@ export function ForgotPasswordForm({
         <CardContent>
           <form onSubmit={(e) => e.preventDefault()}>
             <div className="flex flex-col gap-6">
+              {/* Step 1: Verifikasi Nama Kepala Keluarga */}
               {step === 1 && (
                 <div className="grid gap-3">
                   <Label htmlFor="kepalakeluarga">Nama Kepala Keluarga</Label>
@@ -131,7 +209,7 @@ export function ForgotPasswordForm({
                     required
                   />
                   {errors.kepalakeluarga && (
-                    <Alert variant="destructive">
+                    <Alert variant="destructive" className="py-2">
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription>
                         {errors.kepalakeluarga}
@@ -141,76 +219,155 @@ export function ForgotPasswordForm({
                   <Button 
                     type="button" 
                     className="w-full mt-2"
-                    onClick={verifyKepalakeluarga}
-                    disabled={isChecking}
+                    onClick={handleVerifyKepalakeluarga}
+                    disabled={isChecking || !formData.kepalakeluarga.trim()}
                   >
                     {isChecking ? "Memverifikasi..." : "Verifikasi"}
                   </Button>
                 </div>
               )}
 
+              {/* Step 2: Verifikasi Passphrase */}
               {step === 2 && (
                 <div className="grid gap-3">
+                  {userData && (
+                    <Alert className="py-2 bg-green-50 text-green-800 border-green-200">
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      <div className="space-y-1">
+                        <AlertDescription className="font-medium">
+                          Verifikasi berhasil untuk:
+                        </AlertDescription>
+                        <p className="text-xs">
+                          {userData.familyHeadName}
+                        </p>
+                      </div>
+                    </Alert>
+                  )}
+                  
                   <Label htmlFor="passphrase">Passphrase</Label>
-                  <Input
-                    id="passphrase"
-                    type="text"
-                    placeholder="Masukkan Passphrase"
-                    value={formData.passphrase}
-                    onChange={handleInputChange}
-                    required
-                  />
+                  <div className="relative">
+                    <Input
+                      id="passphrase"
+                      type={showPassphrase ? "text" : "password"}
+                      placeholder="Masukkan Passphrase"
+                      value={formData.passphrase}
+                      onChange={handleInputChange}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 -translate-y-1/2"
+                      onClick={togglePassphraseVisibility}
+                    >
+                      {showPassphrase ? (
+                        <EyeOff className="h-4 w-4 text-gray-500 cursor-pointer" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-gray-500 cursor-pointer" />
+                      )}
+                    </button>
+                  </div>
+                  
                   {errors.passphrase && (
-                    <Alert variant="destructive">
+                    <Alert variant="destructive" className="py-2">
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription>
                         {errors.passphrase}
                       </AlertDescription>
                     </Alert>
                   )}
+                  
                   <Button 
                     type="button" 
                     className="w-full mt-2"
-                    onClick={verifyPassphrase}
+                    onClick={handleVerifyPassphrase}
+                    disabled={isChecking || !formData.passphrase.trim()}
                   >
-                    Lanjutkan
+                    {isChecking ? "Memverifikasi..." : "Lanjutkan"}
                   </Button>
                 </div>
               )}
 
+              {/* Step 3: Input Password Baru */}
               {step === 3 && (
                 <>
+                  {userData && (
+                    <Alert className="py-2 bg-green-50 text-green-800 border-green-200">
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      <div className="space-y-1">
+                        <AlertDescription className="font-medium">
+                          Passphrase terverifikasi. Silahkan atur password baru untuk akun:
+                        </AlertDescription>
+                        <p className="text-xs">
+                          {userData.familyHeadName}
+                        </p>
+                      </div>
+                    </Alert>
+                  )}
+                  
                   <div className="grid gap-3">
                     <Label htmlFor="newPassword">Password Baru</Label>
-                    <Input
-                      id="newPassword"
-                      type="password"
-                      placeholder="Masukkan Password Baru"
-                      value={formData.newPassword}
-                      onChange={handleInputChange}
-                      required
-                    />
+                    <div className="relative">
+                      <Input
+                        id="newPassword"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Masukkan Password Baru"
+                        value={formData.newPassword}
+                        onChange={handleInputChange}
+                        required
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 -translate-y-1/2"
+                        onClick={togglePasswordVisibility}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4 text-gray-500 cursor-pointer" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-gray-500 cursor-pointer" />
+                        )}
+                      </button>
+                    </div>
+                    
                     {errors.newPassword && (
-                      <Alert variant="destructive">
+                      <Alert variant="destructive" className="py-2">
                         <AlertCircle className="h-4 w-4" />
                         <AlertDescription>
                           {errors.newPassword}
                         </AlertDescription>
                       </Alert>
                     )}
+                    
+                    <p className="text-xs text-muted-foreground">
+                      Password harus terdiri dari minimal 8 karakter, mengandung huruf dan angka
+                    </p>
                   </div>
+                  
                   <div className="grid gap-3">
                     <Label htmlFor="confirmPassword">Ulangi Password Baru</Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      placeholder="Ulangi Password Baru"
-                      value={formData.confirmPassword}
-                      onChange={handleInputChange}
-                      required
-                    />
+                    <div className="relative">
+                      <Input
+                        id="confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Ulangi Password Baru"
+                        value={formData.confirmPassword}
+                        onChange={handleInputChange}
+                        required
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 -translate-y-1/2"
+                        onClick={toggleConfirmPasswordVisibility}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-4 w-4 text-gray-500 cursor-pointer" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-gray-500 cursor-pointer" />
+                        )}
+                      </button>
+                    </div>
+                    
                     {errors.confirmPassword && (
-                      <Alert variant="destructive">
+                      <Alert variant="destructive" className="py-2">
                         <AlertCircle className="h-4 w-4" />
                         <AlertDescription>
                           {errors.confirmPassword}
@@ -218,18 +375,39 @@ export function ForgotPasswordForm({
                       </Alert>
                     )}
                   </div>
+                  
+                  {errors.general && (
+                    <Alert variant="destructive" className="py-2">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        {errors.general}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  {success && (
+                    <Alert className="py-2 bg-green-50 text-green-800 border-green-200">
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      <AlertDescription>
+                        Password berhasil diubah! Anda akan diarahkan ke halaman login...
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
                   <Button 
                     type="button" 
                     className="w-full mt-2"
-                    onClick={resetPassword}
+                    onClick={handleResetPassword}
+                    disabled={isChecking || success}
                   >
-                    Reset Password
+                    {isChecking ? "Memproses..." : "Reset Password"}
                   </Button>
                 </>
               )}
             </div>
+            
             <div className="mt-4 text-center text-sm">
-              <Link href="/login" className="underline underline-offset-4">
+              <Link href="/login" className="underline underline-offset-4 hover:text-primary">
                 Kembali ke halaman Login
               </Link>
             </div>

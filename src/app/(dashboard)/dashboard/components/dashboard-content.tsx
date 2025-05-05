@@ -43,28 +43,28 @@ export default function DashboardContent({
   penunggakIkata,
   userRole,
 }: DashboardContentProps) {
-  // Cek akses berdasarkan role
+  // Cek akses berdasarkan role sesuai dengan enum Role di schema.prisma
   const canViewKeuanganLingkungan = [
-    'SuperUser', 
-    'ketuaLingkungan', 
-    'bendahara',
-    'adminLingkungan'
+    'SUPER_USER', 
+    'KETUA', 
+    'WAKIL_KETUA',
+    'BENDAHARA'
   ].includes(userRole);
   
   const canViewKeuanganIkata = [
-    'SuperUser', 
-    'ketuaLingkungan', 
-    'wakilBendahara',
-    'adminLingkungan'
+    'SUPER_USER', 
+    'KETUA', 
+    'WAKIL_KETUA',
+    'WAKIL_BENDAHARA'
   ].includes(userRole);
   
   const canViewKesekretariatan = [
-    'SuperUser', 
-    'ketuaLingkungan', 
-    'sekretaris', 
-    'wakilSekretaris',
-    'adminLingkungan',
-    'umat'
+    'SUPER_USER', 
+    'KETUA', 
+    'WAKIL_KETUA',
+    'SEKRETARIS', 
+    'WAKIL_SEKRETARIS',
+    'UMAT'
   ].includes(userRole);
   
   // Semua pengguna dapat melihat daftar penunggak pada dashboard
