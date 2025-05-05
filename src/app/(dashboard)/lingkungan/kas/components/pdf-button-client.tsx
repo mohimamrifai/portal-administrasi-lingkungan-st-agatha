@@ -4,7 +4,7 @@ import React from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { Button } from '@/components/ui/button';
 import PDFDocument from './pdf-document';
-import { TransactionData } from '../types/schema';
+import { TransactionData } from '../types';
 
 interface PDFButtonClientProps {
   dateRange: {

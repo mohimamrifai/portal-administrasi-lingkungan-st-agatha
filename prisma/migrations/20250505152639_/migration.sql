@@ -136,6 +136,7 @@ CREATE TABLE "KasLingkungan" (
     "kredit" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "keluargaId" TEXT,
 
     CONSTRAINT "KasLingkungan_pkey" PRIMARY KEY ("id")
 );
@@ -312,6 +313,9 @@ ALTER TABLE "Pasangan" ADD CONSTRAINT "Pasangan_keluargaId_fkey" FOREIGN KEY ("k
 
 -- AddForeignKey
 ALTER TABLE "Tanggungan" ADD CONSTRAINT "Tanggungan_keluargaId_fkey" FOREIGN KEY ("keluargaId") REFERENCES "KeluargaUmat"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "KasLingkungan" ADD CONSTRAINT "KasLingkungan_keluargaId_fkey" FOREIGN KEY ("keluargaId") REFERENCES "KeluargaUmat"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "DanaMandiri" ADD CONSTRAINT "DanaMandiri_keluargaId_fkey" FOREIGN KEY ("keluargaId") REFERENCES "KeluargaUmat"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

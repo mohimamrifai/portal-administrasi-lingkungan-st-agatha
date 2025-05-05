@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
 import { CalendarIcon } from "lucide-react"
-import { SubmitToParokiValues, submitToParokiSchema } from "../types"
+import { SubmitToParokiValues, submitToParokiSchema, DanaMandiriTransaction } from "../types"
 import { formatCurrency } from "../utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -36,7 +36,7 @@ interface SubmitToParokiDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (values: SubmitToParokiValues) => void
-  selectedTransactionIds: number[]
+  selectedTransactions: DanaMandiriTransaction[]
   totalAmount: number
 }
 
@@ -44,14 +44,17 @@ export function SubmitToParokiDialog({
   open,
   onOpenChange,
   onSubmit,
-  selectedTransactionIds,
+  selectedTransactions,
   totalAmount,
 }: SubmitToParokiDialogProps) {
+  // Ekstrak ID dari transaksi yang dipilih
+  const transactionIds = selectedTransactions.map(t => t.id)
+  
   // Form
   const form = useForm<SubmitToParokiValues>({
     resolver: zodResolver(submitToParokiSchema),
     defaultValues: {
-      transactionIds: selectedTransactionIds,
+      transactionIds: transactionIds,
       submissionDate: new Date(),
       submissionNote: "",
     },
@@ -61,7 +64,7 @@ export function SubmitToParokiDialog({
   const handleSubmit = (values: SubmitToParokiValues) => {
     onSubmit({
       ...values,
-      transactionIds: selectedTransactionIds, // Ensure we're using the selected IDs
+      transactionIds: transactionIds, // Ensure we're using the selected IDs
     })
     onOpenChange(false)
   }
@@ -80,7 +83,7 @@ export function SubmitToParokiDialog({
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Jumlah Transaksi</p>
-              <p className="text-lg font-semibold">{selectedTransactionIds.length} Transaksi</p>
+              <p className="text-lg font-semibold">{transactionIds.length} Transaksi</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Setoran</p>

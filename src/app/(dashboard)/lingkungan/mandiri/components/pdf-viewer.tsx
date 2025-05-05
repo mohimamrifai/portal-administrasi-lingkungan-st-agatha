@@ -27,20 +27,20 @@ export default function PDFViewerComponent({
   let filteredTransactions = transactions;
   
   // Filter by year first
-  filteredTransactions = transactions.filter(tx => tx.year === year);
+  filteredTransactions = transactions.filter(tx => tx.tahun === year);
   
   // Then by month if specified
   if (month) {
     filteredTransactions = filteredTransactions.filter(tx => {
       // Get month of the transaction payment date (1-12)
-      const txMonth = tx.paymentDate.getMonth() + 1;
+      const txMonth = tx.tanggal.getMonth() + 1;
       return txMonth === month;
     });
   }
   
   // Sort transactions by payment date
   filteredTransactions = filteredTransactions.sort((a, b) => {
-    return a.paymentDate.getTime() - b.paymentDate.getTime();
+    return a.tanggal.getTime() - b.tanggal.getTime();
   });
 
   // Handle document download success

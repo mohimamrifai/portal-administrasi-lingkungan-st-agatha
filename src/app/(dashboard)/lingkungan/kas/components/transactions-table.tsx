@@ -1,14 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { format, isWithinInterval } from "date-fns"
-import { DateRange } from "react-day-picker"
+import { useState, useEffect, useMemo, useCallback } from "react"
+import { format } from "date-fns"
 import { JenisTransaksi, TipeTransaksiLingkungan } from "@prisma/client"
-import { TransactionData, transactionSubtypeOptions, getCategoryOptions } from "../types/schema"
+import { TransactionData, transactionSubtypeOptions, getCategoryOptions } from "../types"
+import { useAuth } from "@/contexts/auth-context"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Calendar } from "@/components/ui/calendar"
 import {
   Table,
   TableBody,
@@ -40,7 +39,9 @@ import {
   ChevronsRightIcon,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  SearchIcon,
+  X
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -57,12 +58,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import { CalendarIcon, SearchIcon, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
@@ -72,8 +67,10 @@ interface TransactionsTableProps {
   onDelete: (id: string) => void;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
+  onUnlock: (id: string) => void;
   canModifyData?: boolean;
   canApprove?: boolean;
+  showPagination?: boolean;
 }
 
 export function TransactionsTable({ 
@@ -82,9 +79,15 @@ export function TransactionsTable({
   onDelete,
   onApprove,
   onReject,
+  onUnlock,
   canModifyData = true,
-  canApprove = false
+  canApprove = false,
+  showPagination = false
 }: TransactionsTableProps) {
+  // Get user role to check if it's a super user
+  const { userRole } = useAuth();
+  const isSuperUser = userRole === 'SUPER_USER';
+  
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -93,96 +96,126 @@ export function TransactionsTable({
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<TipeTransaksiLingkungan | null>(null);
   const [typeFilter, setTypeFilter] = useState<JenisTransaksi | null>(null);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   
-  // Create arrays for filter options
-  const categoryOptions = getCategoryOptions();
+  // Create arrays for filter options - move to useMemo to prevent recreation on each render
+  const categoryOptions = useMemo(() => getCategoryOptions(), []);
   
-  const typeOptions = [
+  const typeOptions = useMemo(() => [
     { value: null, label: "Semua Tipe", key: "all" },
     { value: JenisTransaksi.UANG_MASUK, label: "Pemasukan", key: "uang_masuk" },
     { value: JenisTransaksi.UANG_KELUAR, label: "Pengeluaran", key: "uang_keluar" }
-  ];
+  ], []);
   
   // Helper function to get transaction subtype label
-  const getSubtypeLabel = (tx: TransactionData) => {
+  const getSubtypeLabel = useCallback((tx: TransactionData) => {
     const options = transactionSubtypeOptions[tx.jenisTransaksi];
     if (!options) return String(tx.tipeTransaksi);
     
     const match = options.find(opt => opt.value === tx.tipeTransaksi);
     return match ? match.label : String(tx.tipeTransaksi);
-  };
+  }, []);
   
   // Calculate pagination values for filtered data
-  const filteredTransactions = transactions.filter(tx => {
-    // Search term filter
-    const matchesSearch = searchTerm === "" || 
-      (tx.keterangan && tx.keterangan.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      getSubtypeLabel(tx).toLowerCase().includes(searchTerm.toLowerCase());
-    
-    // Category filter
-    const matchesCategory = categoryFilter === null || 
-      tx.tipeTransaksi === categoryFilter;
-    
-    // Type filter
-    const matchesType = typeFilter === null || 
-      tx.jenisTransaksi === typeFilter;
-    
-    // Date range filter
-    const matchesDateRange = !dateRange?.from || !dateRange?.to || 
-      isWithinInterval(tx.tanggal, {
-        start: dateRange.from,
-        end: dateRange.to || dateRange.from
-      });
-    
-    return matchesSearch && matchesCategory && matchesType && matchesDateRange;
-  });
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(tx => {
+      // Search term filter
+      const matchesSearch = searchTerm === "" || 
+        (tx.keterangan && tx.keterangan.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        getSubtypeLabel(tx).toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Category filter
+      const matchesCategory = categoryFilter === null || 
+        tx.tipeTransaksi === categoryFilter;
+      
+      // Type filter
+      const matchesType = typeFilter === null || 
+        tx.jenisTransaksi === typeFilter;
+      
+      return matchesSearch && matchesCategory && matchesType;
+    });
+  }, [transactions, searchTerm, categoryFilter, typeFilter, getSubtypeLabel]);
   
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, categoryFilter, typeFilter, dateRange]);
+  }, [searchTerm, categoryFilter, typeFilter]);
   
   const totalItems = filteredTransactions.length;
-  const totalPages = Math.ceil(totalItems / pageSize);
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, totalItems);
   
   // Get current page data
-  const currentTransactions = filteredTransactions
-    .sort((a, b) => b.tanggal.getTime() - a.tanggal.getTime()) // Sort newest first
-    .slice(startIndex, endIndex);
+  const currentTransactions = useMemo(() => {
+    return filteredTransactions
+      .sort((a, b) => b.tanggal.getTime() - a.tanggal.getTime()) // Sort newest first
+      .slice(startIndex, endIndex);
+  }, [filteredTransactions, startIndex, endIndex]);
 
   // Pagination functions
-  const goToPage = (page: number) => {
+  const goToPage = useCallback((page: number) => {
     setCurrentPage(page);
-  };
+  }, []);
   
-  const goToFirstPage = () => {
+  const goToFirstPage = useCallback(() => {
     setCurrentPage(1);
-  };
+  }, []);
   
-  const goToLastPage = () => {
+  const goToLastPage = useCallback(() => {
     setCurrentPage(totalPages);
-  };
+  }, [totalPages]);
   
-  const goToPreviousPage = () => {
+  const goToPreviousPage = useCallback(() => {
     if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
+      setCurrentPage(prev => prev - 1);
     }
-  };
+  }, [currentPage]);
   
-  const goToNextPage = () => {
+  const goToNextPage = useCallback(() => {
     if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
+      setCurrentPage(prev => prev + 1);
     }
-  };
+  }, [currentPage, totalPages]);
   
   // Handle page size change
-  const handlePageSizeChange = (value: string) => {
-    setPageSize(Number(value));
-    setCurrentPage(1); // Reset to first page when changing page size
-  };
+  const handlePageSizeChange = useCallback((value: string) => {
+    const newSize = Number(value);
+    if (newSize > 0) {
+      setPageSize(newSize);
+      setCurrentPage(1); // Reset to first page when changing page size
+    }
+  }, []);
+  
+  // Handle filter changes
+  const handleTypeFilterChange = useCallback((value: string) => {
+    if (value === "all") {
+      setTypeFilter(null);
+    } else if (value === JenisTransaksi.UANG_MASUK.toString()) {
+      setTypeFilter(JenisTransaksi.UANG_MASUK);
+    } else if (value === JenisTransaksi.UANG_KELUAR.toString()) {
+      setTypeFilter(JenisTransaksi.UANG_KELUAR);
+    }
+  }, []);
+  
+  const handleCategoryFilterChange = useCallback((value: string) => {
+    if (value === "all") {
+      setCategoryFilter(null);
+    } else {
+      // Convert string value back to enum safely
+      const enumValue = Object.values(TipeTransaksiLingkungan).find(
+        (enumVal) => enumVal.toString() === value
+      );
+      if (enumValue !== undefined) {
+        setCategoryFilter(enumValue);
+      }
+    }
+  }, []);
+  
+  const clearAllFilters = useCallback(() => {
+    setSearchTerm("");
+    setTypeFilter(null);
+    setCategoryFilter(null);
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -214,23 +247,21 @@ export function TransactionsTable({
           {/* Type Filter */}
           <div className="flex-1 md:max-w-[180px]">
             <Select
-              value={typeFilter?.toString() || ""}
-              onValueChange={(value) => 
-                setTypeFilter(value ? value as JenisTransaksi : null)
-              }
+              onOpenChange={() => {}} 
+              onValueChange={handleTypeFilterChange}
+              value={typeFilter === null ? "all" : typeFilter.toString()}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Pilih Tipe" />
+                <SelectValue>
+                  {typeFilter === null 
+                    ? "Semua Tipe" 
+                    : typeOptions.find(o => o.value === typeFilter)?.label || "Pilih Tipe"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {typeOptions.map((option) => (
-                  <SelectItem
-                    key={option.key}
-                    value={option.value?.toString() || ""}
-                  >
-                    {option.label}
-                  </SelectItem>
-                ))}
+                <SelectItem value="all">Semua Tipe</SelectItem>
+                <SelectItem value={JenisTransaksi.UANG_MASUK.toString()}>Pemasukan</SelectItem>
+                <SelectItem value={JenisTransaksi.UANG_KELUAR.toString()}>Pengeluaran</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -238,136 +269,64 @@ export function TransactionsTable({
           {/* Category Filter */}
           <div className="flex-1 md:max-w-[220px]">
             <Select
-              value={categoryFilter?.toString() || ""}
-              onValueChange={(value) => 
-                setCategoryFilter(value ? value as TipeTransaksiLingkungan : null)
-              }
+              onOpenChange={() => {}}
+              onValueChange={handleCategoryFilterChange}
+              value={categoryFilter === null ? "all" : categoryFilter.toString()}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Pilih Kategori" />
+                <SelectValue>
+                  {categoryFilter === null 
+                    ? "Semua Kategori" 
+                    : categoryOptions.find(o => o.value === categoryFilter)?.label || "Pilih Kategori"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {categoryOptions.map((option) => (
-                  <SelectItem
-                    key={option.key}
-                    value={option.value?.toString() || ""}
-                  >
+                <SelectItem value="all">Semua Kategori</SelectItem>
+                {Object.values(TipeTransaksiLingkungan).map((enumValue) => {
+                  const option = categoryOptions.find(opt => opt.value === enumValue);
+                  if (!option) return null;
+                  return (
+                    <SelectItem key={String(enumValue)} value={String(enumValue)}>
                     {option.label}
                   </SelectItem>
-                ))}
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
-          
-          {/* Date Range Filter */}
-          <div className="flex-1 md:max-w-[180px]">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !dateRange && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateRange?.from ? (
-                    dateRange.to ? (
-                      <>
-                        {format(dateRange.from, "dd/MM/yy")} -{" "}
-                        {format(dateRange.to, "dd/MM/yy")}
-                      </>
-                    ) : (
-                      format(dateRange.from, "dd/MM/yyyy")
-                    )
-                  ) : (
-                    <span>Pilih Tanggal</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  initialFocus
-                  mode="range"
-                  defaultMonth={dateRange?.from}
-                  selected={dateRange}
-                  onSelect={setDateRange}
-                  numberOfMonths={1}
-                />
-                <div className="flex items-center justify-between p-3 border-t">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setDateRange(undefined)}
-                  >
-                    Reset
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => document.body.click()} // Close popover
-                  >
-                    Terapkan
-                  </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
+        </div>
+      
+        {/* Clear Filters Button */}
+        {(searchTerm || typeFilter || categoryFilter) && (
+          <div className="flex justify-start">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={clearAllFilters}
+            >
+              <X className="mr-1 h-3 w-3" />
+              Hapus Filter
+            </Button>
           </div>
-        </div>
-        
-        {/* Page Size Selector */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Tampilkan</span>
-          <Select
-            value={pageSize.toString()}
-            onValueChange={handlePageSizeChange}
-          >
-            <SelectTrigger className="w-[70px]">
-              <SelectValue placeholder="10" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="5">5</SelectItem>
-              <SelectItem value="10">10</SelectItem>
-              <SelectItem value="25">25</SelectItem>
-              <SelectItem value="50">50</SelectItem>
-            </SelectContent>
-          </Select>
-          <span className="text-sm text-muted-foreground">per halaman</span>
-        </div>
+        )}
       </div>
       
-      {/* Clear Filters Button */}
-      {(searchTerm || typeFilter || categoryFilter || dateRange) && (
-        <div className="flex justify-start">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 text-xs"
-            onClick={() => {
-              setSearchTerm("");
-              setTypeFilter(null);
-              setCategoryFilter(null);
-              setDateRange(undefined);
-            }}
-          >
-            <X className="mr-1 h-3 w-3" />
-            Hapus Filter
-          </Button>
-        </div>
-      )}
-      
       {/* Transactions Table */}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
+      <div className="rounded-md border overflow-auto">
+        <Table className="min-w-full">
+          <TableHeader className="bg-background sticky top-0">
             <TableRow>
-              <TableHead>No</TableHead>
-              <TableHead>Tanggal</TableHead>
-              <TableHead>Keterangan</TableHead>
-              <TableHead>Jenis</TableHead>
-              <TableHead className="text-right">Debit</TableHead>
-              <TableHead className="text-right">Kredit</TableHead>
-              <TableHead className="text-center">Status</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
+              <TableHead className="w-[50px]">No</TableHead>
+              <TableHead className="w-[120px]">Tanggal</TableHead>
+              <TableHead className="min-w-[300px]">Keterangan</TableHead>
+              <TableHead className="min-w-[150px]">Jenis</TableHead>
+              <TableHead className="text-right min-w-[120px]">Debit</TableHead>
+              <TableHead className="text-right min-w-[120px]">Kredit</TableHead>
+              <TableHead className="text-center min-w-[100px]">Status</TableHead>
+              <TableHead className="text-right w-[100px] sticky right-0 bg-background shadow-[-8px_0_10px_-6px_rgba(0,0,0,0.1)]">
+                Aksi
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -380,60 +339,65 @@ export function TransactionsTable({
             ) : (
               currentTransactions.map((transaction, index) => (
                 <TableRow key={transaction.id}>
-                  <TableCell className="font-medium">
-                    {startIndex + index + 1}
-                  </TableCell>
+                  <TableCell>{startIndex + index + 1}</TableCell>
                   <TableCell>
                     {format(transaction.tanggal, "dd/MM/yyyy")}
                   </TableCell>
-                  <TableCell className="max-w-[300px] truncate">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger className="cursor-default">
-                          <span className="truncate">
-                            {transaction.keterangan || getSubtypeLabel(transaction)}
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{transaction.keterangan || getSubtypeLabel(transaction)}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                  <TableCell className="max-w-[300px] text-wrap">
+                    {transaction.tipeTransaksi === TipeTransaksiLingkungan.SUMBANGAN_UMAT && transaction.keluarga ? (
+                      <div>
+                        <div className="font-semibold">{transaction.keluarga.namaKepalaKeluarga}</div>
+                        <div className="text-muted-foreground text-sm">{transaction.keterangan || "-"}</div>
+                      </div>
+                    ) : (
+                      transaction.keterangan || "-"
+                    )}
                   </TableCell>
                   <TableCell>
-                    <Badge
+                    <Badge 
                       variant={transaction.jenisTransaksi === JenisTransaksi.UANG_MASUK ? "default" : "destructive"}
-                      className="whitespace-nowrap"
+                      className={`whitespace-nowrap ${transaction.jenisTransaksi === JenisTransaksi.UANG_MASUK ? "" : "bg-red-500 text-white"}`}
                     >
                       {getSubtypeLabel(transaction)}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {transaction.debit > 0
-                      ? new Intl.NumberFormat("id-ID").format(transaction.debit)
-                      : "-"}
+                  <TableCell className="text-right">
+                    {transaction.debit > 0 
+                      ? new Intl.NumberFormat('id-ID', {
+                          style: 'currency',
+                          currency: 'IDR',
+                          minimumFractionDigits: 0,
+                        }).format(transaction.debit)
+                      : "-"
+                    }
                   </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {transaction.kredit > 0
-                      ? new Intl.NumberFormat("id-ID").format(transaction.kredit)
-                      : "-"}
+                  <TableCell className="text-right">
+                    {transaction.kredit > 0 
+                      ? new Intl.NumberFormat('id-ID', {
+                          style: 'currency',
+                          currency: 'IDR',
+                          minimumFractionDigits: 0,
+                        }).format(transaction.kredit)
+                      : "-"
+                    }
                   </TableCell>
                   <TableCell className="text-center">
-                    {transaction.isApproved ? (
+                    {transaction.isApproved && (
                       <TooltipProvider>
                         <Tooltip>
-                          <TooltipTrigger>
-                            <CheckCircle className="h-5 w-5 text-green-500" />
+                          <TooltipTrigger asChild>
+                            <LockIcon className="h-5 w-5 text-muted-foreground inline-block" />
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>Disetujui</p>
+                            <p>Telah Disetujui</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-                    ) : transaction.isRejected ? (
+                    )}
+                    {transaction.isRejected && (
                       <TooltipProvider>
                         <Tooltip>
-                          <TooltipTrigger>
+                          <TooltipTrigger asChild>
                             <XCircle className="h-5 w-5 text-red-500" />
                           </TooltipTrigger>
                           <TooltipContent>
@@ -441,10 +405,11 @@ export function TransactionsTable({
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-                    ) : (
+                    )}
+                    {transaction.isPending && (
                       <TooltipProvider>
                         <Tooltip>
-                          <TooltipTrigger>
+                          <TooltipTrigger asChild>
                             <Clock className="h-5 w-5 text-amber-500" />
                           </TooltipTrigger>
                           <TooltipContent>
@@ -454,7 +419,7 @@ export function TransactionsTable({
                       </TooltipProvider>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right sticky right-0 bg-background shadow-[-8px_0_10px_-6px_rgba(0,0,0,0.1)]">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 w-8 p-0">
@@ -463,7 +428,7 @@ export function TransactionsTable({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {canModifyData && !transaction.isApproved && (
+                        {(canModifyData && (!transaction.isApproved || isSuperUser)) && (
                           <>
                             <DropdownMenuItem
                               onClick={() => onEdit(transaction.id)}
@@ -506,7 +471,7 @@ export function TransactionsTable({
                         )}
                         
                         {/* Approval Options */}
-                        {canApprove && transaction.isPending && (
+                        {(canApprove || isSuperUser) && transaction.isPending && (
                           <>
                             <DropdownMenuItem
                               onClick={() => onApprove(transaction.id)}
@@ -524,6 +489,17 @@ export function TransactionsTable({
                             </DropdownMenuItem>
                           </>
                         )}
+                        
+                        {/* Unlock Option for Super User */}
+                        {isSuperUser && transaction.isApproved && (
+                          <DropdownMenuItem
+                            onClick={() => onUnlock(transaction.id)}
+                            className="text-blue-600"
+                          >
+                            <UnlockIcon className="mr-2 h-4 w-4" />
+                            Buka Kunci
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -535,17 +511,37 @@ export function TransactionsTable({
       </div>
       
       {/* Pagination Controls */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
+      {(totalPages > 1 || showPagination) && (
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2 order-2 md:order-1">
+            <span className="text-sm text-muted-foreground mr-2">
             Menampilkan {startIndex + 1} sampai {endIndex} dari {totalItems} transaksi
+            </span>
+            <Select
+              onOpenChange={() => {}}
+              onValueChange={handlePageSizeChange}
+              value={pageSize.toString()}
+            >
+              <SelectTrigger className="h-8 w-[70px]">
+                <SelectValue>{pageSize}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5</SelectItem>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-sm text-muted-foreground">per halaman</span>
           </div>
-          <div className="flex items-center space-x-2">
+          
+          <div className="flex items-center space-x-2 order-1 md:order-2">
             <Button
               variant="outline"
               size="icon"
               onClick={goToFirstPage}
               disabled={currentPage === 1}
+              className="h-8 w-8"
             >
               <ChevronsLeftIcon className="h-4 w-4" />
               <span className="sr-only">Halaman Pertama</span>
@@ -555,6 +551,7 @@ export function TransactionsTable({
               size="icon"
               onClick={goToPreviousPage}
               disabled={currentPage === 1}
+              className="h-8 w-8"
             >
               <ChevronLeftIcon className="h-4 w-4" />
               <span className="sr-only">Halaman Sebelumnya</span>
@@ -578,7 +575,7 @@ export function TransactionsTable({
                     variant={currentPage === pageNumber ? "default" : "outline"}
                     size="icon"
                     onClick={() => goToPage(pageNumber)}
-                    className="w-9 h-9"
+                    className="w-8 h-8"
                   >
                     {pageNumber}
                   </Button>
@@ -590,6 +587,7 @@ export function TransactionsTable({
               size="icon"
               onClick={goToNextPage}
               disabled={currentPage === totalPages}
+              className="h-8 w-8"
             >
               <ChevronRightIcon className="h-4 w-4" />
               <span className="sr-only">Halaman Berikutnya</span>
@@ -599,6 +597,7 @@ export function TransactionsTable({
               size="icon"
               onClick={goToLastPage}
               disabled={currentPage === totalPages}
+              className="h-8 w-8"
             >
               <ChevronsRightIcon className="h-4 w-4" />
               <span className="sr-only">Halaman Terakhir</span>
@@ -607,5 +606,5 @@ export function TransactionsTable({
         </div>
       )}
     </div>
-  )
+  );
 } 

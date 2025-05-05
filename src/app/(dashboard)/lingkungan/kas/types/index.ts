@@ -18,6 +18,7 @@ export const transactionFormSchema = z.object({
   jumlah: z.coerce.number().positive({
     message: "Jumlah harus lebih dari 0",
   }),
+  keluargaId: z.string().optional(),
 });
 
 // Schema untuk range tanggal cetak PDF
@@ -79,6 +80,12 @@ export const getCategoryOptions = () => {
   ];
 };
 
+// Tipe untuk keluarga
+export type KeluargaOption = {
+  id: string;
+  namaKepalaKeluarga: string;
+};
+
 // Tipe untuk data transaksi UI
 export type TransactionData = {
   id: string;
@@ -92,4 +99,8 @@ export type TransactionData = {
   isApproved: boolean;
   isRejected: boolean;
   isPending: boolean;
+  keluarga?: {
+    id: string;
+    namaKepalaKeluarga: string;
+  };
 }; 

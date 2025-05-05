@@ -2,7 +2,7 @@ import React from 'react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
-import { TransactionData } from '../types/schema';
+import { TransactionData } from '../types';
 import { JenisTransaksi, TipeTransaksiLingkungan } from "@prisma/client";
 
 // Definisi properti untuk komponen PDFDocument
@@ -111,11 +111,10 @@ const styles = StyleSheet.create({
   signatureName: {
     textAlign: 'center',
     marginTop: 50,
-    borderTopWidth: 1,
-    borderTopStyle: 'solid',
-    borderTopColor: '#000',
     paddingTop: 5,
     fontWeight: 'bold',
+    borderTopWidth: 1,
+    borderTopColor: '#000',
   },
 });
 
@@ -271,12 +270,16 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({ dateRange, transactions, summ
         {/* Tanda Tangan */}
         <View style={styles.signature}>
           <View style={styles.signatureItem}>
-            <Text style={styles.signatureTitle}>Ketua Lingkungan</Text>
-            <Text style={styles.signatureName}>______________________</Text>
+            <Text style={styles.signatureTitle}>Dibuat oleh,</Text>
+            <View>
+              <Text style={styles.signatureName}>Bendahara Lingkungan</Text>
+            </View>
           </View>
           <View style={styles.signatureItem}>
-            <Text style={styles.signatureTitle}>Bendahara Lingkungan</Text>
-            <Text style={styles.signatureName}>______________________</Text>
+            <Text style={styles.signatureTitle}>Disetujui oleh,</Text>
+            <View>
+              <Text style={styles.signatureName}>Ketua Lingkungan</Text>
+            </View>
           </View>
         </View>
       </Page>

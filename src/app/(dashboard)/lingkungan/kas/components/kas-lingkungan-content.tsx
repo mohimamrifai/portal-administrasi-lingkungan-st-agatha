@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { format } from "date-fns"
 import { DateRange } from "react-day-picker"
 import { useForm } from "react-hook-form"
@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation"
 import { AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { JenisTransaksi, TipeTransaksiLingkungan } from "@prisma/client"
+import { Button } from "@/components/ui/button"
 
 // Import types dan schemas baru
 import { 
@@ -20,7 +21,7 @@ import {
   PrintPdfFormValues,
   transactionFormSchema, 
   printPdfSchema,
-} from "../types/schema"
+} from "../types"
 
 // Import actions server
 import {
@@ -60,14 +61,56 @@ export default function KasLingkunganContent({
 }: KasLingkunganContentProps) {
   const { userRole } = useAuth()
   const router = useRouter()
-  const [currentMonth, setCurrentMonth] = useState<Date>(new Date())
   const [transactions, setTransactions] = useState<TransactionData[]>(initialTransactions)
-  const [filteredTransactions, setFilteredTransactions] = useState<TransactionData[]>(initialTransactions)
   const [isEditing, setIsEditing] = useState<string | null>(null)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [dateRange, setDateRange] = React.useState<DateRange | undefined>(getMonthDateRange(currentMonth))
+  const [dateRange, setDateRange] = React.useState<DateRange | undefined>(undefined)
   const [summary, setSummary] = useState(initialSummary)
+
+  // Memoize filteredTransactions untuk mencegah re-renders yang tidak perlu
+  const filteredTransactions = useMemo(() => {
+    if (dateRange?.from && dateRange?.to) {
+      const from = dateRange.from;
+      const to = dateRange.to;
+      
+      return transactions.filter(tx => 
+        tx.tanggal >= from && 
+        tx.tanggal <= to
+      );
+    }
+    // Jika tidak ada rentang tanggal, tampilkan semua transaksi
+    return transactions;
+  }, [transactions, dateRange]);
+
+  // Memoize summary untuk mencegah re-renders
+  useEffect(() => {
+    // Jika ada filter rentang tanggal aktif, hitung summary berdasarkan transaksi terfilter
+    if (dateRange?.from && dateRange?.to) {
+      const totalIncome = filteredTransactions.reduce((sum, tx) => sum + tx.debit, 0);
+      const totalExpense = filteredTransactions.reduce((sum, tx) => sum + tx.kredit, 0);
+      const finalBalance = initialSummary.initialBalance + totalIncome - totalExpense;
+      
+      setSummary({
+        initialBalance: initialSummary.initialBalance,
+        totalIncome,
+        totalExpense,
+        finalBalance
+      });
+    } else {
+      // Jika tidak ada filter aktif, gunakan summary dari semua transaksi
+      const totalIncome = transactions.reduce((sum, tx) => sum + tx.debit, 0);
+      const totalExpense = transactions.reduce((sum, tx) => sum + tx.kredit, 0);
+      const finalBalance = initialSummary.initialBalance + totalIncome - totalExpense;
+      
+      setSummary({
+        initialBalance: initialSummary.initialBalance,
+        totalIncome,
+        totalExpense,
+        finalBalance
+      });
+    }
+  }, [filteredTransactions, transactions, initialSummary.initialBalance, dateRange]);
 
   // Cek apakah pengguna memiliki hak akses ke halaman
   const hasAccess = userRole ? [
@@ -91,32 +134,6 @@ export default function KasLingkunganContent({
       router.push("/dashboard")
     }
   }, [hasAccess, router])
-
-  // Filter transaksi berdasarkan bulan yang dipilih
-  useEffect(() => {
-    if (dateRange && dateRange.from && dateRange.to) {
-      const from = dateRange.from
-      const to = dateRange.to
-      
-      const filtered = transactions.filter(tx => 
-        tx.tanggal >= from && 
-        tx.tanggal <= to
-      );
-      setFilteredTransactions(filtered);
-
-      // Hitung summary berdasarkan transaksi terfilter
-      const totalIncome = filtered.reduce((sum, tx) => sum + tx.debit, 0);
-      const totalExpense = filtered.reduce((sum, tx) => sum + tx.kredit, 0);
-      const finalBalance = initialSummary.initialBalance + totalIncome - totalExpense;
-      
-      setSummary({
-        initialBalance: initialSummary.initialBalance,
-        totalIncome,
-        totalExpense,
-        finalBalance
-      });
-    }
-  }, [dateRange, transactions, initialSummary]);
 
   // Form untuk transaksi baru
   const createForm = useForm<TransactionFormValues>({
@@ -146,7 +163,7 @@ export default function KasLingkunganContent({
   const pdfForm = useForm<PrintPdfFormValues>({
     resolver: zodResolver(printPdfSchema),
     defaultValues: {
-      dateRange: getMonthDateRange(currentMonth),
+      dateRange: getMonthDateRange(new Date()),
     },
   })
 
@@ -234,19 +251,45 @@ export default function KasLingkunganContent({
     toast.success("Cetak PDF berhasil");
   }
 
-  // Hapus transaksi
-  async function handleDeleteTransaction(id: string) {
+  // Handle functions dengan useCallback untuk mengurangi re-render
+  const handleEditTransaction = useCallback((id: string) => {
+    // Cari transaksi yang akan diedit
+    const transaction = transactions.find(tx => tx.id === id);
+    if (!transaction) {
+      toast.error("Transaksi tidak ditemukan");
+      return;
+    }
+
+    // Atur isEditing dan set form values
+    setIsEditing(id);
+    
+    // Set form values
+    editForm.reset({
+      tanggal: transaction.tanggal,
+      keterangan: transaction.keterangan || "",
+      jenisTransaksi: transaction.jenisTransaksi,
+      tipeTransaksi: transaction.tipeTransaksi,
+      jumlah: transaction.jenisTransaksi === JenisTransaksi.UANG_MASUK 
+        ? transaction.debit 
+        : transaction.kredit,
+    });
+    
+    setEditDialogOpen(true);
+  }, [transactions, editForm]);
+
+  const handleDeleteTransaction = useCallback(async (id: string) => {
     // Validasi hak akses modifikasi
     if (!canModifyData) {
-      toast.error("Anda tidak memiliki izin untuk menghapus data")
-      return
+      toast.error("Anda tidak memiliki izin untuk menghapus data");
+      return;
     }
 
     try {
       const result = await deleteTransaction(id);
-
+      
       if (result.success) {
         toast.success("Transaksi berhasil dihapus");
+        
         // Refresh data dari server
         router.refresh();
       } else {
@@ -256,47 +299,15 @@ export default function KasLingkunganContent({
       console.error("Error deleting transaction:", error);
       toast.error("Terjadi kesalahan saat menghapus transaksi");
     }
-  }
+  }, [canModifyData, router]);
 
-  // Edit transaksi
-  function handleEditTransaction(id: string) {
-    // Validasi hak akses modifikasi
-    if (!canModifyData) {
-      toast.error("Anda tidak memiliki izin untuk mengubah data")
-      return
-    }
-
-    const transaction = transactions.find(tx => tx.id === id)
-    if (transaction) {
-      setIsEditing(id)
-      
-      // Set form values
-      editForm.reset({
-        tanggal: transaction.tanggal,
-        keterangan: transaction.keterangan || "",
-        jenisTransaksi: transaction.jenisTransaksi,
-        tipeTransaksi: transaction.tipeTransaksi,
-        jumlah: transaction.jenisTransaksi === JenisTransaksi.UANG_MASUK ? transaction.debit : transaction.kredit,
-      })
-      
-      // Open edit dialog
-      setEditDialogOpen(true)
-    }
-  }
-
-  // Approve transaksi
-  async function handleApproveTransaction(id: string) {
-    // Validasi hak akses
-    if (!userRole || !['SUPER_USER', 'KETUA'].includes(userRole)) {
-      toast.error("Anda tidak memiliki izin untuk menyetujui transaksi")
-      return
-    }
-
+  const handleApproveTransaction = useCallback(async (id: string) => {
     try {
       const result = await approveTransaction(id, 'APPROVED');
-
+      
       if (result.success) {
         toast.success("Transaksi berhasil disetujui");
+        
         // Refresh data dari server
         router.refresh();
       } else {
@@ -306,21 +317,15 @@ export default function KasLingkunganContent({
       console.error("Error approving transaction:", error);
       toast.error("Terjadi kesalahan saat menyetujui transaksi");
     }
-  }
+  }, [router]);
 
-  // Tolak transaksi
-  async function handleRejectTransaction(id: string) {
-    // Validasi hak akses
-    if (!userRole || !['SUPER_USER', 'KETUA'].includes(userRole)) {
-      toast.error("Anda tidak memiliki izin untuk menolak transaksi")
-      return
-    }
-
+  const handleRejectTransaction = useCallback(async (id: string) => {
     try {
       const result = await approveTransaction(id, 'REJECTED');
-
+      
       if (result.success) {
         toast.success("Transaksi berhasil ditolak");
+        
         // Refresh data dari server
         router.refresh();
       } else {
@@ -330,14 +335,31 @@ export default function KasLingkunganContent({
       console.error("Error rejecting transaction:", error);
       toast.error("Terjadi kesalahan saat menolak transaksi");
     }
-  }
+  }, [router]);
 
-  // Filter by month
-  function handleMonthChange(date: DateRange | undefined) {
-    if (date) {
-      setDateRange(date)
+  // Fungsi untuk membuka kunci transaksi yang telah diapprove (untuk SuperUser)
+  const handleUnlockTransaction = useCallback(async (id: string) => {
+    try {
+      const result = await approveTransaction(id, 'PENDING');
+      
+      if (result.success) {
+        toast.success("Transaksi berhasil dibuka kuncinya");
+        
+        // Refresh data dari server
+        router.refresh();
+      } else {
+        toast.error(result.error || "Gagal membuka kunci transaksi");
+      }
+    } catch (error) {
+      console.error("Error unlocking transaction:", error);
+      toast.error("Terjadi kesalahan saat membuka kunci transaksi");
     }
-  }
+  }, [router]);
+
+  // Filter by date range - useCallback untuk mencegah re-render
+  const handleDateRangeChange = useCallback((date: DateRange | undefined) => {
+    setDateRange(date);
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -359,16 +381,27 @@ export default function KasLingkunganContent({
         finalBalance={summary.finalBalance}
       />
       
-      {/* Period Filter */}
+      {/* Filter dan Actions */}
       <div className="flex flex-col md:flex-row gap-4 justify-between">
-        <PeriodFilter 
-          currentMonth={currentMonth}
-          onMonthChange={setCurrentMonth}
-          dateRange={dateRange}
-          onDateRangeChange={handleMonthChange}
-        />
+        <div className="w-full md:w-auto">
+          <PeriodFilter 
+            dateRange={dateRange}
+            onDateRangeChange={handleDateRangeChange}
+          />
+        </div>
         
         <div className="flex flex-col md:flex-row gap-2">
+          {dateRange && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDateRange(undefined)}
+              className="h-10"
+            >
+              Tampilkan Semua Data
+            </Button>
+          )}
+          
           {canModifyData && (
             <CreateTransactionDialog
               form={createForm}
@@ -388,15 +421,19 @@ export default function KasLingkunganContent({
       </div>
       
       {/* Transactions Table */}
-      <TransactionsTable 
-        transactions={filteredTransactions}
-        onDelete={handleDeleteTransaction}
-        onEdit={handleEditTransaction}
-        onApprove={handleApproveTransaction}
-        onReject={handleRejectTransaction}
-        canModifyData={canModifyData}
-        canApprove={userRole ? ['SUPER_USER', 'KETUA'].includes(userRole) : false}
-      />
+      <div className="mt-6">
+        <TransactionsTable
+          transactions={filteredTransactions}
+          onEdit={handleEditTransaction}
+          onDelete={handleDeleteTransaction}
+          onApprove={handleApproveTransaction}
+          onReject={handleRejectTransaction}
+          onUnlock={handleUnlockTransaction}
+          canModifyData={canModifyData}
+          canApprove={userRole === 'KETUA'}
+          showPagination={true}
+        />
+      </div>
       
       {/* Edit Dialog */}
       {isEditing && (

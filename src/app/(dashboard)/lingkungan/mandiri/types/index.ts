@@ -2,32 +2,29 @@ import { z } from "zod";
 
 // Dana Mandiri Transaction interface
 export interface DanaMandiriTransaction {
-  id: number;
-  familyHeadId: number;
-  year: number;
-  amount: number;
-  status: "pending" | "paid" | "submitted";
-  paymentDate: Date;
-  isLocked: boolean;
-  notes?: string;
-  paymentStatus: "Lunas" | "Belum Lunas";
+  id: string;
+  keluargaId: string;
+  tahun: number;
+  bulan: number;
+  jumlahDibayar: number;
+  statusSetor: boolean;
+  tanggalSetor?: Date;
+  tanggal: Date;
+  keluarga?: {
+    namaKepalaKeluarga: string;
+    alamat?: string;
+    nomorTelepon?: string;
+  };
 }
 
-// Interface for Arrears data (Tab 2)
+// Interface untuk data tunggakan
 export interface DanaMandiriArrears {
-  id: number;
-  familyHeadId: number;
-  periods: number[]; // Array of years with arrears
-  totalAmount: number;
-  lastNotificationDate?: Date;
-}
-
-// Family Head data
-export interface FamilyHead {
-  id: number;
-  name: string;
-  address?: string;
-  phoneNumber?: string;
+  keluargaId: string;
+  namaKepalaKeluarga: string;
+  alamat: string;
+  nomorTelepon: string;
+  tahunTertunggak: number[];
+  totalTunggakan: number;
 }
 
 // Payment Status options
@@ -38,7 +35,7 @@ export const paymentStatusOptions = [
 
 // Form schemas
 export const transactionFormSchema = z.object({
-  familyHeadId: z.number({
+  familyHeadId: z.string({
     required_error: "Kepala keluarga wajib dipilih",
   }),
   year: z.coerce.number({
@@ -74,7 +71,7 @@ export const setDuesSchema = z.object({
 });
 
 export const submitToParokiSchema = z.object({
-  transactionIds: z.array(z.number()),
+  transactionIds: z.array(z.string()),
   submissionDate: z.date({
     required_error: "Tanggal penyetoran wajib diisi",
   }),
@@ -82,25 +79,11 @@ export const submitToParokiSchema = z.object({
 });
 
 export const sendReminderSchema = z.object({
-  familyHeadIds: z.array(z.number()),
+  familyHeadIds: z.array(z.string()),
   message: z.string().min(10, {
     message: "Pesan minimal 10 karakter",
   }),
 });
-
-// Mock Family Heads data (in a real app, this would come from an API)
-export const familyHeads: FamilyHead[] = [
-  { id: 1, name: "Budi Santoso", address: "Jl. Mawar No. 10", phoneNumber: "081234567890" },
-  { id: 2, name: "Agus Wijaya", address: "Jl. Melati No. 15", phoneNumber: "081234567891" },
-  { id: 3, name: "Hendra Gunawan", address: "Jl. Anggrek No. 20", phoneNumber: "081234567892" },
-  { id: 4, name: "Bambang Sutrisno", address: "Jl. Kenanga No. 25", phoneNumber: "081234567893" },
-  { id: 5, name: "Joko Susilo", address: "Jl. Tulip No. 30", phoneNumber: "081234567894" },
-  { id: 6, name: "Ahmad Hidayat", address: "Jl. Dahlia No. 35", phoneNumber: "081234567895" },
-  { id: 7, name: "Dedi Purnomo", address: "Jl. Kamboja No. 40", phoneNumber: "081234567896" },
-  { id: 8, name: "Eko Prasetyo", address: "Jl. Teratai No. 45", phoneNumber: "081234567897" },
-  { id: 9, name: "Yusuf Wibowo", address: "Jl. Lotus No. 50", phoneNumber: "081234567898" },
-  { id: 10, name: "Andi Setiawan", address: "Jl. Sakura No. 55", phoneNumber: "081234567899" }
-];
 
 // Type exports based on the schemas
 export type TransactionFormValues = z.infer<typeof transactionFormSchema>;

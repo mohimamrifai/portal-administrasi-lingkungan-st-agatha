@@ -1,6 +1,6 @@
 import { addDays, nextSunday, setHours, setMinutes, isAfter, isSunday } from "date-fns"
 import { DateRange } from "react-day-picker"
-import { TransactionData } from "../types/schema"
+import { TransactionData } from "../types"
 
 /**
  * Calculates the next notification time (Sundays at 12:00)

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { format, isWithinInterval } from "date-fns"
 import { DateRange } from "react-day-picker"
 import { DanaMandiriTransaction } from "../types"
-import { formatCurrency, getFamilyHeadName } from "../utils"
+import { formatCurrency } from "../utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -30,10 +30,9 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { 
   PencilIcon, 
   Trash2Icon, 
-  LockIcon, 
-  UnlockIcon,
   MoreVertical,
   SearchIcon,
+  EyeIcon,
   X,
   ChevronLeftIcon, 
   ChevronRightIcon,
@@ -82,22 +81,28 @@ function DataTableColumnHeader<TData, TValue>({
 
 interface TransactionsTableProps {
   transactions: DanaMandiriTransaction[]
-  onEdit: (id: number) => void
-  onDelete: (id: number) => void
-  onToggleLock: (id: number) => void
-  selectedIds: number[]
-  onSelectChange: (id: number, isChecked: boolean) => void
+  keluargaList: {id: string, namaKepalaKeluarga: string, alamat: string | null, nomorTelepon: string | null}[]
+  onEdit: (id: string) => void
+  onDelete: (id: string) => void
+  selectedIds: string[]
+  onSelect: (id: string, isChecked: boolean) => void
   onSelectAll: (isChecked: boolean) => void
+  isLoading?: boolean
+  canModifyData?: boolean
+  onViewDetail?: (transaction: DanaMandiriTransaction) => void
 }
 
 export function TransactionsTable({
   transactions,
+  keluargaList,
   onEdit,
   onDelete,
-  onToggleLock,
   selectedIds,
-  onSelectChange,
+  onSelect,
   onSelectAll,
+  isLoading = false,
+  canModifyData = false,
+  onViewDetail
 }: TransactionsTableProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
@@ -117,23 +122,24 @@ export function TransactionsTable({
   
   // Filter transactions by search term, status, year, and date range
   const filteredTransactions = transactions.filter(tx => {
-    const familyHeadName = getFamilyHeadName(tx.familyHeadId).toLowerCase()
+    const familyHeadName = tx.keluarga?.namaKepalaKeluarga?.toLowerCase() || ""
     const matchesSearch = 
       searchTerm === "" || 
       familyHeadName.includes(searchTerm.toLowerCase()) ||
-      tx.year.toString().includes(searchTerm) ||
-      (tx.notes && tx.notes.toLowerCase().includes(searchTerm.toLowerCase()))
+      tx.tahun.toString().includes(searchTerm)
     
     const matchesStatus = 
       statusFilter === null || 
-      tx.status === statusFilter
+      (statusFilter === "submitted" && tx.statusSetor) ||
+      (statusFilter === "paid" && !tx.statusSetor) ||
+      (statusFilter === "pending" && !tx.statusSetor)
       
     const matchesYear = 
       yearFilter === null ||
-      tx.year === yearFilter
+      tx.tahun === yearFilter
       
     const matchesDateRange = !dateRange?.from || !dateRange?.to || 
-      isWithinInterval(tx.paymentDate, {
+      isWithinInterval(tx.tanggal, {
         start: dateRange.from,
         end: dateRange.to || dateRange.from
       })
@@ -149,33 +155,25 @@ export function TransactionsTable({
   
   // Get current page data
   const currentTransactions = filteredTransactions
-    .sort((a, b) => b.paymentDate.getTime() - a.paymentDate.getTime()) // Sort newest first
+    .sort((a, b) => b.tanggal.getTime() - a.tanggal.getTime()) // Sort newest first
     .slice(startIndex, endIndex)
   
   // Check if all visible transactions are selected
   const allSelected = 
     currentTransactions.length > 0 && 
     currentTransactions.every(tx => 
-      selectedIds.includes(tx.id) || tx.isLocked || tx.status === "submitted"
+      selectedIds.includes(tx.id) || tx.statusSetor
     )
   
   // Handle select all for current page only
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      // Dapatkan semua ID transaksi yang bisa dipilih (tidak terkunci dan tidak disetor)
+      // Dapatkan semua ID transaksi yang bisa dipilih (tidak disetor)
       const selectableIds = currentTransactions
-        .filter(tx => !tx.isLocked && tx.status !== "submitted")
+        .filter(tx => !tx.statusSetor)
         .map(tx => tx.id);
       
-      // Gabungkan dengan ID yang sudah dipilih sebelumnya
-      const newSelected = [...selectedIds];
-      selectableIds.forEach(id => {
-        if (!newSelected.includes(id)) {
-          newSelected.push(id);
-        }
-      });
-      
-      // Update selection dengan gabungan ID terpilih
+      // Update selection dengan ID yang bisa dipilih
       onSelectAll(checked);
     } else {
       // Kosongkan semua pilihan saat uncheck
@@ -192,28 +190,11 @@ export function TransactionsTable({
   }
   
   // Get status badge color and text
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "paid":
-        return <Badge className="bg-green-100 text-green-700 border-green-300">Lunas</Badge>
-      case "pending":
-        return <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300">Belum Lunas</Badge>
-      case "submitted":
-        return <Badge className="bg-blue-100 text-blue-700 border-blue-300">Disetor</Badge>
-      default:
-        return <Badge variant="outline">Unknown</Badge>
-    }
-  }
-  
-  // Get payment status badge
-  const getPaymentStatusBadge = (status: string) => {
-    switch (status) {
-      case "Lunas":
-        return <Badge className="bg-green-100 text-green-700 border-green-300">Lunas</Badge>
-      case "Belum Lunas":
-        return <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300">Belum Lunas</Badge>
-      default:
-        return <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">{status || "Unknown"}</Badge>
+  const getStatusBadge = (transaction: DanaMandiriTransaction) => {
+    if (transaction.statusSetor) {
+      return <Badge className="bg-blue-100 text-blue-700 border-blue-300">Disetor</Badge>
+    } else {
+      return <Badge className="bg-green-100 text-green-700 border-green-300">Belum Disetor</Badge>
     }
   }
   
@@ -236,8 +217,7 @@ export function TransactionsTable({
   // Status filter options
   const statusOptions = [
     { value: null, label: "Semua Status" },
-    { value: "paid", label: "Lunas" },
-    { value: "pending", label: "Belum Lunas" },
+    { value: "paid", label: "Belum Disetor" },
     { value: "submitted", label: "Disetor" }
   ]
   
@@ -246,136 +226,146 @@ export function TransactionsTable({
     return date ? format(date, "dd MMM yyyy") : ""
   }
 
-  const columns: ColumnDef<DanaMandiriTransaction>[] = [
-    {
-      accessorKey: "paymentStatus",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Status Pembayaran" />
-      ),
-      cell: ({ row }) => {
-        const status = row.getValue("paymentStatus") as string;
-        return (
-          <div className="flex w-[100px] items-center">
-            {getPaymentStatusBadge(status)}
-          </div>
-        )
-      },
-      enableSorting: false,
-      enableHiding: false,
-    },
-  ]
+  // Fungsi untuk mendapatkan nama kepala keluarga berdasarkan ID
+  const getKeluargaName = (id: string): string => {
+    const keluarga = keluargaList.find(k => k.id === id)
+    return keluarga?.namaKepalaKeluarga || "Unknown"
+  }
+
+  if (isLoading) {
+    return (
+      <div className="relative w-full overflow-auto">
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <p className="text-sm text-muted-foreground">Memuat data...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        {/* Search */}
-        <div className="relative w-full md:w-64">
-          <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cari transaksi..."
-            className="pl-8"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          {searchTerm && (
-            <Button
-              variant="ghost"
-              className="absolute right-0 top-0 h-9 w-9 p-0"
-              onClick={() => setSearchTerm("")}
-            >
-              <X className="h-4 w-4" />
-              <span className="sr-only">Clear search</span>
-            </Button>
-          )}
-        </div>
-        
-        <div className="flex flex-wrap gap-2">
-          {/* Year Filter */}
-          <Select
-            value={yearFilter?.toString() || "all"}
-            onValueChange={(value) => {
-              setYearFilter(value === "all" ? null : Number(value))
-              setCurrentPage(1) // Reset to first page when filter changes
-            }}
-          >
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Tahun" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Tahun</SelectItem>
-              {yearOptions.map(year => (
-                <SelectItem key={year} value={year.toString()}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {/* Search and filter controls */}
+      <div className="flex flex-col gap-4 sm:flex-row justify-between">
+        <div className="flex gap-2 items-center">
+          <div className="relative">
+            <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Cari transaksi..."
+              className="pl-8 w-[200px] sm:w-[300px]"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-2 top-2.5"
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
+          </div>
           
-          {/* Status Filter */}
-          <Select
-            value={statusFilter === null ? "all" : statusFilter}
-            onValueChange={(value) => {
-              setStatusFilter(value === "all" ? null : value)
-              setCurrentPage(1) // Reset to first page when filter changes
-            }}
-          >
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              {statusOptions.map(option => (
-                <SelectItem 
-                  key={option.value || "all"} 
-                  value={option.value === null ? "all" : option.value}
-                >
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          {/* Date Range Filter */}
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className={cn(
-                  "w-[240px] justify-start text-left font-normal",
-                  !dateRange && "text-muted-foreground"
-                )}
+                size="sm"
+                className="h-9 min-w-[7rem] justify-start"
               >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange?.from ? (
-                  dateRange.to ? (
-                    <>
-                      {format(dateRange.from, "dd/MM/yyyy")} - {format(dateRange.to, "dd/MM/yyyy")}
-                    </>
-                  ) : (
-                    format(dateRange.from, "dd/MM/yyyy")
-                  )
-                ) : (
-                  <span>Pilih Rentang Tanggal</span>
+                <FilterIcon className="mr-2 h-4 w-4" />
+                Filter
+                {(statusFilter !== null || yearFilter !== null || dateRange) && (
+                  <Badge className="ml-2 rounded-sm px-1" variant="secondary">
+                    {(statusFilter ? 1 : 0) + (yearFilter ? 1 : 0) + (dateRange ? 1 : 0)}
+                  </Badge>
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={dateRange?.from}
-                selected={dateRange}
-                onSelect={setDateRange}
-                numberOfMonths={2}
-              />
-              <div className="flex items-center justify-between px-3 pb-2">
+            <PopoverContent className="w-[240px] p-4" align="start">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="font-medium">Status</div>
+                  <Select
+                    value={statusFilter === null ? "all" : statusFilter}
+                    onValueChange={(value) => setStatusFilter(value === "all" ? null : value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Status</SelectItem>
+                      <SelectItem value="paid">Belum Disetor</SelectItem>
+                      <SelectItem value="submitted">Disetor</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="font-medium">Tahun</div>
+                  <Select
+                    value={yearFilter === null ? "all" : yearFilter.toString()}
+                    onValueChange={(value) => setYearFilter(value === "all" ? null : parseInt(value))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih Tahun" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Tahun</SelectItem>
+                      {yearOptions.map(year => (
+                        <SelectItem key={year} value={year.toString()}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="font-medium">Rentang Tanggal</div>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="justify-start w-full text-left"
+                        size="sm"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateRange?.from ? (
+                          dateRange.to ? (
+                            <>
+                              {format(dateRange.from, "dd LLL")} -{" "}
+                              {format(dateRange.to, "dd LLL, yyyy")}
+                            </>
+                          ) : (
+                            format(dateRange.from, "dd LLL, yyyy")
+                          )
+                        ) : (
+                          "Pilih tanggal"
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={dateRange?.from}
+                        selected={dateRange}
+                        onSelect={setDateRange}
+                        numberOfMonths={2}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
                 <Button
-                  variant="ghost"
-                  onClick={() => setDateRange(undefined)}
-                  disabled={!dateRange}
-                  className="text-xs"
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  onClick={clearAllFilters}
                 >
-                  Reset
+                  Reset Filter
                 </Button>
               </div>
             </PopoverContent>
@@ -383,330 +373,192 @@ export function TransactionsTable({
         </div>
       </div>
       
-      {/* Active Filters */}
-      {(searchTerm || statusFilter || yearFilter || dateRange) && (
-        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <span>Filter aktif:</span>
-          {searchTerm && (
-            <Badge variant="outline" className="gap-1 px-2 py-1">
-              <span>Pencarian: {searchTerm}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="ml-1 h-4 w-4 p-0"
-                onClick={() => setSearchTerm("")}
-              >
-                <X className="h-3 w-3" />
-                <span className="sr-only">Clear search</span>
-              </Button>
-            </Badge>
-          )}
-          
-          {statusFilter && (
-            <Badge variant="outline" className="gap-1 px-2 py-1">
-              <span>Status: {statusOptions.find(o => o.value === statusFilter)?.label}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="ml-1 h-4 w-4 p-0"
-                onClick={() => setStatusFilter(null)}
-              >
-                <X className="h-3 w-3" />
-                <span className="sr-only">Clear status</span>
-              </Button>
-            </Badge>
-          )}
-          
-          {yearFilter && (
-            <Badge variant="outline" className="gap-1 px-2 py-1">
-              <span>Tahun: {yearFilter}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="ml-1 h-4 w-4 p-0"
-                onClick={() => setYearFilter(null)}
-              >
-                <X className="h-3 w-3" />
-                <span className="sr-only">Clear year</span>
-              </Button>
-            </Badge>
-          )}
-          
-          {(dateRange?.from || dateRange?.to) && (
-            <Badge variant="outline" className="gap-1 px-2 py-1">
-              <span>
-                Tanggal: {dateRange.from ? format(dateRange.from, "dd/MM/yyyy") : "..."} - {dateRange.to ? format(dateRange.to, "dd/MM/yyyy") : "..."}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="ml-1 h-4 w-4 p-0"
-                onClick={() => {
-                  setDateRange(undefined)
-                }}
-              >
-                <X className="h-3 w-3" />
-                <span className="sr-only">Clear date range</span>
-              </Button>
-            </Badge>
-          )}
-          
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="ml-auto h-7 text-xs"
-            onClick={clearAllFilters}
-          >
-            Reset Semua
-          </Button>
-        </div>
-      )}
-
-      <div className="rounded-md border overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
+      {/* Data table */}
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[60px]">
+                <Checkbox 
+                  checked={allSelected} 
+                  onCheckedChange={handleSelectAll}
+                />
+              </TableHead>
+              <TableHead>Nama Kepala Keluarga</TableHead>
+              <TableHead>Tahun</TableHead>
+              <TableHead>Tanggal Bayar</TableHead>
+              <TableHead>Jumlah</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Tanggal Setor</TableHead>
+              <TableHead className="w-[100px] text-right sticky right-0 bg-white z-10 shadow-[-4px_0_10px_rgba(0,0,0,0.1)]">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {currentTransactions.length === 0 ? (
               <TableRow>
-                <TableHead className="w-[40px]">
-                  <Checkbox 
-                    checked={allSelected}
-                    onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                  />
-                </TableHead>
-                <TableHead className="min-w-[180px]">Nama Kepala Keluarga</TableHead>
-                <TableHead className="w-[80px]">Tahun</TableHead>
-                <TableHead className="w-[100px]">Status</TableHead>
-                <TableHead className="text-right w-[120px]">Jumlah (Rp)</TableHead>
-                <TableHead className="w-[120px]">Tanggal Bayar</TableHead>
-                <TableHead className="w-[100px]">Keterangan</TableHead>
-                <TableHead className="w-[120px]">Catatan</TableHead>
-                <TableHead className="sticky right-0 bg-white shadow-md w-[50px] text-center">Aksi</TableHead>
+                <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+                  Tidak ada data transaksi
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {currentTransactions.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-10">
-                    <div className="flex flex-col items-center justify-center space-y-2">
-                      {filteredTransactions.length === 0 ? (
-                        transactions.length > 0 ? (
-                          <>
-                            <p className="text-muted-foreground">Tidak ada data transaksi yang sesuai dengan filter</p>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={clearAllFilters}
-                            >
-                              Reset Filter
-                            </Button>
-                          </>
-                        ) : (
-                          <p className="text-muted-foreground">Tidak ada data transaksi tersedia</p>
-                        )
-                      ) : (
-                        <p className="text-muted-foreground">Tidak ada data transaksi pada halaman ini</p>
-                      )}
+            ) : (
+              currentTransactions.map((transaction) => (
+                <TableRow key={transaction.id}>
+                  <TableCell>
+                    <Checkbox 
+                      checked={selectedIds.includes(transaction.id)} 
+                      onCheckedChange={(checked) => onSelect(transaction.id, !!checked)}
+                      disabled={transaction.statusSetor}
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {transaction.keluarga?.namaKepalaKeluarga || getKeluargaName(transaction.keluargaId)}
+                  </TableCell>
+                  <TableCell>{transaction.tahun}</TableCell>
+                  <TableCell>
+                    {format(new Date(transaction.tanggal), "dd MMM yyyy")}
+                  </TableCell>
+                  <TableCell>
+                    {formatCurrency(transaction.jumlahDibayar)}
+                  </TableCell>
+                  <TableCell>
+                    {getStatusBadge(transaction)}
+                  </TableCell>
+                  <TableCell>
+                    {transaction.tanggalSetor ? format(new Date(transaction.tanggalSetor), "dd MMM yyyy") : "-"}
+                  </TableCell>
+                  <TableCell className="text-right sticky right-0 bg-white z-10 shadow-[-4px_0_10px_rgba(0,0,0,0.1)]">
+                    <div className="flex justify-end items-center space-x-1">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Buka menu</span>
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {canModifyData && (
+                            <>
+                              <DropdownMenuItem
+                                onClick={() => onEdit(transaction.id)}
+                              >
+                                <PencilIcon className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem
+                                    onSelect={(e) => e.preventDefault()}
+                                    className="text-destructive"
+                                  >
+                                    <Trash2Icon className="mr-2 h-4 w-4" />
+                                    Hapus
+                                  </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Konfirmasi Penghapusan
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Apakah Anda yakin ingin menghapus transaksi ini? Tindakan ini tidak dapat dibatalkan.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => onDelete(transaction.id)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Hapus
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </>
+                          )}
+                          
+                          <DropdownMenuItem
+                            onClick={() => {
+                              if (onViewDetail) {
+                                onViewDetail(transaction);
+                              }
+                            }}
+                          >
+                            <EyeIcon className="mr-2 h-4 w-4" />
+                            Lihat Detail
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </TableCell>
                 </TableRow>
-              ) : (
-                currentTransactions.map((tx) => (
-                  <TableRow key={tx.id} className={`group ${tx.isLocked ? "bg-gray-50" : ""}`}>
-                    <TableCell>
-                      <Checkbox 
-                        checked={selectedIds.includes(tx.id)}
-                        onCheckedChange={(checked) => onSelectChange(tx.id, !!checked)}
-                        disabled={tx.isLocked || tx.status === "submitted"}
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {getFamilyHeadName(tx.familyHeadId)}
-                    </TableCell>
-                    <TableCell>{tx.year}</TableCell>
-                    <TableCell>{getStatusBadge(tx.status)}</TableCell>
-                    <TableCell className="text-right font-medium">{formatCurrency(tx.amount)}</TableCell>
-                    <TableCell>{format(tx.paymentDate, "dd MMM yyyy")}</TableCell>
-                    <TableCell>
-                      {getPaymentStatusBadge(tx.paymentStatus)}
-                    </TableCell>
-                    <TableCell className="max-w-[200px] truncate">
-                      {tx.notes || "-"}
-                    </TableCell>
-                    <TableCell className="sticky right-0 bg-white shadow-md">
-                      <AlertDialog>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Hapus Transaksi</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Apakah anda yakin ingin menghapus transaksi ini? Tindakan ini tidak dapat dibatalkan.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Batal</AlertDialogCancel>
-                            <AlertDialogAction 
-                              className="bg-red-500 hover:bg-red-600"
-                              onClick={() => onDelete(tx.id)}
-                            >
-                              Hapus
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              className="h-8 w-8 p-0"
-                            >
-                              <span className="sr-only">Buka menu</span>
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div>
-                                    <DropdownMenuItem
-                                      onClick={() => onEdit(tx.id)}
-                                      disabled={tx.isLocked || tx.status === "submitted"}
-                                      className={tx.isLocked || tx.status === "submitted" ? "cursor-not-allowed opacity-50" : ""}
-                                    >
-                                      <PencilIcon className="mr-2 h-4 w-4" />
-                                      <span>Edit</span>
-                                    </DropdownMenuItem>
-                                  </div>
-                                </TooltipTrigger>
-                                {(tx.isLocked || tx.status === "submitted") && (
-                                  <TooltipContent>
-                                    <p>Transaksi terkunci tidak dapat diedit</p>
-                                  </TooltipContent>
-                                )}
-                              </Tooltip>
-                            </TooltipProvider>
-                            
-                            <DropdownMenuItem
-                              onClick={() => onToggleLock(tx.id)}
-                              disabled={tx.status === "submitted"}
-                              className={tx.status === "submitted" ? "cursor-not-allowed opacity-50" : ""}
-                            >
-                              {tx.isLocked ?
-                                <UnlockIcon className="mr-2 h-4 w-4" /> :
-                                <LockIcon className="mr-2 h-4 w-4" />
-                              }
-                              <span>{tx.isLocked ? 'Buka Kunci' : 'Kunci'}</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div>
-                                    <AlertDialogTrigger asChild>
-                                      <DropdownMenuItem
-                                        disabled={tx.isLocked || tx.status === "submitted"}
-                                        className={`${tx.isLocked || tx.status === "submitted" ? "cursor-not-allowed opacity-50" : ""} text-red-600 focus:text-red-600`}
-                                      >
-                                        <Trash2Icon className="mr-2 h-4 w-4" />
-                                        <span>Hapus</span>
-                                      </DropdownMenuItem>
-                                    </AlertDialogTrigger>
-                                  </div>
-                                </TooltipTrigger>
-                                {(tx.isLocked || tx.status === "submitted") && (
-                                  <TooltipContent>
-                                    <p>Transaksi terkunci tidak dapat dihapus</p>
-                                  </TooltipContent>
-                                )}
-                              </Tooltip>
-                            </TooltipProvider>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </AlertDialog>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
       
-      {/* Pagination Controls */}
-      {transactions.length > 0 && (
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-2">
-          <div className="flex flex-col md:flex-row items-center gap-2 md:space-x-2 w-full md:w-auto text-center md:text-left">
-            <p className="text-sm text-muted-foreground">
-              Menampilkan {totalItems > 0 ? startIndex + 1 : 0}-{endIndex} dari {totalItems} transaksi
-              {(searchTerm || statusFilter || yearFilter || dateRange) && 
-                ` (difilter dari ${transactions.length} total)`}
-            </p>
-            <div className="flex items-center gap-2 mt-2 md:mt-0">
-              <p className="text-sm text-muted-foreground">Tampilkan</p>
-              <Select 
-                value={pageSize.toString()} 
-                onValueChange={handlePageSizeChange}
-              >
-                <SelectTrigger className="h-8 w-[70px]">
-                  <SelectValue placeholder={pageSize.toString()} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">5</SelectItem>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="20">20</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-muted-foreground">per halaman</p>
-            </div>
+      {/* Pagination controls */}
+      {totalItems > 0 && (
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="text-sm text-muted-foreground">
+            Menampilkan {startIndex + 1}-{endIndex} dari {totalItems} transaksi
           </div>
-          
-          <div className="flex items-center justify-center mt-4 md:mt-0 w-full md:w-auto">
-            <div className="flex items-center space-x-2">
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={goToFirstPage} 
-                disabled={currentPage === 1}
+          <div className="flex items-center gap-2">
+            <Select
+              value={pageSize.toString()}
+              onValueChange={handlePageSizeChange}
+            >
+              <SelectTrigger className="h-8 w-[70px]">
+                <SelectValue placeholder={pageSize.toString()} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5</SelectItem>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
                 className="h-8 w-8"
+                onClick={goToFirstPage}
+                disabled={currentPage === 1}
               >
                 <ChevronsLeftIcon className="h-4 w-4" />
-                <span className="sr-only">First Page</span>
               </Button>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={goToPreviousPage} 
-                disabled={currentPage === 1}
+              <Button
+                variant="outline"
+                size="icon"
                 className="h-8 w-8"
+                onClick={goToPreviousPage}
+                disabled={currentPage === 1}
               >
                 <ChevronLeftIcon className="h-4 w-4" />
-                <span className="sr-only">Previous Page</span>
               </Button>
-              
-              <span className="text-sm mx-2 min-w-[90px] text-center">
-                Halaman {currentPage} dari {totalPages}
+              <span className="text-sm mx-2">
+                {currentPage} / {totalPages}
               </span>
-              
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={goToNextPage} 
-                disabled={currentPage === totalPages}
+              <Button
+                variant="outline"
+                size="icon"
                 className="h-8 w-8"
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages}
               >
                 <ChevronRightIcon className="h-4 w-4" />
-                <span className="sr-only">Next Page</span>
               </Button>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={goToLastPage} 
-                disabled={currentPage === totalPages}
+              <Button
+                variant="outline"
+                size="icon"
                 className="h-8 w-8"
+                onClick={goToLastPage}
+                disabled={currentPage === totalPages}
               >
                 <ChevronsRightIcon className="h-4 w-4" />
-                <span className="sr-only">Last Page</span>
               </Button>
             </div>
           </div>

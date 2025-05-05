@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
 import { CalendarIcon } from "lucide-react"
-import { familyHeads, TransactionFormValues, transactionFormSchema, paymentStatusOptions } from "../types"
+import { TransactionFormValues, transactionFormSchema, paymentStatusOptions } from "../types"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -45,16 +45,16 @@ interface TransactionFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (values: TransactionFormValues) => void
-  defaultValues?: TransactionFormValues
-  mode: "add" | "edit"
+  initialData?: TransactionFormValues
+  keluargaList: {id: string, namaKepalaKeluarga: string, alamat?: string | null, nomorTelepon?: string | null}[]
 }
 
 export function TransactionFormDialog({
   open, 
   onOpenChange, 
   onSubmit,
-  defaultValues,
-  mode
+  initialData,
+  keluargaList
 }: TransactionFormDialogProps) {
   // Current year for default value
   const currentYear = new Date().getFullYear()
@@ -65,18 +65,19 @@ export function TransactionFormDialog({
   // Form
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionFormSchema),
-    defaultValues: defaultValues || {
-      familyHeadId: 0,
+    defaultValues: initialData || {
+      familyHeadId: "",
       year: currentYear,
-      amount: 1000000,
+      amount: 100000,
       paymentDate: new Date(),
       notes: "",
       paymentStatus: "Belum Lunas",
     },
   })
   
-  const title = mode === "add" ? "Tambah Data Transaksi" : "Edit Data Transaksi"
-  const buttonText = mode === "add" ? "Tambah" : "Simpan"
+  const isEditMode = !!initialData
+  const title = isEditMode ? "Edit Data Transaksi" : "Tambah Data Transaksi"
+  const buttonText = isEditMode ? "Simpan" : "Tambah"
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -84,7 +85,7 @@ export function TransactionFormDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            Isi formulir di bawah untuk {mode === "add" ? "menambahkan" : "mengubah"} data transaksi Dana Mandiri.
+            Isi formulir di bawah untuk {isEditMode ? "mengubah" : "menambahkan"} data transaksi Dana Mandiri.
           </DialogDescription>
         </DialogHeader>
         
@@ -99,8 +100,8 @@ export function TransactionFormDialog({
                   <FormControl>
                     <SearchableFamilyDropdown
                       value={field.value || null}
-                      onValueChange={(value) => field.onChange(value || 0)}
-                      familyHeads={familyHeads}
+                      onValueChange={(value) => field.onChange(value || "")}
+                      familyHeads={keluargaList}
                     />
                   </FormControl>
                   <FormMessage />

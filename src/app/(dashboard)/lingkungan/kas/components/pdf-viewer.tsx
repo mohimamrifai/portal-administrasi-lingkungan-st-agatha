@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { TransactionData } from '../types/schema';
+import { TransactionData } from '../types';
 import dynamic from 'next/dynamic';
 
 // Import komponen client secara dinamis

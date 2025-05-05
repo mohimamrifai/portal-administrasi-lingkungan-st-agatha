@@ -13,28 +13,27 @@ import PDFViewerComponent from './pdf-viewer';
 interface PDFPreviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  documentType: string;
-  documentCategory: "bukti_terima_uang" | "setor_ke_paroki";
+  data: {
+    documentType: string;
+    documentCategory: "bukti_terima_uang" | "setor_ke_paroki";
+    month?: number;
+    year: number;
+  };
   transactions: DanaMandiriTransaction[];
-  month?: number;
-  year: number;
 }
 
 export function PDFPreviewDialog({
   open,
   onOpenChange,
-  documentType,
-  documentCategory,
-  transactions,
-  month,
-  year,
+  data,
+  transactions
 }: PDFPreviewDialogProps) {
   // Menentukan judul dialog berdasarkan kategori
   const getDialogTitle = () => {
     let catTitle = "";
     
     // Tambahkan kategori dokumen
-    switch (documentCategory) {
+    switch (data.documentCategory) {
       case "bukti_terima_uang":
         catTitle = "Bukti Terima Uang";
         break;
@@ -44,12 +43,12 @@ export function PDFPreviewDialog({
     }
     
     // Format bulan jika ada
-    const monthName = month 
-      ? new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(new Date(year, month - 1, 1))
+    const monthName = data.month 
+      ? new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(new Date(data.year, data.month - 1, 1))
       : "";
     
     // Bentuk judul lengkap
-    return `Bukti Pembayaran - ${catTitle} - ${monthName} ${year}`;
+    return `Bukti Pembayaran - ${catTitle} - ${monthName} ${data.year}`;
   };
 
   return (
@@ -63,11 +62,11 @@ export function PDFPreviewDialog({
         </DialogHeader>
         <div className="flex-1 overflow-hidden">
           <PDFViewerComponent
-            documentType={documentType}
-            documentCategory={documentCategory}
+            documentType={data.documentType}
+            documentCategory={data.documentCategory}
             transactions={transactions}
-            month={month}
-            year={year}
+            month={data.month}
+            year={data.year}
           />
         </div>
         <DialogFooter className="mt-3">

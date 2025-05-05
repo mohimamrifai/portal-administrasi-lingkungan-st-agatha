@@ -2,7 +2,7 @@
 
 import { getKasLingkungan } from "../utils/kas-service";
 import { StatusApproval } from "@prisma/client";
-import { TransactionData } from "../types/schema";
+import { TransactionData } from "../types";
 
 // Transformasi data dari database ke format yang digunakan UI
 export async function getTransactionsData(): Promise<TransactionData[]> {
@@ -20,7 +20,12 @@ export async function getTransactionsData(): Promise<TransactionData[]> {
       status: transaction.approval?.status || StatusApproval.PENDING,
       isApproved: transaction.approval?.status === StatusApproval.APPROVED,
       isRejected: transaction.approval?.status === StatusApproval.REJECTED,
-      isPending: transaction.approval?.status === StatusApproval.PENDING || !transaction.approval
+      isPending: transaction.approval?.status === StatusApproval.PENDING || !transaction.approval,
+      // Tambahkan data keluarga jika ada
+      keluarga: transaction.keluarga ? {
+        id: transaction.keluarga.id,
+        namaKepalaKeluarga: transaction.keluarga.namaKepalaKeluarga
+      } : undefined
     }));
   } catch (error) {
     console.error("Error transforming transaction data:", error);
@@ -33,8 +38,9 @@ export async function getTransactionSummary() {
   try {
     const transactions = await getKasLingkungan();
     
-    // Asumsikan saldo awal 0, namun pada implementasi lengkap
-    // bisa mengambil dari pengaturan sistem atau transaksi pertama
+    // Ambil saldo awal dari database atau pengaturan
+    // Untuk implementasi lengkap, bisa mengambil dari konfigurasi atau transaksi pertama
+    // Untuk sementara default ke 0
     const initialBalance = 0;
     
     const totalIncome = transactions.reduce((sum, tx) => sum + tx.debit, 0);

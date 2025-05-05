@@ -9,14 +9,18 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { FamilyHead } from "../types"
 import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface SearchableFamilyDropdownProps {
-  value: number | null;
-  onValueChange: (value: number | null) => void;
-  familyHeads: FamilyHead[];
+  value: string | null;
+  onValueChange: (value: string | null) => void;
+  familyHeads: {
+    id: string; 
+    namaKepalaKeluarga: string; 
+    alamat?: string | null; 
+    nomorTelepon?: string | null
+  }[];
   placeholder?: string;
   disabled?: boolean;
 }
@@ -52,16 +56,15 @@ export function SearchableFamilyDropdown({
   const filteredFamilyHeads = familyHeads.filter(head => {
     const search = searchQuery.toLowerCase()
     return (
-      head.name.toLowerCase().includes(search) ||
-      (head.address && head.address.toLowerCase().includes(search)) ||
-      (head.phoneNumber && head.phoneNumber.includes(search))
+      head.namaKepalaKeluarga.toLowerCase().includes(search) ||
+      (head.alamat && head.alamat.toLowerCase().includes(search)) ||
+      (head.nomorTelepon && head.nomorTelepon.includes(search))
     )
   })
   
   // Handle command select
   const handleSelect = (selectedId: string) => {
-    const id = parseInt(selectedId)
-    onValueChange(id)
+    onValueChange(selectedId)
     setOpen(false)
   }
   
@@ -81,10 +84,10 @@ export function SearchableFamilyDropdown({
           >
             {selectedFamilyHead ? (
               <span className="flex items-center truncate">
-                <span className="truncate">{selectedFamilyHead.name}</span>
-                {selectedFamilyHead.address && (
+                <span className="truncate">{selectedFamilyHead.namaKepalaKeluarga}</span>
+                {selectedFamilyHead.alamat && (
                   <span className="ml-1 text-xs text-muted-foreground truncate hidden sm:inline">
-                    ({selectedFamilyHead.address.split(",")[0]})
+                    ({selectedFamilyHead.alamat.split(",")[0]})
                   </span>
                 )}
               </span>
@@ -117,13 +120,13 @@ export function SearchableFamilyDropdown({
                       className="flex items-start py-2"
                     >
                       <div className="flex flex-col flex-1 min-w-0">
-                        <div className="font-medium">{head.name}</div>
+                        <div className="font-medium">{head.namaKepalaKeluarga}</div>
                         <div className="flex flex-col text-xs text-muted-foreground">
-                          {head.address && (
-                            <span className="truncate">{head.address}</span>
+                          {head.alamat && (
+                            <span className="truncate">{head.alamat}</span>
                           )}
-                          {head.phoneNumber && (
-                            <span>{head.phoneNumber}</span>
+                          {head.nomorTelepon && (
+                            <span>{head.nomorTelepon}</span>
                           )}
                         </div>
                       </div>

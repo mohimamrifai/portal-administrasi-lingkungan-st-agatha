@@ -3,7 +3,7 @@
 import React, { useState } from "react"
 import { format } from "date-fns"
 import { DanaMandiriArrears } from "../types"
-import { formatCurrency, getFamilyHeadName } from "../utils"
+import { formatCurrency } from "../utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -18,13 +18,13 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { 
   BellIcon, 
-  EditIcon, 
   SearchIcon, 
   X,
   ChevronLeftIcon, 
   ChevronRightIcon,
   ChevronsLeftIcon,
-  ChevronsRightIcon 
+  ChevronsRightIcon,
+  FilterIcon
 } from "lucide-react"
 import {
   Select,
@@ -42,40 +42,37 @@ import {
 
 interface MonitoringTableProps {
   arrears: DanaMandiriArrears[]
-  selectedFamilyIds: number[]
-  onSelectChange: (id: number, isChecked: boolean) => void
+  selectedIds: string[]
+  onSelect: (id: string, isChecked: boolean) => void
   onSelectAll: (isChecked: boolean) => void
-  onSendReminder: () => void
-  onSetDues: () => void
+  isLoading?: boolean
 }
 
 export function MonitoringTable({
   arrears,
-  selectedFamilyIds,
-  onSelectChange,
+  selectedIds,
+  onSelect,
   onSelectAll,
-  onSendReminder,
-  onSetDues,
+  isLoading = false
 }: MonitoringTableProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
-  const [reminderFilter, setReminderFilter] = useState<string | null>(null)
+  const [yearFilter, setYearFilter] = useState<number | null>(null)
   
-  // Filter arrears by search term and reminder status
+  // Filter arrears by search term and year
   const filteredArrears = arrears.filter(arrear => {
-    const familyHeadName = getFamilyHeadName(arrear.familyHeadId).toLowerCase()
+    const familyHeadName = arrear.namaKepalaKeluarga.toLowerCase()
     
     const matchesSearch = 
       searchTerm === "" || 
       familyHeadName.includes(searchTerm.toLowerCase())
     
-    const matchesReminderStatus = 
-      reminderFilter === null ||
-      (reminderFilter === "reminded" && arrear.lastNotificationDate) ||
-      (reminderFilter === "not_reminded" && !arrear.lastNotificationDate)
+    const matchesYear = 
+      yearFilter === null ||
+      arrear.tahunTertunggak.includes(yearFilter)
     
-    return matchesSearch && matchesReminderStatus
+    return matchesSearch && matchesYear
   })
   
   // Calculate pagination values
@@ -86,29 +83,21 @@ export function MonitoringTable({
   
   // Get current page data
   const currentArrears = filteredArrears
-    .sort((a, b) => b.totalAmount - a.totalAmount) // Sort by highest amount first
+    .sort((a, b) => b.totalTunggakan - a.totalTunggakan) // Sort by highest amount first
     .slice(startIndex, endIndex)
   
   // Check if all visible arrears are selected
   const allSelected = 
     currentArrears.length > 0 && 
-    currentArrears.every(arrear => selectedFamilyIds.includes(arrear.familyHeadId))
+    currentArrears.every(arrear => selectedIds.includes(arrear.keluargaId))
   
   // Handle select all for current page only
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const ids = currentArrears.map(arrear => arrear.familyHeadId)
-      const newSelected = [...selectedFamilyIds]
-      
-      ids.forEach(id => {
-        if (!newSelected.includes(id)) {
-          newSelected.push(id)
-        }
-      })
-      
-      onSelectAll(true)
+      const ids = currentArrears.map(arrear => arrear.keluargaId)
+      onSelectAll(true);
     } else {
-      onSelectAll(false)
+      onSelectAll(false);
     }
   }
   
@@ -157,20 +146,6 @@ export function MonitoringTable({
     );
   };
   
-  // Get last notification status
-  const getNotificationStatus = (lastNotificationDate?: Date) => {
-    if (!lastNotificationDate) {
-      return <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">Belum diingatkan</Badge>
-    }
-    
-    return (
-      <div className="flex flex-col">
-        <Badge className="bg-green-100 text-green-700 border-green-300">Sudah diingatkan</Badge>
-        <span className="text-xs text-gray-500 mt-1">{format(lastNotificationDate, "dd MMM yyyy")}</span>
-      </div>
-    )
-  }
-  
   // Pagination functions
   const goToPage = (page: number) => {
     setCurrentPage(page)
@@ -187,262 +162,179 @@ export function MonitoringTable({
     setCurrentPage(1) // Reset to first page when changing page size
   }
   
-  // Reminder filter options
-  const reminderOptions = [
-    { value: null, label: "Semua Status" },
-    { value: "reminded", label: "Sudah Diingatkan" },
-    { value: "not_reminded", label: "Belum Diingatkan" }
-  ]
+  // Generate years for the year filter dropdown (last 5 years to current year)
+  const currentYear = new Date().getFullYear()
+  const yearOptions = Array.from({ length: 6 }, (_, i) => currentYear - 5 + i)
+
+  if (isLoading) {
+    return (
+      <div className="relative w-full overflow-auto">
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <p className="text-sm text-muted-foreground">Memuat data...</p>
+        </div>
+      </div>
+    )
+  }
   
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="relative w-full md:w-64">
-          <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cari kepala keluarga..."
-            className="pl-8"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          {searchTerm && (
-            <Button
-              variant="ghost"
-              className="absolute right-0 top-0 h-9 w-9 p-0"
-              onClick={() => setSearchTerm("")}
-            >
-              <X className="h-4 w-4" />
-              <span className="sr-only">Clear search</span>
-            </Button>
-          )}
-        </div>
-        
-        <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-4 sm:flex-row justify-between">
+        <div className="flex gap-2 items-center">
+          <div className="relative">
+            <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Cari kepala keluarga..."
+              className="pl-8 w-[200px] sm:w-[300px]"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-2 top-2.5"
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+          
           <Select
-            value={reminderFilter === null ? "all" : reminderFilter}
-            onValueChange={(value) => setReminderFilter(value === "all" ? null : value)}
+            value={yearFilter === null ? "all" : yearFilter.toString()}
+            onValueChange={(value) => setYearFilter(value === "all" ? null : parseInt(value))}
           >
-            <SelectTrigger className="w-[170px]">
-              <SelectValue placeholder="Status Pengingat" />
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Tahun" />
             </SelectTrigger>
             <SelectContent>
-              {reminderOptions.map(option => (
-                <SelectItem 
-                  key={option.value || "all"} 
-                  value={option.value === null ? "all" : option.value}
-                >
-                  {option.label}
+              <SelectItem value="all">Semua Tahun</SelectItem>
+              {yearOptions.map(year => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          
-          <Button variant="outline" onClick={onSetDues} className="whitespace-nowrap">
-            <EditIcon className="h-4 w-4 mr-2" />
-            Set Iuran
-          </Button>
-          
-          <Button 
-            onClick={onSendReminder} 
-            disabled={selectedFamilyIds.length === 0}
-            className="whitespace-nowrap"
-          >
-            <BellIcon className="h-4 w-4 mr-2" />
-            Kirim Pengingat
-          </Button>
         </div>
       </div>
       
-      {/* Active Filters */}
-      {(searchTerm || reminderFilter) && (
-        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <span>Filter aktif:</span>
-          {searchTerm && (
-            <Badge variant="outline" className="gap-1 px-2 py-1">
-              <span>Pencarian: {searchTerm}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="ml-1 h-4 w-4 p-0"
-                onClick={() => setSearchTerm("")}
-              >
-                <X className="h-3 w-3" />
-                <span className="sr-only">Clear search</span>
-              </Button>
-            </Badge>
-          )}
-          
-          {reminderFilter && (
-            <Badge variant="outline" className="gap-1 px-2 py-1">
-              <span>Status: {reminderOptions.find(o => o.value === reminderFilter)?.label}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="ml-1 h-4 w-4 p-0"
-                onClick={() => setReminderFilter(null)}
-              >
-                <X className="h-3 w-3" />
-                <span className="sr-only">Clear filter</span>
-              </Button>
-            </Badge>
-          )}
-          
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="ml-auto h-7 text-xs"
-            onClick={() => {
-              setSearchTerm("")
-              setReminderFilter(null)
-            }}
-          >
-            Reset Semua
-          </Button>
-        </div>
-      )}
-
-      <div className="rounded-md border overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[60px]">
+                <Checkbox 
+                  checked={allSelected} 
+                  onCheckedChange={handleSelectAll}
+                />
+              </TableHead>
+              <TableHead>Nama Kepala Keluarga</TableHead>
+              <TableHead>Alamat</TableHead>
+              <TableHead>Telepon</TableHead>
+              <TableHead>Tahun Tertunggak</TableHead>
+              <TableHead>Total Tunggakan</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {currentArrears.length === 0 ? (
               <TableRow>
-                <TableHead className="w-[40px]">
-                  <Checkbox 
-                    checked={allSelected}
-                    onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                  />
-                </TableHead>
-                <TableHead className="min-w-[180px]">Nama Kepala Keluarga</TableHead>
-                <TableHead className="w-[150px]">Periode Tunggakan</TableHead>
-                <TableHead className="text-right w-[150px]">Jumlah Tunggakan (Rp)</TableHead>
-                <TableHead className="w-[150px]">Status Pengingat</TableHead>
+                <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                  Tidak ada data tunggakan
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {currentArrears.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-10">
-                    <div className="flex flex-col items-center justify-center space-y-2">
-                      {filteredArrears.length === 0 ? (
-                        arrears.length > 0 ? (
-                          <>
-                            <p className="text-muted-foreground">Tidak ada data tunggakan yang sesuai dengan filter</p>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSearchTerm("")
-                                setReminderFilter(null)
-                              }}
-                            >
-                              Reset Filter
-                            </Button>
-                          </>
-                        ) : (
-                          <p className="text-muted-foreground">Tidak ada data tunggakan tersedia</p>
-                        )
-                      ) : (
-                        <p className="text-muted-foreground">Tidak ada data tunggakan pada halaman ini</p>
-                      )}
-                    </div>
+            ) : (
+              currentArrears.map((arrear) => (
+                <TableRow key={arrear.keluargaId}>
+                  <TableCell>
+                    <Checkbox 
+                      checked={selectedIds.includes(arrear.keluargaId)} 
+                      onCheckedChange={(checked) => onSelect(arrear.keluargaId, !!checked)} 
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {arrear.namaKepalaKeluarga}
+                  </TableCell>
+                  <TableCell>
+                    {arrear.alamat || "-"}
+                  </TableCell>
+                  <TableCell>
+                    {arrear.nomorTelepon || "-"}
+                  </TableCell>
+                  <TableCell>
+                    {formatPeriods(arrear.tahunTertunggak)}
+                  </TableCell>
+                  <TableCell>
+                    {formatCurrency(arrear.totalTunggakan)}
                   </TableCell>
                 </TableRow>
-              ) : (
-                currentArrears.map((arrear) => (
-                  <TableRow key={arrear.id} className="group">
-                    <TableCell>
-                      <Checkbox 
-                        checked={selectedFamilyIds.includes(arrear.familyHeadId)}
-                        onCheckedChange={(checked) => onSelectChange(arrear.familyHeadId, !!checked)}
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">{getFamilyHeadName(arrear.familyHeadId)}</TableCell>
-                    <TableCell>{formatPeriods(arrear.periods)}</TableCell>
-                    <TableCell className="text-right font-medium text-red-600">{formatCurrency(arrear.totalAmount)}</TableCell>
-                    <TableCell>{getNotificationStatus(arrear.lastNotificationDate)}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
       
-      {/* Pagination Controls */}
-      {arrears.length > 0 && (
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-2">
-          <div className="flex flex-col md:flex-row items-center gap-2 md:space-x-2 w-full md:w-auto text-center md:text-left">
-            <p className="text-sm text-muted-foreground">
-              Menampilkan {totalItems > 0 ? startIndex + 1 : 0}-{endIndex} dari {totalItems} tunggakan
-              {(searchTerm || reminderFilter) && 
-                ` (difilter dari ${arrears.length} total)`}
-            </p>
-            <div className="flex items-center gap-2 mt-2 md:mt-0">
-              <p className="text-sm text-muted-foreground">Tampilkan</p>
-              <Select 
-                value={pageSize.toString()} 
-                onValueChange={handlePageSizeChange}
-              >
-                <SelectTrigger className="h-8 w-[70px]">
-                  <SelectValue placeholder={pageSize.toString()} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">5</SelectItem>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="20">20</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-muted-foreground">per halaman</p>
-            </div>
+      {/* Pagination controls */}
+      {totalItems > 0 && (
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="text-sm text-muted-foreground">
+            Menampilkan {startIndex + 1}-{endIndex} dari {totalItems} tunggakan
           </div>
-          
-          <div className="flex items-center justify-center mt-4 md:mt-0 w-full md:w-auto">
-            <div className="flex items-center space-x-2">
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={goToFirstPage} 
-                disabled={currentPage === 1}
+          <div className="flex items-center gap-2">
+            <Select
+              value={pageSize.toString()}
+              onValueChange={handlePageSizeChange}
+            >
+              <SelectTrigger className="h-8 w-[70px]">
+                <SelectValue placeholder={pageSize.toString()} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5</SelectItem>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
                 className="h-8 w-8"
+                onClick={goToFirstPage}
+                disabled={currentPage === 1}
               >
                 <ChevronsLeftIcon className="h-4 w-4" />
-                <span className="sr-only">First Page</span>
               </Button>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={goToPreviousPage} 
-                disabled={currentPage === 1}
+              <Button
+                variant="outline"
+                size="icon"
                 className="h-8 w-8"
+                onClick={goToPreviousPage}
+                disabled={currentPage === 1}
               >
                 <ChevronLeftIcon className="h-4 w-4" />
-                <span className="sr-only">Previous Page</span>
               </Button>
-              
-              <span className="text-sm mx-2 min-w-[90px] text-center">
-                Halaman {currentPage} dari {totalPages}
+              <span className="text-sm mx-2">
+                {currentPage} / {totalPages}
               </span>
-              
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={goToNextPage} 
-                disabled={currentPage === totalPages}
+              <Button
+                variant="outline"
+                size="icon"
                 className="h-8 w-8"
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages}
               >
                 <ChevronRightIcon className="h-4 w-4" />
-                <span className="sr-only">Next Page</span>
               </Button>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={goToLastPage} 
-                disabled={currentPage === totalPages}
+              <Button
+                variant="outline"
+                size="icon"
                 className="h-8 w-8"
+                onClick={goToLastPage}
+                disabled={currentPage === totalPages}
               >
                 <ChevronsRightIcon className="h-4 w-4" />
-                <span className="sr-only">Last Page</span>
               </Button>
             </div>
           </div>

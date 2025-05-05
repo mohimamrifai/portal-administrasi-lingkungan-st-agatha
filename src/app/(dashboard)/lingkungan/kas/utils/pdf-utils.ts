@@ -1,4 +1,4 @@
-import { TransactionData } from "../types/schema";
+import { TransactionData } from "../types";
 import { JenisTransaksi } from "@prisma/client";
 
 /**

@@ -26,8 +26,8 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { UseFormReturn } from "react-hook-form"
-import { PrintPdfFormValues } from "../types/schema"
-import { TransactionData } from "../types/schema"
+import { PrintPdfFormValues } from "../types"
+import { TransactionData } from "../types"
 import PDFViewerComponent from "./pdf-viewer"
 
 interface PrintPdfDialogProps {

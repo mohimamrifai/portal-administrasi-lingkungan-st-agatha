@@ -3,7 +3,6 @@
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { SendReminderValues, sendReminderSchema } from "../types"
-import { getFamilyHeadName } from "../utils"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -28,20 +27,26 @@ interface ReminderDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (values: SendReminderValues) => void
-  selectedFamilyIds: number[]
+  familyHeadIds: string[]
+  familyList?: {
+    id: string
+    name: string
+    phoneNumber?: string
+  }[]
 }
 
 export function ReminderDialog({
   open,
   onOpenChange,
   onSubmit,
-  selectedFamilyIds,
+  familyHeadIds,
+  familyList = []
 }: ReminderDialogProps) {
   // Form
   const form = useForm<SendReminderValues>({
     resolver: zodResolver(sendReminderSchema),
     defaultValues: {
-      familyHeadIds: selectedFamilyIds,
+      familyHeadIds: familyHeadIds,
       message: "Dengan hormat, kami ingin mengingatkan bahwa terdapat tunggakan Dana Mandiri yang perlu diselesaikan. Mohon untuk segera melakukan pembayaran. Terima kasih.",
     },
   })
@@ -50,7 +55,7 @@ export function ReminderDialog({
   const handleSubmit = (values: SendReminderValues) => {
     onSubmit({
       ...values,
-      familyHeadIds: selectedFamilyIds // Ensure we're using the selected IDs
+      familyHeadIds: familyHeadIds // Ensure we're using the selected IDs
     })
     onOpenChange(false)
   }
@@ -66,14 +71,18 @@ export function ReminderDialog({
         </DialogHeader>
         
         <div className="py-2">
-          <p className="text-sm font-medium mb-2">Kepala Keluarga yang dipilih:</p>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {selectedFamilyIds.map(id => (
-              <Badge key={id} variant="secondary">
-                {getFamilyHeadName(id)}
-              </Badge>
-            ))}
-          </div>
+          <p className="text-sm font-medium mb-2">Kepala Keluarga yang dipilih: {familyHeadIds.length}</p>
+          
+          {familyList.length > 0 && (
+            <div className="max-h-28 overflow-y-auto mb-2 border p-2 rounded-md">
+              {familyList.map((family) => (
+                <div key={family.id} className="text-sm mb-1 flex justify-between">
+                  <span className="font-medium">{family.name}</span>
+                  <span className="text-muted-foreground">{family.phoneNumber}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         
         <Form {...form}>

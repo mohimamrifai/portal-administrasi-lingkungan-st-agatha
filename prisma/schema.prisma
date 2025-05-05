@@ -61,6 +61,7 @@ model KeluargaUmat {
   absensiDoling       AbsensiDoling[]
   danaMandiri         DanaMandiri[]
   iurataIkata         IuranIkata[]
+  sumbangan           KasLingkungan[]
 }
 
 enum StatusKehidupan {
@@ -131,6 +132,8 @@ model KasLingkungan {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   approval        Approval?
+  keluarga        KeluargaUmat?   @relation(fields: [keluargaId], references: [id])
+  keluargaId      String?
 }
 
 enum JenisTransaksi {

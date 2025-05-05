@@ -3,7 +3,7 @@ import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { DanaMandiriTransaction } from '../types';
-import { getFamilyHeadName } from '../utils';
+import { formatCurrency, getKeluargaName } from '../utils';
 
 // Define styles for PDF document
 const styles = StyleSheet.create({
@@ -118,22 +118,17 @@ const BuktiTerimaUangPDF: React.FC<BuktiTerimaUangPDFProps> = ({ transactions, m
           {transactions.map((transaction) => (
             <View key={transaction.id} style={styles.tableRow}>
               <View style={[styles.tableCell, styles.dateCell]}>
-                <Text>{format(transaction.paymentDate, 'dd/MM/yyyy', { locale: id })}</Text>
+                <Text>{format(transaction.tanggal, 'dd/MM/yyyy', { locale: id })}</Text>
               </View>
               <View style={[styles.tableCell, styles.nameCell]}>
-                <Text>{getFamilyHeadName(transaction.familyHeadId)}</Text>
+                <Text>{getKeluargaName(transaction)}</Text>
               </View>
               <View style={[styles.tableCell, styles.periodCell]}>
-                <Text>{monthText || format(transaction.paymentDate, 'MMMM', { locale: id })} / {transaction.year}</Text>
+                <Text>{monthText || format(transaction.tanggal, 'MMMM', { locale: id })} / {transaction.tahun}</Text>
               </View>
               <View style={[styles.tableCell, styles.amountCell]}>
                 <Text>
-                  {new Intl.NumberFormat('id-ID', {
-                    style: 'currency',
-                    currency: 'IDR',
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0,
-                  }).format(transaction.amount)}
+                  {formatCurrency(transaction.jumlahDibayar)}
                 </Text>
               </View>
             </View>

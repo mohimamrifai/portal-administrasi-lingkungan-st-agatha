@@ -11,7 +11,7 @@ export default async function KasServer() {
   const summary = await getTransactionSummary();
   
   return (
-    <div className="p-2">
+    <div className="p-2 md:p-4">
       <h1 className="text-xl font-bold md:px-2 mb-4">Kas Lingkungan</h1>
       <Suspense fallback={<LoadingSkeleton />}>
         <KasLingkunganContent 

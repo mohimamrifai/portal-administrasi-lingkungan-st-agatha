@@ -3,7 +3,7 @@
 import React from 'react';
 import { PDFViewer } from '@react-pdf/renderer';
 import PDFDocument from './pdf-document';
-import { TransactionData } from '../types/schema';
+import { TransactionData } from '../types';
 
 interface PDFViewerClientProps {
   dateRange: {
