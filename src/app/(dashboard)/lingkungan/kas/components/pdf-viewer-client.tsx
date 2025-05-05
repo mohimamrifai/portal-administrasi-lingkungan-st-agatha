@@ -3,25 +3,30 @@
 import React from 'react';
 import { PDFViewer } from '@react-pdf/renderer';
 import PDFDocument from './pdf-document';
-import { Transaction } from '../types';
+import { TransactionData } from '../types/schema';
 
 interface PDFViewerClientProps {
   dateRange: {
     from: Date;
     to: Date;
   };
-  transactions: Transaction[];
-  initialBalance: number;
+  transactions: TransactionData[];
+  summary: {
+    initialBalance: number;
+    totalIncome: number;
+    totalExpense: number;
+    finalBalance: number;
+  };
 }
 
 const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
   dateRange,
   transactions,
-  initialBalance,
+  summary,
 }) => {
   // Filter transaksi sesuai dengan rentang tanggal
   const filteredTransactions = transactions.filter(
-    (tx) => tx.date >= dateRange.from && tx.date <= dateRange.to
+    (tx) => tx.tanggal >= dateRange.from && tx.tanggal <= dateRange.to
   );
 
   return (
@@ -29,7 +34,7 @@ const PDFViewerClient: React.FC<PDFViewerClientProps> = ({
       <PDFDocument
         dateRange={dateRange}
         transactions={filteredTransactions}
-        initialBalance={initialBalance}
+        summary={summary}
       />
     </PDFViewer>
   );

@@ -11,29 +11,30 @@ import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
 import { AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { JenisTransaksi, TipeTransaksiLingkungan } from "@prisma/client"
 
-// Import types and schemas
+// Import types dan schemas baru
 import { 
-  Transaction, 
+  TransactionData,
   TransactionFormValues, 
   PrintPdfFormValues,
   transactionFormSchema, 
   printPdfSchema,
-} from "../types"
+} from "../types/schema"
+
+// Import actions server
+import {
+  createTransaction,
+  updateTransaction,
+  deleteTransaction,
+  approveTransaction
+} from "../utils/actions"
 
 // Import utilities
 import {
-  generateTransactions,
-  calculateNextNotificationTime,
   getMonthDateRange,
   filterTransactionsByMonth,
-  calculateTransactionSummary,
-  generateTransactionDescription,
-  handleIkataTransfer,
-  showTransactionNotification,
-  createNewTransaction,
-  setupNotificationTimer
-} from "../utils"
+} from "../utils/date-utils"
 
 // Import components
 import { SummaryCards } from "./summary-cards"
@@ -42,30 +43,46 @@ import { PrintPdfDialog } from "./print-pdf-dialog"
 import { CreateTransactionDialog, EditTransactionDialog } from "./transaction-form-dialog"
 import { TransactionsTable } from "./transactions-table"
 
-export default function KasLingkunganContent() {
+// Definisikan props dari server component
+interface KasLingkunganContentProps {
+  initialTransactions: TransactionData[];
+  initialSummary: {
+    initialBalance: number;
+    totalIncome: number;
+    totalExpense: number;
+    finalBalance: number;
+  };
+}
+
+export default function KasLingkunganContent({ 
+  initialTransactions, 
+  initialSummary 
+}: KasLingkunganContentProps) {
   const { userRole } = useAuth()
   const router = useRouter()
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date())
-  const [transactions, setTransactions] = useState<Transaction[]>(generateTransactions())
-  const [isEditing, setIsEditing] = useState<number | null>(null)
+  const [transactions, setTransactions] = useState<TransactionData[]>(initialTransactions)
+  const [filteredTransactions, setFilteredTransactions] = useState<TransactionData[]>(initialTransactions)
+  const [isEditing, setIsEditing] = useState<string | null>(null)
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>(getMonthDateRange(currentMonth))
-  const [nextNotificationTime, setNextNotificationTime] = useState<Date | null>(null);
+  const [summary, setSummary] = useState(initialSummary)
 
   // Cek apakah pengguna memiliki hak akses ke halaman
-  const hasAccess = [
-    'SuperUser',
-    'ketuaLingkungan',
-    'bendahara',
-    'adminLingkungan'
-  ].includes(userRole)
+  const hasAccess = userRole ? [
+    'SUPER_USER',
+    'KETUA',
+    'BENDAHARA',
+    'WAKIL_BENDAHARA'
+  ].includes(userRole) : false
 
   // Cek apakah pengguna memiliki hak untuk memodifikasi data
-  const canModifyData = [
-    'SuperUser',
-    'bendahara',
-    'adminLingkungan'
-  ].includes(userRole)
+  const canModifyData = userRole ? [
+    'SUPER_USER',
+    'BENDAHARA',
+    'WAKIL_BENDAHARA'
+  ].includes(userRole) : false
 
   // Redirect jika tidak memiliki akses
   useEffect(() => {
@@ -75,52 +92,57 @@ export default function KasLingkunganContent() {
     }
   }, [hasAccess, router])
 
-  // Calculate summary values
-  const initialBalance = 1500000 // Initial balance
-  const { totalIncome, totalExpense, finalBalance } = calculateTransactionSummary(transactions, initialBalance)
-
-  // Set up notification time when component mounts
+  // Filter transaksi berdasarkan bulan yang dipilih
   useEffect(() => {
-    setNextNotificationTime(calculateNextNotificationTime());
-  }, []);
-
-  // Set up notification timer
-  useEffect(() => {
-    if (nextNotificationTime) {
-      return setupNotificationTimer(
-        nextNotificationTime,
-        transactions,
-        setNextNotificationTime
+    if (dateRange && dateRange.from && dateRange.to) {
+      const from = dateRange.from
+      const to = dateRange.to
+      
+      const filtered = transactions.filter(tx => 
+        tx.tanggal >= from && 
+        tx.tanggal <= to
       );
-    }
-  }, [nextNotificationTime, transactions]);
+      setFilteredTransactions(filtered);
 
-  // Transaction forms
+      // Hitung summary berdasarkan transaksi terfilter
+      const totalIncome = filtered.reduce((sum, tx) => sum + tx.debit, 0);
+      const totalExpense = filtered.reduce((sum, tx) => sum + tx.kredit, 0);
+      const finalBalance = initialSummary.initialBalance + totalIncome - totalExpense;
+      
+      setSummary({
+        initialBalance: initialSummary.initialBalance,
+        totalIncome,
+        totalExpense,
+        finalBalance
+      });
+    }
+  }, [dateRange, transactions, initialSummary]);
+
+  // Form untuk transaksi baru
   const createForm = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionFormSchema),
     defaultValues: {
-      date: new Date(),
-      description: "",
-      type: "debit",
-      subtype: "",
-      amount: 0,
-      fromIkata: false,
+      tanggal: new Date(),
+      keterangan: "",
+      jenisTransaksi: JenisTransaksi.UANG_MASUK,
+      tipeTransaksi: TipeTransaksiLingkungan.KOLEKTE_I,
+      jumlah: 0,
     },
   })
 
+  // Form untuk transaksi yang diedit
   const editForm = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionFormSchema),
     defaultValues: {
-      date: new Date(),
-      description: "",
-      type: "debit",
-      subtype: "",
-      amount: 0,
-      fromIkata: false,
+      tanggal: new Date(),
+      keterangan: "",
+      jenisTransaksi: JenisTransaksi.UANG_MASUK,
+      tipeTransaksi: TipeTransaksiLingkungan.KOLEKTE_I,
+      jumlah: 0,
     },
   })
 
-  // PDF form
+  // Form untuk PDF
   const pdfForm = useForm<PrintPdfFormValues>({
     resolver: zodResolver(printPdfSchema),
     defaultValues: {
@@ -128,104 +150,116 @@ export default function KasLingkunganContent() {
     },
   })
 
-  function onTransactionSubmit(values: TransactionFormValues) {
+  // Submit transaksi baru
+  async function onCreateTransactionSubmit(values: TransactionFormValues) {
     // Validasi hak akses modifikasi
     if (!canModifyData) {
       toast.error("Anda tidak memiliki izin untuk melakukan perubahan data")
       return
     }
 
-    // Generate description based on type and subtype
-    const description = generateTransactionDescription(values);
-    
-    // Handle automatic transfers to IKATA if needed
-    handleIkataTransfer(values);
+    try {
+      // Panggil server action untuk membuat transaksi
+      const result = await createTransaction({
+        tanggal: values.tanggal,
+        jenisTranasksi: values.jenisTransaksi,
+        tipeTransaksi: values.tipeTransaksi,
+        keterangan: values.keterangan,
+        jumlah: values.jumlah
+      });
 
-    if (isEditing !== null) {
-      // Edit mode
-      const updatedTransactions = transactions.map(tx => 
-        tx.id === isEditing 
-          ? {
-              ...tx,
-              date: values.date,
-              description: description,
-              debit: values.type === "debit" ? values.amount : 0,
-              credit: values.type === "credit" ? values.amount : 0,
-              transactionType: values.type,
-              transactionSubtype: values.subtype,
-              familyHeadId: values.familyHeadId,
-            }
-          : tx
-      )
-      setTransactions(updatedTransactions)
-      toast.success("Transaksi berhasil diperbarui")
-      
-      // Close edit dialog
-      setEditDialogOpen(false)
-    } else {
-      // Add mode
-      const newTransaction = createNewTransaction(values, description)
-      setTransactions([...transactions, newTransaction])
-      toast.success("Transaksi berhasil ditambahkan")
-
-      // If from IKATA, we would send notification here
-      if (values.fromIkata) {
-        toast.info("Notifikasi dikirim ke pengurus IKATA")
+      if (result.success) {
+        toast.success("Transaksi berhasil ditambahkan");
+        setCreateDialogOpen(false);
+        
+        // Refresh data dari server (dengan cara sederhana merefresh halaman)
+        router.refresh();
+        
+        // Reset form
+        createForm.reset({
+          tanggal: new Date(),
+          keterangan: "",
+          jenisTransaksi: JenisTransaksi.UANG_MASUK,
+          tipeTransaksi: TipeTransaksiLingkungan.KOLEKTE_I,
+          jumlah: 0,
+        });
+      } else {
+        toast.error(result.error || "Gagal menambahkan transaksi");
       }
+    } catch (error) {
+      console.error("Error submitting transaction:", error);
+      toast.error("Terjadi kesalahan saat menambahkan transaksi");
     }
-    
-    // Show notification to all users
-    showTransactionNotification(values, description);
-    
-    // Reset forms based on which form was used
-    if (isEditing !== null) {
-      // Reset edit form
-      editForm.reset({
-        date: new Date(),
-        description: "",
-        type: "debit",
-        subtype: "",
-        amount: 0,
-        fromIkata: false,
-      });
-    } else {
-      // Reset create form
-      createForm.reset({
-        date: new Date(),
-        description: "",
-        type: "debit",
-        subtype: "",
-        amount: 0,
-        fromIkata: false,
-      });
-    }
-    
-    setIsEditing(null)
   }
 
+  // Submit edit transaksi
+  async function onEditTransactionSubmit(values: TransactionFormValues) {
+    // Validasi hak akses modifikasi
+    if (!canModifyData) {
+      toast.error("Anda tidak memiliki izin untuk melakukan perubahan data")
+      return
+    }
+
+    if (!isEditing) return;
+
+    try {
+      // Panggil server action untuk update transaksi
+      const result = await updateTransaction(isEditing, {
+        tanggal: values.tanggal,
+        jenisTranasksi: values.jenisTransaksi,
+        tipeTransaksi: values.tipeTransaksi,
+        keterangan: values.keterangan,
+        jumlah: values.jumlah
+      });
+
+      if (result.success) {
+        toast.success("Transaksi berhasil diperbarui");
+        setEditDialogOpen(false);
+        setIsEditing(null);
+        
+        // Refresh data dari server
+        router.refresh();
+      } else {
+        toast.error(result.error || "Gagal memperbarui transaksi");
+      }
+    } catch (error) {
+      console.error("Error updating transaction:", error);
+      toast.error("Terjadi kesalahan saat memperbarui transaksi");
+    }
+  }
+
+  // Cetak PDF
   function onPrintPdf(values: PrintPdfFormValues) {
-    // Tandai transaksi sebagai terkunci
-    const updatedTransactions = transactions.map(tx => {
-      if (tx.date >= values.dateRange.from && tx.date <= values.dateRange.to) {
-        return { ...tx, locked: true }
-      }
-      return tx
-    })
-    setTransactions(updatedTransactions)
+    // Implementasi cetak PDF tidak berubah
+    toast.success("Cetak PDF berhasil");
   }
 
-  function handleDeleteTransaction(id: number) {
+  // Hapus transaksi
+  async function handleDeleteTransaction(id: string) {
     // Validasi hak akses modifikasi
     if (!canModifyData) {
       toast.error("Anda tidak memiliki izin untuk menghapus data")
       return
     }
 
-    setTransactions(transactions.filter(tx => tx.id !== id))
-    toast.success("Transaksi berhasil dihapus")
+    try {
+      const result = await deleteTransaction(id);
+
+      if (result.success) {
+        toast.success("Transaksi berhasil dihapus");
+        // Refresh data dari server
+        router.refresh();
+      } else {
+        toast.error(result.error || "Gagal menghapus transaksi");
+      }
+    } catch (error) {
+      console.error("Error deleting transaction:", error);
+      toast.error("Terjadi kesalahan saat menghapus transaksi");
+    }
   }
 
-  function handleEditTransaction(id: number) {
+  // Edit transaksi
+  function handleEditTransaction(id: string) {
     // Validasi hak akses modifikasi
     if (!canModifyData) {
       toast.error("Anda tidak memiliki izin untuk mengubah data")
@@ -238,13 +272,11 @@ export default function KasLingkunganContent() {
       
       // Set form values
       editForm.reset({
-        date: transaction.date,
-        description: transaction.description,
-        type: transaction.transactionType as "debit" | "credit" || (transaction.debit > 0 ? "debit" : "credit"),
-        subtype: transaction.transactionSubtype || "",
-        amount: transaction.debit > 0 ? transaction.debit : transaction.credit,
-        fromIkata: transaction.description.includes("IKATA"),
-        familyHeadId: transaction.familyHeadId,
+        tanggal: transaction.tanggal,
+        keterangan: transaction.keterangan || "",
+        jenisTransaksi: transaction.jenisTransaksi,
+        tipeTransaksi: transaction.tipeTransaksi,
+        jumlah: transaction.jenisTransaksi === JenisTransaksi.UANG_MASUK ? transaction.debit : transaction.kredit,
       })
       
       // Open edit dialog
@@ -252,101 +284,129 @@ export default function KasLingkunganContent() {
     }
   }
 
-  function handleToggleLock(id: number) {
-    // Validasi hak akses modifikasi
-    if (!canModifyData) {
-      toast.error("Anda tidak memiliki izin untuk mengunci/membuka data")
+  // Approve transaksi
+  async function handleApproveTransaction(id: string) {
+    // Validasi hak akses
+    if (!userRole || !['SUPER_USER', 'KETUA'].includes(userRole)) {
+      toast.error("Anda tidak memiliki izin untuk menyetujui transaksi")
       return
     }
 
-    const updatedTransactions = transactions.map(tx => 
-      tx.id === id ? { ...tx, locked: !tx.locked } : tx
-    )
-    setTransactions(updatedTransactions)
-    
-    const tx = transactions.find(tx => tx.id === id)
-    if (tx) {
-      toast.success(`Transaksi ${tx.locked ? 'dibuka' : 'dikunci'}`)
+    try {
+      const result = await approveTransaction(id, 'APPROVED');
+
+      if (result.success) {
+        toast.success("Transaksi berhasil disetujui");
+        // Refresh data dari server
+        router.refresh();
+      } else {
+        toast.error(result.error || "Gagal menyetujui transaksi");
+      }
+    } catch (error) {
+      console.error("Error approving transaction:", error);
+      toast.error("Terjadi kesalahan saat menyetujui transaksi");
     }
   }
 
+  // Tolak transaksi
+  async function handleRejectTransaction(id: string) {
+    // Validasi hak akses
+    if (!userRole || !['SUPER_USER', 'KETUA'].includes(userRole)) {
+      toast.error("Anda tidak memiliki izin untuk menolak transaksi")
+      return
+    }
+
+    try {
+      const result = await approveTransaction(id, 'REJECTED');
+
+      if (result.success) {
+        toast.success("Transaksi berhasil ditolak");
+        // Refresh data dari server
+        router.refresh();
+      } else {
+        toast.error(result.error || "Gagal menolak transaksi");
+      }
+    } catch (error) {
+      console.error("Error rejecting transaction:", error);
+      toast.error("Terjadi kesalahan saat menolak transaksi");
+    }
+  }
+
+  // Filter by month
   function handleMonthChange(date: DateRange | undefined) {
-    if (date?.from) {
-      setCurrentMonth(date.from)
+    if (date) {
       setDateRange(date)
     }
   }
 
-  // Filter transactions for current month
-  const filteredTransactions = filterTransactionsByMonth(transactions, currentMonth)
-
-  if (!hasAccess) {
-    return <div className="flex justify-center items-center h-64">Memeriksa akses...</div>
-  }
-
   return (
-    <div className="space-y-6 p-2">
-      {!canModifyData && (
+    <div className="space-y-4">
+      {!hasAccess && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Mode Hanya Baca</AlertTitle>
+          <AlertTitle>Error</AlertTitle>
           <AlertDescription>
-            Anda hanya dapat melihat data kas lingkungan. Untuk menambah, mengubah, atau menghapus data, hubungi Bendahara atau Admin Lingkungan.
+            Anda tidak memiliki akses ke halaman ini
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Data Cards */}
-      <SummaryCards
-        initialBalance={initialBalance}
-        totalIncome={totalIncome}
-        totalExpense={totalExpense}
-        finalBalance={finalBalance}
+      {/* Summary Cards */}
+      <SummaryCards 
+        initialBalance={summary.initialBalance}
+        totalIncome={summary.totalIncome}
+        totalExpense={summary.totalExpense}
+        finalBalance={summary.finalBalance}
       />
-
-      {/* Filter and Actions */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex flex-col gap-3">
-          <PeriodFilter
-            currentMonth={currentMonth}
-            setCurrentMonth={setCurrentMonth}
-            setDateRange={setDateRange}
-          />
-        </div>
+      
+      {/* Period Filter */}
+      <div className="flex flex-col md:flex-row gap-4 justify-between">
+        <PeriodFilter 
+          currentMonth={currentMonth}
+          onMonthChange={setCurrentMonth}
+          dateRange={dateRange}
+          onDateRangeChange={handleMonthChange}
+        />
         
         <div className="flex flex-col md:flex-row gap-2">
           {canModifyData && (
             <CreateTransactionDialog
               form={createForm}
-              onSubmit={onTransactionSubmit}
+              onSubmit={onCreateTransactionSubmit}
+              open={createDialogOpen}
+              onOpenChange={setCreateDialogOpen}
             />
           )}
           
           <PrintPdfDialog
             form={pdfForm}
             onSubmit={onPrintPdf}
-            transactions={transactions}
-            initialBalance={initialBalance}
+            transactions={filteredTransactions}
+            summary={summary}
           />
         </div>
       </div>
-
-      {/* Transaction Table */}
-      <TransactionsTable
+      
+      {/* Transactions Table */}
+      <TransactionsTable 
         transactions={filteredTransactions}
-        onEdit={handleEditTransaction}
         onDelete={handleDeleteTransaction}
-        onToggleLock={handleToggleLock}
+        onEdit={handleEditTransaction}
+        onApprove={handleApproveTransaction}
+        onReject={handleRejectTransaction}
         canModifyData={canModifyData}
+        canApprove={userRole ? ['SUPER_USER', 'KETUA'].includes(userRole) : false}
       />
       
-      {/* Edit Transaction Dialog */}
-      <EditTransactionDialog
-        form={editForm}
-        onSubmit={onTransactionSubmit}
-        isOpen={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-      />
+      {/* Edit Dialog */}
+      {isEditing && (
+        <EditTransactionDialog
+          form={editForm}
+          onSubmit={onEditTransactionSubmit}
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+        />
+      )}
     </div>
   )
 } 

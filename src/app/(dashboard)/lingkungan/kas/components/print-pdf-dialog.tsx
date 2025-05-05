@@ -26,17 +26,28 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { UseFormReturn } from "react-hook-form"
-import { PrintPdfFormValues, Transaction } from "../types"
+import { PrintPdfFormValues } from "../types/schema"
+import { TransactionData } from "../types/schema"
 import PDFViewerComponent from "./pdf-viewer"
 
 interface PrintPdfDialogProps {
   form: UseFormReturn<PrintPdfFormValues>;
   onSubmit: (values: PrintPdfFormValues) => void;
-  transactions: Transaction[];
-  initialBalance: number;
+  transactions: TransactionData[];
+  summary: {
+    initialBalance: number;
+    totalIncome: number;
+    totalExpense: number;
+    finalBalance: number;
+  };
 }
 
-export function PrintPdfDialog({ form, onSubmit, transactions, initialBalance }: PrintPdfDialogProps) {
+export function PrintPdfDialog({ 
+  form, 
+  onSubmit, 
+  transactions, 
+  summary 
+}: PrintPdfDialogProps) {
   const [isPdfViewOpen, setIsPdfViewOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   
@@ -67,7 +78,6 @@ export function PrintPdfDialog({ form, onSubmit, transactions, initialBalance }:
               <DialogTitle>Cetak Laporan PDF</DialogTitle>
               <DialogDescription>
                 Pilih rentang waktu untuk mencetak laporan kas lingkungan.
-                Transaksi yang tercetak akan dikunci secara otomatis.
               </DialogDescription>
             </DialogHeader>
             
@@ -136,7 +146,7 @@ export function PrintPdfDialog({ form, onSubmit, transactions, initialBalance }:
             <PDFViewerComponent
               dateRange={form.getValues().dateRange}
               transactions={transactions}
-              initialBalance={initialBalance}
+              summary={summary}
               onClose={handleClosePdfView}
             />
           </div>

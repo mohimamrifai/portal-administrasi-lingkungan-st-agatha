@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Transaction } from '../types';
+import { TransactionData } from '../types/schema';
 import dynamic from 'next/dynamic';
 
 // Import komponen client secara dinamis
@@ -19,15 +19,20 @@ interface PDFViewerComponentProps {
     from: Date;
     to: Date;
   };
-  transactions: Transaction[];
-  initialBalance: number;
+  transactions: TransactionData[];
+  summary: {
+    initialBalance: number;
+    totalIncome: number;
+    totalExpense: number;
+    finalBalance: number;
+  };
   onClose: () => void;
 }
 
 const PDFViewerComponent: React.FC<PDFViewerComponentProps> = ({
   dateRange,
   transactions,
-  initialBalance,
+  summary,
   onClose,
 }) => {
   return (
@@ -38,7 +43,7 @@ const PDFViewerComponent: React.FC<PDFViewerComponentProps> = ({
           <PDFButtonClient
             dateRange={dateRange}
             transactions={transactions}
-            initialBalance={initialBalance}
+            summary={summary}
           />
           <Button variant="outline" onClick={onClose}>
             Tutup
@@ -50,7 +55,7 @@ const PDFViewerComponent: React.FC<PDFViewerComponentProps> = ({
         <PDFViewerClient
           dateRange={dateRange}
           transactions={transactions}
-          initialBalance={initialBalance}
+          summary={summary}
         />
       </div>
     </div>

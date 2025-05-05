@@ -1,14 +1,7 @@
-import { Suspense } from "react"
-import KasLingkunganContent from "./components/kas-lingkungan-content"
-import LoadingSkeleton from "./components/loading-skeleton"
+import KasServer from './components/kas-server';
 
-export default function KasLingkunganPage() {
-  return (
-    <div className="p-2">
-      <h1 className="text-xl font-bold md:px-2">Kas Lingkungan</h1>
-      <Suspense fallback={<LoadingSkeleton />}>
-        <KasLingkunganContent />
-      </Suspense>
-    </div>
-  )
+export const dynamic = 'force-dynamic';
+
+export default function KasPage() {
+  return <KasServer />;
 } 

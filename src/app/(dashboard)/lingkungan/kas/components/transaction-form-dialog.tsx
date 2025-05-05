@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
+import { JenisTransaksi, TipeTransaksiLingkungan } from "@prisma/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Calendar } from "@/components/ui/calendar"
@@ -48,10 +49,9 @@ import { cn } from "@/lib/utils"
 import { UseFormReturn } from "react-hook-form"
 import { 
   TransactionFormValues, 
-  transactionTypes, 
-  transactionSubtypes,
-  familyHeads
-} from "../types"
+  transactionTypeOptions, 
+  transactionSubtypeOptions
+} from "../types/schema"
 import { Textarea } from "@/components/ui/textarea"
 
 // Common form component shared between create and edit dialogs
@@ -64,19 +64,14 @@ function TransactionForm({
   onSubmit: (values: TransactionFormValues) => void,
   isEditing: boolean
 }) {
-  const [showFamilyHeadSelect, setShowFamilyHeadSelect] = useState(false);
   const [showConfirmTransfer, setShowConfirmTransfer] = useState(false);
-  const currentType = form.watch("type");
-  const currentSubtype = form.watch("subtype");
+  const currentType = form.watch("jenisTransaksi");
+  const currentSubtype = form.watch("tipeTransaksi");
   
-  // Show family head selection when "Sumbangan Umat" is selected
   useEffect(() => {
-    setShowFamilyHeadSelect(
-      currentType === "debit" && currentSubtype === "sumbangan_umat"
-    );
-    
     setShowConfirmTransfer(
-      currentType === "credit" && currentSubtype === "transfer_ikata"
+      currentType === JenisTransaksi.UANG_KELUAR && 
+      currentSubtype === TipeTransaksiLingkungan.TRANSFER_DANA_KE_IKATA
     );
   }, [currentType, currentSubtype]);
 
@@ -85,7 +80,7 @@ function TransactionForm({
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
-          name="date"
+          name="tanggal"
           render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel>Tanggal</FormLabel>
@@ -125,20 +120,20 @@ function TransactionForm({
           )}
         />
         
-        {/* Jenis Transaksi (Type) */}
+        {/* Jenis Transaksi */}
         <FormField
           control={form.control}
-          name="type"
+          name="jenisTransaksi"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Jenis Transaksi</FormLabel>
               <Select 
                 onValueChange={(value) => {
-                  field.onChange(value);
+                  field.onChange(value as JenisTransaksi);
                   // Reset subtype when type changes
-                  form.setValue("subtype", "");
+                  form.setValue("tipeTransaksi", TipeTransaksiLingkungan.KOLEKTE_I);
                 }} 
-                defaultValue={field.value}
+                value={field.value}
               >
                 <FormControl>
                   <SelectTrigger>
@@ -146,7 +141,7 @@ function TransactionForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {transactionTypes.map((type) => (
+                  {transactionTypeOptions.map((type) => (
                     <SelectItem key={type.value} value={type.value}>
                       {type.label}
                     </SelectItem>
@@ -158,22 +153,25 @@ function TransactionForm({
           )}
         />
         
-        {/* Tipe Transaksi (Subtype) */}
+        {/* Tipe Transaksi */}
         {currentType && (
           <FormField
             control={form.control}
-            name="subtype"
+            name="tipeTransaksi"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Tipe Transaksi</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select 
+                  onValueChange={(value) => field.onChange(value as TipeTransaksiLingkungan)} 
+                  value={field.value}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih tipe transaksi" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent className="max-h-60 overflow-y-auto">
-                    {transactionSubtypes[currentType as "debit" | "credit"].map((subtype) => (
+                    {transactionSubtypeOptions[currentType]?.map((subtype) => (
                       <SelectItem key={subtype.value} value={subtype.value}>
                         {subtype.label}
                       </SelectItem>
@@ -186,89 +184,61 @@ function TransactionForm({
           />
         )}
         
-        {/* Family Head Selection (for Donations) */}
-        {showFamilyHeadSelect && (
-          <FormField
-            control={form.control}
-            name="familyHeadId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Kepala Keluarga</FormLabel>
-                <Select 
-                  onValueChange={(value) => field.onChange(Number(value))} 
-                  defaultValue={field.value?.toString()}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih kepala keluarga" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent className="max-h-60 overflow-y-auto">
-                    {familyHeads.map((head) => (
-                      <SelectItem key={head.id} value={head.id.toString()}>
-                        {head.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
-        
-        {/* Description */}
+        {/* Keterangan */}
         <FormField
           control={form.control}
-          name="description"
+          name="keterangan"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Keterangan</FormLabel>
               <FormControl>
-                <Input placeholder="Keterangan transaksi" {...field} />
+                <Textarea 
+                  placeholder="Masukkan keterangan transaksi"
+                  {...field}
+                />
               </FormControl>
+              <FormDescription>
+                Tambahkan detail untuk transaksi ini
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
         
-        {/* Amount */}
+        {/* Jumlah */}
         <FormField
           control={form.control}
-          name="amount"
+          name="jumlah"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Jumlah (Rp)</FormLabel>
+              <FormLabel>Jumlah</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="0" {...field} />
+                <div className="relative">
+                  <span className="absolute left-3 top-2">Rp</span>
+                  <Input
+                    type="number"
+                    min={0}
+                    className="pl-10"
+                    {...field}
+                    onChange={e => field.onChange(Number(e.target.value))}
+                  />
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
         
-        {/* Confirmation for IKATA Transfer */}
+        {/* Konfirmasi untuk Transfer IKATA - Kita hapus fitur ini untuk sementara */}
         {showConfirmTransfer && (
-          <FormField
-            control={form.control}
-            name="confirmIkataTransfer"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                <FormControl>
-                  <Checkbox
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-                <div className="space-y-1 leading-none">
-                  <FormLabel>Kirim ke Kas IKATA</FormLabel>
-                  <FormDescription>
-                    Dana akan langsung dicatat di kas IKATA sebagai pemasukan
-                  </FormDescription>
-                </div>
-              </FormItem>
-            )}
-          />
+          <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+            <div className="space-y-1 leading-none">
+              <FormLabel>Kirim ke Kas IKATA</FormLabel>
+              <FormDescription>
+                Dana akan langsung dicatat di kas IKATA sebagai pemasukan
+              </FormDescription>
+            </div>
+          </FormItem>
         )}
         
         <div className="flex justify-end gap-2">
@@ -284,67 +254,82 @@ function TransactionForm({
 interface CreateTransactionProps {
   form: UseFormReturn<TransactionFormValues>;
   onSubmit: (values: TransactionFormValues) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export function CreateTransactionDialog({ form, onSubmit }: CreateTransactionProps) {
-  const [open, setOpen] = useState(false);
-  
+export function CreateTransactionDialog({ 
+  form, 
+  onSubmit,
+  open,
+  onOpenChange
+}: CreateTransactionProps) {
   const handleSubmit = (values: TransactionFormValues) => {
-    onSubmit(values);
-    setOpen(false);
-  };
-
+    onSubmit(values)
+  }
+  
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button className="mr-4">
-          <PlusIcon className="mr-2 h-4 w-4" />
-          Tambah Transaksi
+        <Button className="flex items-center">
+          <PlusIcon className="mr-2 h-4 w-4" /> Tambah Transaksi
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px] md:max-w-[550px] lg:max-w-[600px] w-full mx-auto">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Tambah Transaksi</DialogTitle>
+          <DialogTitle>Tambah Transaksi Baru</DialogTitle>
           <DialogDescription>
-            Tambahkan transaksi kas lingkungan baru.
+            Masukkan informasi transaksi kas lingkungan.
           </DialogDescription>
         </DialogHeader>
-        <TransactionForm form={form} onSubmit={handleSubmit} isEditing={false} />
+        <TransactionForm 
+          form={form}
+          onSubmit={handleSubmit}
+          isEditing={false}
+        />
+        <DialogFooter>
+          <Button onClick={form.handleSubmit(handleSubmit)}>Simpan</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }
 
 interface EditTransactionProps {
   form: UseFormReturn<TransactionFormValues>;
   onSubmit: (values: TransactionFormValues) => void;
-  isOpen: boolean;
+  open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export function EditTransactionDialog({ 
   form, 
   onSubmit, 
-  isOpen,
+  open,
   onOpenChange
 }: EditTransactionProps) {
-  
   const handleSubmit = (values: TransactionFormValues) => {
-    onSubmit(values);
-    onOpenChange(false);
-  };
-
+    onSubmit(values)
+  }
+  
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] md:max-w-[550px] lg:max-w-[600px] w-full mx-auto">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Edit Transaksi</DialogTitle>
           <DialogDescription>
-            Ubah data transaksi kas lingkungan.
+            Ubah informasi transaksi kas lingkungan.
           </DialogDescription>
         </DialogHeader>
-        <TransactionForm form={form} onSubmit={handleSubmit} isEditing={true} />
+        <TransactionForm 
+          form={form}
+          onSubmit={handleSubmit}
+          isEditing={true}
+        />
+        <DialogFooter>
+          <Button onClick={form.handleSubmit(handleSubmit)}>Perbarui</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 } 

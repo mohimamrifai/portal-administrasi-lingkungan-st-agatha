@@ -4,25 +4,30 @@ import React from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { Button } from '@/components/ui/button';
 import PDFDocument from './pdf-document';
-import { Transaction } from '../types';
+import { TransactionData } from '../types/schema';
 
 interface PDFButtonClientProps {
   dateRange: {
     from: Date;
     to: Date;
   };
-  transactions: Transaction[];
-  initialBalance: number;
+  transactions: TransactionData[];
+  summary: {
+    initialBalance: number;
+    totalIncome: number;
+    totalExpense: number;
+    finalBalance: number;
+  };
 }
 
 const PDFButtonClient: React.FC<PDFButtonClientProps> = ({
   dateRange,
   transactions,
-  initialBalance,
+  summary,
 }) => {
   // Filter transaksi sesuai dengan rentang tanggal
   const filteredTransactions = transactions.filter(
-    (tx) => tx.date >= dateRange.from && tx.date <= dateRange.to
+    (tx) => tx.tanggal >= dateRange.from && tx.tanggal <= dateRange.to
   );
 
   // Format nama file untuk download
@@ -34,7 +39,7 @@ const PDFButtonClient: React.FC<PDFButtonClientProps> = ({
         <PDFDocument
           dateRange={dateRange}
           transactions={filteredTransactions}
-          initialBalance={initialBalance}
+          summary={summary}
         />
       }
       fileName={fileName}

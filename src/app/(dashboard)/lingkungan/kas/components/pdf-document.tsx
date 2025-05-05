@@ -2,7 +2,8 @@ import React from 'react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
-import { Transaction } from '../types';
+import { TransactionData } from '../types/schema';
+import { JenisTransaksi, TipeTransaksiLingkungan } from "@prisma/client";
 
 // Definisi properti untuk komponen PDFDocument
 interface PDFDocumentProps {
@@ -10,8 +11,13 @@ interface PDFDocumentProps {
     from: Date;
     to: Date;
   };
-  transactions: Transaction[];
-  initialBalance: number;
+  transactions: TransactionData[];
+  summary: {
+    initialBalance: number;
+    totalIncome: number;
+    totalExpense: number;
+    finalBalance: number;
+  };
 }
 
 // Styles untuk PDF
@@ -114,39 +120,35 @@ const styles = StyleSheet.create({
 });
 
 // Komponen PDFDocument
-const PDFDocument: React.FC<PDFDocumentProps> = ({ dateRange, transactions, initialBalance }) => {
-  // Hitung total pemasukan dan pengeluaran
-  const totalIncome = transactions.reduce((sum, transaction) => sum + transaction.debit, 0);
-  const totalExpense = transactions.reduce((sum, transaction) => sum + transaction.credit, 0);
-  const finalBalance = initialBalance + totalIncome - totalExpense;
-
-  // Kelompokkan transaksi berdasarkan subtipe
+const PDFDocument: React.FC<PDFDocumentProps> = ({ dateRange, transactions, summary }) => {
+  // Kelompokkan transaksi berdasarkan tipe
   const debitBySubtype: Record<string, number> = {};
   const creditBySubtype: Record<string, number> = {};
 
   transactions.forEach(transaction => {
-    const subtype = transaction.transactionSubtype || 'lain_lain';
-    if (transaction.debit > 0) {
-      debitBySubtype[subtype] = (debitBySubtype[subtype] || 0) + transaction.debit;
-    } else if (transaction.credit > 0) {
-      creditBySubtype[subtype] = (creditBySubtype[subtype] || 0) + transaction.credit;
+    const tipe = transaction.tipeTransaksi;
+    if (transaction.jenisTransaksi === JenisTransaksi.UANG_MASUK) {
+      debitBySubtype[tipe] = (debitBySubtype[tipe] || 0) + transaction.debit;
+    } else if (transaction.jenisTransaksi === JenisTransaksi.UANG_KELUAR) {
+      creditBySubtype[tipe] = (creditBySubtype[tipe] || 0) + transaction.kredit;
     }
   });
 
-  // Fungsi untuk menampilkan label subtype
-  const getSubtypeLabel = (key: string): string => {
+  // Fungsi untuk menampilkan label tipe transaksi
+  const getSubtypeLabel = (tipe: TipeTransaksiLingkungan): string => {
     const subtypeLabels: Record<string, string> = {
-      kolekte_1: 'Kolekte I',
-      kolekte_2: 'Kolekte II',
-      sumbangan_umat: 'Sumbangan Umat',
-      penerimaan_lain: 'Penerimaan Lain-Lain',
-      operasional: 'Biaya Operasional',
-      kegiatan: 'Penyelenggaraan Kegiatan',
-      pembelian: 'Pembelian',
-      sosial_duka: 'Sosial-Duka',
-      lain_lain: 'Lain-Lain',
+      [TipeTransaksiLingkungan.KOLEKTE_I]: 'Kolekte I',
+      [TipeTransaksiLingkungan.KOLEKTE_II]: 'Kolekte II',
+      [TipeTransaksiLingkungan.SUMBANGAN_UMAT]: 'Sumbangan Umat',
+      [TipeTransaksiLingkungan.PENERIMAAN_LAIN]: 'Penerimaan Lain-Lain',
+      [TipeTransaksiLingkungan.BIAYA_OPERASIONAL]: 'Biaya Operasional',
+      [TipeTransaksiLingkungan.PENYELENGGARAAN_KEGIATAN]: 'Penyelenggaraan Kegiatan',
+      [TipeTransaksiLingkungan.PEMBELIAN]: 'Pembelian',
+      [TipeTransaksiLingkungan.SOSIAL_DUKA]: 'Sosial-Duka',
+      [TipeTransaksiLingkungan.TRANSFER_DANA_KE_IKATA]: 'Transfer Dana ke IKATA',
+      [TipeTransaksiLingkungan.LAIN_LAIN]: 'Lain-Lain',
     };
-    return subtypeLabels[key] || key;
+    return subtypeLabels[tipe] || String(tipe);
   };
 
   // Format currency
@@ -193,13 +195,24 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({ dateRange, transactions, init
             <View style={styles.tableRow} key={`debit-${index}`}>
               <View style={styles.tableCol}></View>
               <View style={styles.tableCol}>
-                <Text>{getSubtypeLabel(key)}</Text>
+                <Text>{getSubtypeLabel(key as TipeTransaksiLingkungan)}</Text>
               </View>
               <View style={styles.tableCol}>
                 <Text>{formatCurrency(amount)}</Text>
               </View>
             </View>
           ))}
+
+          {/* Subtotal Uang Masuk */}
+          <View style={styles.tableRow}>
+            <View style={styles.tableCol}></View>
+            <View style={styles.tableColBold}>
+              <Text>Total Uang Masuk</Text>
+            </View>
+            <View style={styles.tableColBold}>
+              <Text>{formatCurrency(summary.totalIncome)}</Text>
+            </View>
+          </View>
 
           {/* Uang Keluar */}
           <View style={styles.tableRow}>
@@ -215,44 +228,55 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({ dateRange, transactions, init
             <View style={styles.tableRow} key={`credit-${index}`}>
               <View style={styles.tableCol}></View>
               <View style={styles.tableCol}>
-                <Text>{getSubtypeLabel(key)}</Text>
+                <Text>{getSubtypeLabel(key as TipeTransaksiLingkungan)}</Text>
               </View>
               <View style={styles.tableCol}>
                 <Text>{formatCurrency(amount)}</Text>
               </View>
             </View>
           ))}
+
+          {/* Subtotal Uang Keluar */}
+          <View style={styles.tableRow}>
+            <View style={styles.tableCol}></View>
+            <View style={styles.tableColBold}>
+              <Text>Total Uang Keluar</Text>
+            </View>
+            <View style={styles.tableColBold}>
+              <Text>{formatCurrency(summary.totalExpense)}</Text>
+            </View>
+          </View>
         </View>
 
         {/* Ringkasan */}
         <View style={styles.summaryContainer}>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Saldo, Awal {format(dateRange.from, 'd MMMM yyyy', { locale: id })}</Text>
-            <Text style={[styles.summaryValue, styles.bold]}>{formatCurrency(initialBalance)}</Text>
+            <Text style={styles.summaryLabel}>Saldo Awal</Text>
+            <Text style={styles.summaryValue}>{formatCurrency(summary.initialBalance)}</Text>
           </View>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>Total Pemasukan</Text>
-            <Text style={[styles.summaryValue, styles.bold]}>{formatCurrency(totalIncome)}</Text>
+            <Text style={styles.summaryValue}>{formatCurrency(summary.totalIncome)}</Text>
           </View>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>Total Pengeluaran</Text>
-            <Text style={[styles.summaryValue, styles.bold]}>{formatCurrency(totalExpense)}</Text>
+            <Text style={styles.summaryValue}>{formatCurrency(summary.totalExpense)}</Text>
           </View>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Saldo Akhir, {format(dateRange.to, 'd MMMM yyyy', { locale: id })}</Text>
-            <Text style={[styles.summaryValue, styles.bold]}>{formatCurrency(finalBalance)}</Text>
+            <Text style={[styles.summaryLabel, styles.bold]}>Saldo Akhir</Text>
+            <Text style={[styles.summaryValue, styles.bold]}>{formatCurrency(summary.finalBalance)}</Text>
           </View>
         </View>
 
         {/* Tanda Tangan */}
         <View style={styles.signature}>
           <View style={styles.signatureItem}>
-            <Text style={styles.signatureTitle}>Dibuat oleh,</Text>
-            <Text style={styles.signatureName}>Bendahara Lingkungan</Text>
+            <Text style={styles.signatureTitle}>Ketua Lingkungan</Text>
+            <Text style={styles.signatureName}>______________________</Text>
           </View>
           <View style={styles.signatureItem}>
-            <Text style={styles.signatureTitle}>Disetujui Oleh,</Text>
-            <Text style={styles.signatureName}>Ketua / Wakil Ketua Lingkungan</Text>
+            <Text style={styles.signatureTitle}>Bendahara Lingkungan</Text>
+            <Text style={styles.signatureName}>______________________</Text>
           </View>
         </View>
       </Page>

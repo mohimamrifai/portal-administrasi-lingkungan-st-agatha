@@ -12,31 +12,26 @@ import { cn } from "@/lib/utils"
 
 interface PeriodFilterProps {
   currentMonth: Date;
-  setCurrentMonth: (date: Date) => void;
-  setDateRange: (dateRange: DateRange | undefined) => void;
+  onMonthChange: (date: Date) => void;
+  dateRange: DateRange | undefined;
+  onDateRangeChange: (dateRange: DateRange | undefined) => void;
 }
 
-export function PeriodFilter({ currentMonth, setCurrentMonth, setDateRange }: PeriodFilterProps) {
-  // Buat dateRange dari currentMonth
-  const dateRange: DateRange = {
-    from: startOfMonth(currentMonth),
-    to: endOfMonth(currentMonth),
-  };
-
+export function PeriodFilter({ 
+  currentMonth, 
+  onMonthChange, 
+  dateRange, 
+  onDateRangeChange 
+}: PeriodFilterProps) {
   // Update dateRange saat currentMonth berubah
   useEffect(() => {
-    setDateRange({
-      from: startOfMonth(currentMonth),
-      to: endOfMonth(currentMonth),
-    });
-  }, [currentMonth, setDateRange]);
-
-  // Handler untuk mengubah bulan/rentang tanggal
-  const handleMonthChange = (date: DateRange | undefined) => {
-    if (date?.from) {
-      setCurrentMonth(date.from);
+    if (currentMonth) {
+      onDateRangeChange({
+        from: startOfMonth(currentMonth),
+        to: endOfMonth(currentMonth),
+      });
     }
-  };
+  }, [currentMonth, onDateRangeChange]);
 
   return (
     <div className="flex flex-col space-y-2">
@@ -65,7 +60,7 @@ export function PeriodFilter({ currentMonth, setCurrentMonth, setDateRange }: Pe
               mode="single"
               defaultMonth={currentMonth}
               selected={currentMonth}
-              onSelect={(date) => date && setCurrentMonth(date)}
+              onSelect={(date) => date && onMonthChange(date)}
               numberOfMonths={1}
               locale={id}
               className="rounded-md border"

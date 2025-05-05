@@ -1,5 +1,6 @@
 import { addDays, nextSunday, setHours, setMinutes, isAfter, isSunday } from "date-fns"
 import { DateRange } from "react-day-picker"
+import { TransactionData } from "../types/schema"
 
 /**
  * Calculates the next notification time (Sundays at 12:00)
@@ -38,10 +39,10 @@ export function getMonthDateRange(date: Date): DateRange {
  * @param targetMonth The month to filter for
  * @returns Filtered transactions
  */
-export function filterTransactionsByMonth(transactions: any[], targetMonth: Date) {
+export function filterTransactionsByMonth(transactions: TransactionData[], targetMonth: Date) {
   return transactions.filter(tx => 
-    tx.date.getMonth() === targetMonth.getMonth() && 
-    tx.date.getFullYear() === targetMonth.getFullYear()
+    tx.tanggal.getMonth() === targetMonth.getMonth() && 
+    tx.tanggal.getFullYear() === targetMonth.getFullYear()
   )
 }
 
@@ -52,8 +53,8 @@ export function filterTransactionsByMonth(transactions: any[], targetMonth: Date
  * @param to End date
  * @returns Filtered transactions
  */
-export function filterTransactionsByDateRange(transactions: any[], from: Date, to: Date) {
+export function filterTransactionsByDateRange(transactions: TransactionData[], from: Date, to: Date) {
   return transactions.filter(tx => 
-    tx.date >= from && tx.date <= to
+    tx.tanggal >= from && tx.tanggal <= to
   )
 } 

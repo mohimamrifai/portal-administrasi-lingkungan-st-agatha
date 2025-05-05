@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react"
 import { format, isWithinInterval } from "date-fns"
 import { DateRange } from "react-day-picker"
-import { Transaction, transactionSubtypes, familyHeads } from "../types"
+import { JenisTransaksi, TipeTransaksiLingkungan } from "@prisma/client"
+import { TransactionData, transactionSubtypeOptions, getCategoryOptions } from "../types/schema"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Calendar } from "@/components/ui/calendar"
@@ -36,6 +38,9 @@ import {
   ChevronRightIcon,
   ChevronsLeftIcon,
   ChevronsRightIcon,
+  CheckCircle,
+  XCircle,
+  Clock
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -62,19 +67,23 @@ import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface TransactionsTableProps {
-  transactions: Transaction[];
-  onEdit: (id: number) => void;
-  onDelete: (id: number) => void;
-  onToggleLock: (id: number) => void;
+  transactions: TransactionData[];
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
   canModifyData?: boolean;
+  canApprove?: boolean;
 }
 
 export function TransactionsTable({ 
   transactions, 
   onEdit, 
-  onDelete, 
-  onToggleLock,
-  canModifyData = true
+  onDelete,
+  onApprove,
+  onReject,
+  canModifyData = true,
+  canApprove = false
 }: TransactionsTableProps) {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -82,65 +91,46 @@ export function TransactionsTable({
   
   // Filter and search state
   const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<TipeTransaksiLingkungan | null>(null);
+  const [typeFilter, setTypeFilter] = useState<JenisTransaksi | null>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   
   // Create arrays for filter options
-  const categoryOptions = [
-    { value: null, label: "Semua Kategori", key: "all" },
-    ...Object.entries(transactionSubtypes).flatMap(([type, subtypes]) => 
-      subtypes.map(subtype => ({ 
-        value: subtype.value, 
-        label: subtype.label,
-        key: `${type}_${subtype.value}`
-      }))
-    )
-  ];
+  const categoryOptions = getCategoryOptions();
   
   const typeOptions = [
     { value: null, label: "Semua Tipe", key: "all" },
-    { value: "debit", label: "Pemasukan", key: "debit" },
-    { value: "credit", label: "Pengeluaran", key: "credit" }
+    { value: JenisTransaksi.UANG_MASUK, label: "Pemasukan", key: "uang_masuk" },
+    { value: JenisTransaksi.UANG_KELUAR, label: "Pengeluaran", key: "uang_keluar" }
   ];
   
   // Helper function to get transaction subtype label
-  const getSubtypeLabel = (tx: Transaction) => {
-    if (!tx.transactionType || !tx.transactionSubtype) return "";
+  const getSubtypeLabel = (tx: TransactionData) => {
+    const options = transactionSubtypeOptions[tx.jenisTransaksi];
+    if (!options) return String(tx.tipeTransaksi);
     
-    const type = tx.transactionType as "debit" | "credit";
-    const subtype = transactionSubtypes[type].find(
-      s => s.value === tx.transactionSubtype
-    );
-    
-    return subtype?.label || "";
+    const match = options.find(opt => opt.value === tx.tipeTransaksi);
+    return match ? match.label : String(tx.tipeTransaksi);
   };
   
-  // Helper function to get family head name
-  const getFamilyHeadName = (id?: number) => {
-    if (!id) return "";
-    const head = familyHeads.find(h => h.id === id);
-    return head?.name || "";
-  };
   // Calculate pagination values for filtered data
   const filteredTransactions = transactions.filter(tx => {
     // Search term filter
     const matchesSearch = searchTerm === "" || 
-      tx.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (tx.keterangan && tx.keterangan.toLowerCase().includes(searchTerm.toLowerCase())) ||
       getSubtypeLabel(tx).toLowerCase().includes(searchTerm.toLowerCase());
     
     // Category filter
     const matchesCategory = categoryFilter === null || 
-      tx.transactionSubtype === categoryFilter;
+      tx.tipeTransaksi === categoryFilter;
     
     // Type filter
     const matchesType = typeFilter === null || 
-      (typeFilter === "debit" && tx.debit > 0) ||
-      (typeFilter === "credit" && tx.credit > 0);
+      tx.jenisTransaksi === typeFilter;
     
     // Date range filter
     const matchesDateRange = !dateRange?.from || !dateRange?.to || 
-      isWithinInterval(tx.date, {
+      isWithinInterval(tx.tanggal, {
         start: dateRange.from,
         end: dateRange.to || dateRange.from
       });
@@ -160,7 +150,7 @@ export function TransactionsTable({
   
   // Get current page data
   const currentTransactions = filteredTransactions
-    .sort((a, b) => b.date.getTime() - a.date.getTime()) // Sort newest first
+    .sort((a, b) => b.tanggal.getTime() - a.tanggal.getTime()) // Sort newest first
     .slice(startIndex, endIndex);
 
   // Pagination functions
@@ -198,444 +188,424 @@ export function TransactionsTable({
     <div className="space-y-4">
       {/* Filters */}
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        {/* Search */}
-        <div className="relative w-full md:w-64">
-          <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cari transaksi..."
-            className="pl-8"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          {searchTerm && (
-            <Button
-              variant="ghost"
-              className="absolute right-0 top-0 h-9 w-9 p-0"
-              onClick={() => setSearchTerm("")}
-            >
-              <X className="h-4 w-4" />
-              <span className="sr-only">Clear search</span>
-            </Button>
-          )}
-        </div>
-        
-        <div className="flex flex-wrap gap-2">
-          {/* Category Filter */}
-          <Select
-            value={categoryFilter || "all"}
-            onValueChange={(value) => setCategoryFilter(value === "all" ? null : value)}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Kategori" />
-            </SelectTrigger>
-            <SelectContent>
-              {categoryOptions.map((option) => (
-                <SelectItem 
-                  key={option.key || option.value || "all"} 
-                  value={option.value === null ? "all" : option.value}
-                >
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex flex-col md:flex-row gap-2 md:gap-4 flex-1">
+          {/* Search */}
+          <div className="relative flex-1">
+            <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Cari transaksi..."
+              className="pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <Button
+                variant="ghost"
+                className="absolute right-0 top-0 h-9 w-9 p-0"
+                onClick={() => setSearchTerm("")}
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Clear</span>
+              </Button>
+            )}
+          </div>
           
           {/* Type Filter */}
-          <Select
-            value={typeFilter || "all"}
-            onValueChange={(value) => setTypeFilter(value === "all" ? null : value)}
-          >
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Tipe" />
-            </SelectTrigger>
-            <SelectContent>
-              {typeOptions.map((option) => (
-                <SelectItem 
-                  key={option.key} 
-                  value={option.value === null ? "all" : option.value}
-                >
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex-1 md:max-w-[180px]">
+            <Select
+              value={typeFilter?.toString() || ""}
+              onValueChange={(value) => 
+                setTypeFilter(value ? value as JenisTransaksi : null)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Pilih Tipe" />
+              </SelectTrigger>
+              <SelectContent>
+                {typeOptions.map((option) => (
+                  <SelectItem
+                    key={option.key}
+                    value={option.value?.toString() || ""}
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Category Filter */}
+          <div className="flex-1 md:max-w-[220px]">
+            <Select
+              value={categoryFilter?.toString() || ""}
+              onValueChange={(value) => 
+                setCategoryFilter(value ? value as TipeTransaksiLingkungan : null)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Pilih Kategori" />
+              </SelectTrigger>
+              <SelectContent>
+                {categoryOptions.map((option) => (
+                  <SelectItem
+                    key={option.key}
+                    value={option.value?.toString() || ""}
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           
           {/* Date Range Filter */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-[240px] justify-start text-left font-normal"
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange?.from ? (
-                  dateRange.to ? (
-                    <>
-                      {format(dateRange.from, "dd/MM/yyyy")} -{" "}
-                      {format(dateRange.to, "dd/MM/yyyy")}
-                    </>
+          <div className="flex-1 md:max-w-[180px]">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !dateRange && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateRange?.from ? (
+                    dateRange.to ? (
+                      <>
+                        {format(dateRange.from, "dd/MM/yy")} -{" "}
+                        {format(dateRange.to, "dd/MM/yy")}
+                      </>
+                    ) : (
+                      format(dateRange.from, "dd/MM/yyyy")
+                    )
                   ) : (
-                    format(dateRange.from, "dd/MM/yyyy")
-                  )
-                ) : (
-                  <span>Pilih rentang tanggal</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                initialFocus
-                mode="range"
-                selected={dateRange}
-                onSelect={setDateRange}
-                numberOfMonths={2}
-              />
-              <div className="flex items-center justify-between p-3 border-t">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setDateRange(undefined)}
-                >
-                  Reset
+                    <span>Pilih Tanggal</span>
+                  )}
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    // Custom confirmation logic could go here
-                  }}
-                >
-                  Terapkan
-                </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange?.from}
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={1}
+                />
+                <div className="flex items-center justify-between p-3 border-t">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDateRange(undefined)}
+                  >
+                    Reset
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => document.body.click()} // Close popover
+                  >
+                    Terapkan
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+        
+        {/* Page Size Selector */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Tampilkan</span>
+          <Select
+            value={pageSize.toString()}
+            onValueChange={handlePageSizeChange}
+          >
+            <SelectTrigger className="w-[70px]">
+              <SelectValue placeholder="10" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="5">5</SelectItem>
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="25">25</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-sm text-muted-foreground">per halaman</span>
         </div>
       </div>
       
-      {/* Active Filters (opsional, untuk menampilkan filter yang sedang aktif) */}
-      {(searchTerm || categoryFilter || typeFilter || dateRange) && (
-        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <span>Filter aktif:</span>
-          {searchTerm && (
-            <Badge variant="outline" className="gap-1 px-2 py-1">
-              <span>Pencarian: {searchTerm}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="ml-1 h-4 w-4 p-0"
-                onClick={() => setSearchTerm("")}
-              >
-                <X className="h-3 w-3" />
-                <span className="sr-only">Clear search</span>
-              </Button>
-            </Badge>
-          )}
-          
-          {categoryFilter && (
-            <Badge variant="outline" className="gap-1 px-2 py-1">
-              <span>Kategori: {categoryOptions.find(o => o.value === categoryFilter)?.label}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="ml-1 h-4 w-4 p-0"
-                onClick={() => setCategoryFilter(null)}
-              >
-                <X className="h-3 w-3" />
-                <span className="sr-only">Clear category</span>
-              </Button>
-            </Badge>
-          )}
-          
-          {typeFilter && (
-            <Badge variant="outline" className="gap-1 px-2 py-1">
-              <span>Tipe: {typeOptions.find(o => o.value === typeFilter)?.label}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="ml-1 h-4 w-4 p-0"
-                onClick={() => setTypeFilter(null)}
-              >
-                <X className="h-3 w-3" />
-                <span className="sr-only">Clear type</span>
-              </Button>
-            </Badge>
-          )}
-          
-          {(dateRange?.from || dateRange?.to) && (
-            <Badge variant="outline" className="gap-1 px-2 py-1">
-              <span>
-                Tanggal: {dateRange.from ? format(dateRange.from, "dd/MM/yyyy") : "..."} - {dateRange.to ? format(dateRange.to, "dd/MM/yyyy") : "..."}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="ml-1 h-4 w-4 p-0"
-                onClick={() => {
-                  setDateRange(undefined)
-                }}
-              >
-                <X className="h-3 w-3" />
-                <span className="sr-only">Clear date range</span>
-              </Button>
-            </Badge>
-          )}
-          
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="ml-auto h-7 text-xs"
+      {/* Clear Filters Button */}
+      {(searchTerm || typeFilter || categoryFilter || dateRange) && (
+        <div className="flex justify-start">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 text-xs"
             onClick={() => {
               setSearchTerm("");
-              setCategoryFilter(null);
               setTypeFilter(null);
+              setCategoryFilter(null);
               setDateRange(undefined);
             }}
           >
-            Reset Semua
+            <X className="mr-1 h-3 w-3" />
+            Hapus Filter
           </Button>
         </div>
       )}
       
-      {/* Table */}
+      {/* Transactions Table */}
       <div className="rounded-md border">
-        <div className="overflow-x-auto relative">
-          <Table>
-            <TableHeader>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>No</TableHead>
+              <TableHead>Tanggal</TableHead>
+              <TableHead>Keterangan</TableHead>
+              <TableHead>Jenis</TableHead>
+              <TableHead className="text-right">Debit</TableHead>
+              <TableHead className="text-right">Kredit</TableHead>
+              <TableHead className="text-center">Status</TableHead>
+              <TableHead className="text-right">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {currentTransactions.length === 0 ? (
               <TableRow>
-                <TableHead className="w-[90px] whitespace-nowrap">Tanggal</TableHead>
-                <TableHead className="whitespace-nowrap">Jenis</TableHead>
-                <TableHead className="whitespace-nowrap">Tipe</TableHead>
-                <TableHead className="whitespace-nowrap">Keterangan</TableHead>
-                <TableHead className="text-right whitespace-nowrap">Pemasukan</TableHead>
-                <TableHead className="text-right whitespace-nowrap">Pengeluaran</TableHead>
-                {canModifyData && (
-                  <TableHead className="w-[60px] text-center whitespace-nowrap sticky right-0 bg-white shadow-[-4px_0_4px_rgba(0,0,0,0.05)]">
-                    Aksi
-                  </TableHead>
-                )}
+                <TableCell colSpan={8} className="h-24 text-center">
+                  Tidak ada data transaksi
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {currentTransactions.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={canModifyData ? 7 : 6} className="h-24 text-center">
-                    Tidak ada data transaksi yang sesuai dengan filter
-                  </TableCell>
-                </TableRow>
-              )}
-              {currentTransactions.map((transaction) => (
-                <TableRow
-                  key={transaction.id}
-                  className={transaction.locked ? "bg-gray-50" : ""}
-                >
-                  <TableCell className="whitespace-nowrap">
-                    {format(transaction.date, "dd/MM/yyyy")}
+            ) : (
+              currentTransactions.map((transaction, index) => (
+                <TableRow key={transaction.id}>
+                  <TableCell className="font-medium">
+                    {startIndex + index + 1}
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Badge className={`${transaction.debit > 0 ? "bg-green-600" : "bg-red-600 text-white"} w-fit`}>
-                        {transaction.debit > 0 ? "Pemasukan" : "Pengeluaran"}
-                      </Badge>
-                      {transaction.locked && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="flex items-center ml-1 bg-gray-200 text-gray-700 rounded-sm px-1 text-[10px]">
-                                <LockIcon className="h-2.5 w-2.5 mr-0.5" />
-                                <span>Terkunci</span>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Transaksi ini sudah dikunci dan tidak dapat diubah</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                    </div>
+                    {format(transaction.tanggal, "dd/MM/yyyy")}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {getSubtypeLabel(transaction)}
+                  <TableCell className="max-w-[300px] truncate">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger className="cursor-default">
+                          <span className="truncate">
+                            {transaction.keterangan || getSubtypeLabel(transaction)}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{transaction.keterangan || getSubtypeLabel(transaction)}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </TableCell>
                   <TableCell>
-                    <span className="break-words">{transaction.description}</span>
+                    <Badge
+                      variant={transaction.jenisTransaksi === JenisTransaksi.UANG_MASUK ? "default" : "destructive"}
+                      className="whitespace-nowrap"
+                    >
+                      {getSubtypeLabel(transaction)}
+                    </Badge>
                   </TableCell>
-                  <TableCell className="text-right font-medium text-green-600 whitespace-nowrap">
-                    {transaction.debit > 0 && (
-                      <span>
-                        {new Intl.NumberFormat("id-ID", {
-                          style: "currency",
-                          currency: "IDR",
-                          minimumFractionDigits: 0
-                        }).format(transaction.debit)}
-                      </span>
+                  <TableCell className="text-right font-mono">
+                    {transaction.debit > 0
+                      ? new Intl.NumberFormat("id-ID").format(transaction.debit)
+                      : "-"}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {transaction.kredit > 0
+                      ? new Intl.NumberFormat("id-ID").format(transaction.kredit)
+                      : "-"}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {transaction.isApproved ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <CheckCircle className="h-5 w-5 text-green-500" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Disetujui</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : transaction.isRejected ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <XCircle className="h-5 w-5 text-red-500" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Ditolak</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Clock className="h-5 w-5 text-amber-500" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Menunggu Persetujuan</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     )}
                   </TableCell>
-                  <TableCell className="text-right font-medium text-red-600 whitespace-nowrap">
-                    {transaction.credit > 0 && (
-                      <span>
-                        {new Intl.NumberFormat("id-ID", {
-                          style: "currency",
-                          currency: "IDR",
-                          minimumFractionDigits: 0
-                        }).format(transaction.credit)}
-                      </span>
-                    )}
-                  </TableCell>
-                  {canModifyData && (
-                    <TableCell className="text-center sticky right-0 bg-white shadow-[-4px_0_4px_rgba(0,0,0,0.05)]">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            className="h-8 w-8 p-0"
-                          >
-                            <span className="sr-only">Buka menu</span>
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => onEdit(transaction.id)}
-                            disabled={transaction.locked}
-                          >
-                            <PencilIcon className="mr-2 h-4 w-4" />
-                            <span>Edit</span>
-                          </DropdownMenuItem>
-                          
-                          <DropdownMenuItem
-                            onClick={() => onToggleLock(transaction.id)}
-                          >
-                            {transaction.locked ? (
-                              <>
-                                <UnlockIcon className="mr-2 h-4 w-4" />
-                                <span>Buka Kunci</span>
-                              </>
-                            ) : (
-                              <>
-                                <LockIcon className="mr-2 h-4 w-4" />
-                                <span>Kunci</span>
-                              </>
-                            )}
-                          </DropdownMenuItem>
-                          
-                          <DropdownMenuSeparator />
-                          
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <DropdownMenuItem
-                                onSelect={(e) => e.preventDefault()}
-                                disabled={transaction.locked}
-                                className="text-red-600"
-                              >
-                                <Trash2Icon className="mr-2 h-4 w-4" />
-                                <span>Hapus</span>
-                              </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Anda yakin ingin menghapus?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tindakan ini tidak dapat dibatalkan dan akan menghapus transaksi ini secara permanen.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Batal</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => onDelete(transaction.id)}
-                                  className="bg-red-600 hover:bg-red-700"
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Buka menu</span>
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {canModifyData && !transaction.isApproved && (
+                          <>
+                            <DropdownMenuItem
+                              onClick={() => onEdit(transaction.id)}
+                            >
+                              <PencilIcon className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem
+                                  onSelect={(e) => e.preventDefault()}
+                                  className="text-destructive"
                                 >
+                                  <Trash2Icon className="mr-2 h-4 w-4" />
                                   Hapus
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  )}
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Konfirmasi Penghapusan
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Apakah Anda yakin ingin menghapus transaksi ini? Tindakan ini tidak dapat dibatalkan.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Batal</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => onDelete(transaction.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Hapus
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                            <DropdownMenuSeparator />
+                          </>
+                        )}
+                        
+                        {/* Approval Options */}
+                        {canApprove && transaction.isPending && (
+                          <>
+                            <DropdownMenuItem
+                              onClick={() => onApprove(transaction.id)}
+                              className="text-green-600"
+                            >
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Setujui
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => onReject(transaction.id)}
+                              className="text-red-600"
+                            >
+                              <XCircle className="mr-2 h-4 w-4" />
+                              Tolak
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
       
-      {/* Pagination */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-2">
-        <div className="flex flex-col md:flex-row items-center gap-2 md:space-x-2 w-full md:w-auto text-center md:text-left">
-          <p className="text-sm text-muted-foreground">
-            Menampilkan {totalItems > 0 ? startIndex + 1 : 0}-{endIndex} dari {totalItems} transaksi
-          </p>
-          <div className="flex items-center gap-2 mt-2 md:mt-0">
-            <p className="text-sm text-muted-foreground">Tampilkan</p>
-            <Select 
-              value={pageSize.toString()} 
-              onValueChange={handlePageSizeChange}
-            >
-              <SelectTrigger className="h-8 w-[70px]">
-                <SelectValue placeholder={pageSize.toString()} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5">5</SelectItem>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="20">20</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-sm text-muted-foreground">per halaman</p>
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            Menampilkan {startIndex + 1} sampai {endIndex} dari {totalItems} transaksi
           </div>
-        </div>
-        
-        <div className="flex items-center justify-center mt-4 md:mt-0 w-full md:w-auto">
           <div className="flex items-center space-x-2">
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={goToFirstPage} 
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={goToFirstPage}
               disabled={currentPage === 1}
-              className="h-8 w-8"
             >
               <ChevronsLeftIcon className="h-4 w-4" />
               <span className="sr-only">Halaman Pertama</span>
             </Button>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={goToPreviousPage} 
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={goToPreviousPage}
               disabled={currentPage === 1}
-              className="h-8 w-8"
             >
               <ChevronLeftIcon className="h-4 w-4" />
               <span className="sr-only">Halaman Sebelumnya</span>
             </Button>
-            
-            <span className="text-sm mx-2 min-w-[90px] text-center">
-              Halaman {currentPage} dari {totalPages || 1}
-            </span>
-            
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={goToNextPage} 
-              disabled={currentPage === totalPages || totalPages === 0}
-              className="h-8 w-8"
+            <div className="flex items-center gap-1 mx-2">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNumber;
+                if (totalPages <= 5) {
+                  pageNumber = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNumber = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNumber = totalPages - 4 + i;
+                } else {
+                  pageNumber = currentPage - 2 + i;
+                }
+                
+                return (
+                  <Button
+                    key={pageNumber}
+                    variant={currentPage === pageNumber ? "default" : "outline"}
+                    size="icon"
+                    onClick={() => goToPage(pageNumber)}
+                    className="w-9 h-9"
+                  >
+                    {pageNumber}
+                  </Button>
+                );
+              })}
+            </div>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={goToNextPage}
+              disabled={currentPage === totalPages}
             >
               <ChevronRightIcon className="h-4 w-4" />
               <span className="sr-only">Halaman Berikutnya</span>
             </Button>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={goToLastPage} 
-              disabled={currentPage === totalPages || totalPages === 0}
-              className="h-8 w-8"
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={goToLastPage}
+              disabled={currentPage === totalPages}
             >
               <ChevronsRightIcon className="h-4 w-4" />
               <span className="sr-only">Halaman Terakhir</span>
             </Button>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 } 
