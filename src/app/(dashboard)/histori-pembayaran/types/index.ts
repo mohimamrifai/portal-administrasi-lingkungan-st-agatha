@@ -33,6 +33,15 @@ export interface IkataHistory {
   updatedAt: Date;
 }
 
+// Interface untuk data histori pembayaran yang digunakan dalam PDF
+export interface PaymentHistory {
+  id: string;
+  familyHeadName: string;
+  paymentDate: Date | null;
+  year: number;
+  amount: number;
+}
+
 // Filter form schema
 export const filterFormSchema = z.object({
   year: z.number().min(2000).max(new Date().getFullYear() + 1),

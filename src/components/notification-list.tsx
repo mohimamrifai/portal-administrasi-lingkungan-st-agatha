@@ -58,7 +58,7 @@ export function NotificationList() {
       
       // Panggil fungsi server untuk setiap notifikasi yang belum dibaca
       const promises = unreadNotifications.map(notification => 
-        markNotificationAsRead(notification.id)
+        markNotificationAsRead(notification.id.toString())
       );
       
       await Promise.all(promises);
@@ -89,7 +89,7 @@ export function NotificationList() {
       );
       
       // Panggil fungsi server
-      await markNotificationAsRead(id);
+      await markNotificationAsRead(id.toString());
     } catch (error) {
       console.error(`Error marking notification ${id} as read:`, error);
       // Rollback jika terjadi error

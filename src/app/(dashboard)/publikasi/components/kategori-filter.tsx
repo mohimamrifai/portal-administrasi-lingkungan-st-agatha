@@ -29,7 +29,7 @@ export function KategoriFilter({
 }: KategoriFilterProps) {
   const getKategoryLabel = (kategoriId: KlasifikasiPublikasi | null) => {
     if (!kategoriId) return 'Semua Kategori'
-    const kategori = KATEGORI_PUBLIKASI.find(k => k.id === kategoriId)
+    const kategori = KATEGORI_PUBLIKASI.find(k => k.value === kategoriId)
     return kategori ? kategori.label : 'Semua Kategori'
   }
 
@@ -78,16 +78,16 @@ export function KategoriFilter({
 
           {KATEGORI_PUBLIKASI.map((kategori) => (
             <DropdownMenuItem
-              key={kategori.id}
+              key={kategori.value}
               onClick={() => {
-                setKategoriFilter(kategori.id)
-                table.getColumn('kategori')?.setFilterValue(kategori.id)
+                setKategoriFilter(kategori.value)
+                table.getColumn('kategori')?.setFilterValue(kategori.value)
               }}
             >
               <div className="flex items-center gap-2">
-                <span className={`${getBadgeColor(kategori.id)} text-lg`}>●</span>
+                <span className={`${getBadgeColor(kategori.value)} text-lg`}>●</span>
                 <span>{kategori.label}</span>
-                {kategoriFilter === kategori.id && <Check className="h-4 w-4 ml-auto" />}
+                {kategoriFilter === kategori.value && <Check className="h-4 w-4 ml-auto" />}
               </div>
             </DropdownMenuItem>
           ))}

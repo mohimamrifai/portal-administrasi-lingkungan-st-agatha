@@ -24,7 +24,7 @@ export function NotificationClient({ id }: { id: string }) {
         const fetchNotification = async () => {
             try {
                 setLoading(true);
-                const data = await getNotificationById(parseInt(id));
+                const data = await getNotificationById(id);
 
                 if (data) {
                     setNotification({
@@ -34,7 +34,7 @@ export function NotificationClient({ id }: { id: string }) {
 
                     // Jika notifikasi belum dibaca, tandai sebagai dibaca
                     if (!data.isRead) {
-                        await markNotificationAsRead(parseInt(id));
+                        await markNotificationAsRead(id);
                     }
                 }
             } catch (error) {
@@ -51,7 +51,7 @@ export function NotificationClient({ id }: { id: string }) {
     const handleDelete = async () => {
         try {
             setIsDeleting(true);
-            const result = await deleteNotification(parseInt(id));
+            const result = await deleteNotification(id);
 
             if (result.success) {
                 toast.success("Notifikasi berhasil dihapus");

@@ -3,7 +3,7 @@ import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { DanaMandiriTransaction } from '../types';
-import { getFamilyHeadName } from '../utils';
+import { getKeluargaName } from '../utils';
 
 // Define styles for PDF document
 const styles = StyleSheet.create({
@@ -78,7 +78,7 @@ interface BuktiPenerimaanPDFProps {
 }
 
 const BuktiPenerimaanPDF: React.FC<BuktiPenerimaanPDFProps> = ({ transaction }) => {
-  const familyHeadName = getFamilyHeadName(transaction.familyHeadId);
+  const familyHeadName = getKeluargaName(transaction);
   
   return (
     <Document>
@@ -103,13 +103,13 @@ const BuktiPenerimaanPDF: React.FC<BuktiPenerimaanPDFProps> = ({ transaction }) 
           
           <View style={styles.tableRow}>
             <View style={[styles.tableCell, styles.dateCell]}>
-              <Text>{format(transaction.paymentDate, 'dd/MM/yyyy', { locale: id })}</Text>
+              <Text>{format(transaction.tanggal, 'dd/MM/yyyy', { locale: id })}</Text>
             </View>
             <View style={[styles.tableCell, styles.nameCell]}>
               <Text>{familyHeadName}</Text>
             </View>
             <View style={[styles.tableCell, styles.yearCell]}>
-              <Text>{transaction.year}</Text>
+              <Text>{transaction.tahun}</Text>
             </View>
             <View style={[styles.tableCell, styles.amountCell]}>
               <Text>
@@ -118,7 +118,7 @@ const BuktiPenerimaanPDF: React.FC<BuktiPenerimaanPDFProps> = ({ transaction }) 
                   currency: 'IDR',
                   minimumFractionDigits: 0,
                   maximumFractionDigits: 0,
-                }).format(transaction.amount)}
+                }).format(transaction.jumlahDibayar)}
               </Text>
             </View>
           </View>

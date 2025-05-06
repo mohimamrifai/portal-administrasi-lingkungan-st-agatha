@@ -103,7 +103,7 @@ export default function NotificationsPage() {
     event.stopPropagation();
     
     try {
-      await markNotificationAsRead(id);
+      await markNotificationAsRead(id.toString());
       
       // Update local state
       const updatedNotifications = notifications.map(notification => 

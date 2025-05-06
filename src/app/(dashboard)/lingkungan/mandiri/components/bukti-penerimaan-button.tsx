@@ -16,7 +16,7 @@ const BuktiPenerimaanButton: React.FC<BuktiPenerimaanButtonProps> = ({
   buttonLabel = 'Unduh Bukti Penerimaan',
 }) => {
   // Format nama file untuk download
-  const fileName = `Bukti_Penerimaan_Dana_Mandiri_${transaction.id}_${transaction.year}.pdf`;
+  const fileName = `Bukti_Penerimaan_Dana_Mandiri_${transaction.id}_${transaction.tahun}.pdf`;
 
   return (
     <PDFDownloadLink
