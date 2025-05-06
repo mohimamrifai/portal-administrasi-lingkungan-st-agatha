@@ -1,3 +1,5 @@
+"use server"
+
 //fungsi upload file ke folder uploads/assets/jenis-file
 // akan mengembalikan nama file ( hasil generate supaya unik )
 
@@ -28,7 +30,7 @@ const ensureDirectoryExists = (dirPath: string) => {
 };
 
 // Sanitasi nama file untuk keamanan
-export const sanitizeFileName = (fileName: string): string => {
+export const sanitizeFileName = async (fileName: string): Promise<string> => {
   return fileName
     .replace(/[^a-zA-Z0-9-_.]/g, '_') // Ganti karakter tidak aman
     .replace(/_{2,}/g, '_'); // Menghindari multiple underscore
@@ -47,7 +49,7 @@ export const uploadFile = async (
   folderType: string = 'general'
 ): Promise<{ fileName: string; filePath: string; fileUrl: string }> => {
   // Validasi nama folder
-  const safeFolder = sanitizeFileName(folderType);
+  const safeFolder = await sanitizeFileName(folderType);
   const uploadDir = path.join(UPLOADS_BASE_DIR, 'assets', safeFolder);
   
   // Buat direktori jika belum ada
@@ -119,8 +121,8 @@ export const deleteFile = async (
   folderType: string = 'general'
 ): Promise<boolean> => {
   // Sanitasi input untuk keamanan
-  const safeFolder = sanitizeFileName(folderType);
-  const safeFileName = sanitizeFileName(fileName);
+  const safeFolder = await sanitizeFileName(folderType);
+  const safeFileName = await sanitizeFileName(fileName);
   
   // Tentukan path lengkap file
   const filePath = path.join(UPLOADS_BASE_DIR, 'assets', safeFolder, safeFileName);
@@ -149,13 +151,13 @@ export const deleteFile = async (
  * @param folderType Subfolder tempat file berada
  * @returns Object {filePath, fileUrl}
  */
-export const getFilePath = (
+export const getFilePath = async (
   fileName: string,
   folderType: string = 'general'
-): { filePath: string; fileUrl: string } => {
+): Promise<{ filePath: string; fileUrl: string }> => {
   // Sanitasi input untuk keamanan
-  const safeFolder = sanitizeFileName(folderType);
-  const safeFileName = sanitizeFileName(fileName);
+  const safeFolder = await sanitizeFileName(folderType);
+  const safeFileName = await sanitizeFileName(fileName);
   
   const filePath = path.join(UPLOADS_BASE_DIR, 'assets', safeFolder, safeFileName);
   const fileUrl = `/api/uploads/assets/${safeFolder}/${safeFileName}`;

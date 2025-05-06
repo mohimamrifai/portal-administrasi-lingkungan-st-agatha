@@ -1,84 +1,92 @@
-import * as React from "react"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { X } from "lucide-react"
-import { Table } from "@tanstack/react-table"
-import { Publikasi } from "../types/publikasi"
+"use client"
 
-interface StatusOption {
-  value: string | null
-  label: string
-  key: string
-}
+import * as React from "react"
+import { Check, CircleSlash, CalendarClock } from "lucide-react"
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuGroup, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu"
+import { Button } from "@/components/ui/button"
+import { Table } from "@tanstack/react-table"
 
 interface StatusFilterProps {
-  table: Table<Publikasi>
+  table: Table<any>
   statusFilter: string | null
   setStatusFilter: (status: string | null) => void
 }
 
-export function StatusFilter({ table, statusFilter, setStatusFilter }: StatusFilterProps) {
-  // Status filter options
-  const statusOptions: StatusOption[] = [
-    { value: null, label: "Semua Status", key: "all" },
-    { value: "aktif", label: "Aktif", key: "aktif" },
-    { value: "kedaluwarsa", label: "Kedaluwarsa", key: "kedaluwarsa" }
+export function StatusFilter({ 
+  table, 
+  statusFilter, 
+  setStatusFilter 
+}: StatusFilterProps) {
+  const statusOptions = [
+    { value: null, label: "Semua Status" },
+    { value: "aktif", label: "Aktif", description: "Belum melewati deadline" },
+    { value: "kedaluwarsa", label: "Kedaluwarsa", description: "Sudah melewati deadline" },
   ]
 
-  return (
-    <div className="flex flex-col space-y-2">
-      <Select
-        value={statusFilter || "all"}
-        onValueChange={(value) => {
-          const filter = value === "all" ? null : value
-          setStatusFilter(filter)
-          if (filter) {
-            table.getColumn("status")?.setFilterValue(filter)
-          } else {
-            table.getColumn("status")?.setFilterValue(undefined)
-          }
-        }}
-      >
-        <SelectTrigger className="w-[160px]">
-          <SelectValue placeholder="Status" />
-        </SelectTrigger>
-        <SelectContent>
-          {statusOptions.map((option) => (
-            <SelectItem 
-              key={option.key} 
-              value={option.value === null ? "all" : option.value}
-            >
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+  // Dapatkan label untuk status yang dipilih
+  const getStatusLabel = (statusValue: string | null) => {
+    const status = statusOptions.find(s => s.value === statusValue)
+    return status ? status.label : 'Semua Status'
+  }
 
-      {/* Display active filter */}
-      {statusFilter && (
-        <Badge variant="outline" className="gap-1 px-2 py-1 w-fit">
-          <span>Status: {statusOptions.find(t => t.value === statusFilter)?.label}</span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="ml-1 h-4 w-4 p-0"
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button 
+          variant="outline" 
+          className="flex items-center gap-1 h-8 data-[state=open]:bg-accent"
+        >
+          <CalendarClock className="h-3.5 w-3.5" />
+          <span>{getStatusLabel(statusFilter)}</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>Filter Berdasarkan Status</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem 
             onClick={() => {
               setStatusFilter(null)
-              table.getColumn("status")?.setFilterValue(undefined)
+              table.getColumn('status')?.setFilterValue('')
             }}
           >
-            <X className="h-3 w-3" />
-            <span className="sr-only">Clear status</span>
-          </Button>
-        </Badge>
-      )}
-    </div>
+            <div className="flex items-center gap-2">
+              <CircleSlash className="h-4 w-4" />
+              <span>Semua Status</span>
+              {statusFilter === null && <Check className="h-4 w-4 ml-auto" />}
+            </div>
+          </DropdownMenuItem>
+
+          {statusOptions.filter(option => option.value !== null).map((status) => (
+            <DropdownMenuItem
+              key={status.value}
+              onClick={() => {
+                setStatusFilter(status.value)
+                table.getColumn('status')?.setFilterValue(status.value)
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <div className={status.value === 'aktif' ? 'text-green-500' : 'text-red-500'}>
+                  <span className="text-lg">●</span>
+                </div>
+                <div className="flex flex-col">
+                  <span>{status.label}</span>
+                  <span className="text-xs text-muted-foreground">{status.description}</span>
+                </div>
+                {statusFilter === status.value && <Check className="h-4 w-4 ml-auto" />}
+              </div>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 } 

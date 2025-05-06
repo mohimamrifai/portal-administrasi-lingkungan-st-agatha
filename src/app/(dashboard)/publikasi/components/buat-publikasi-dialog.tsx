@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -27,54 +27,87 @@ import {
   Upload,
   Users,
   Plus,
-  Eye
+  Eye,
+  XCircle
 } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { id as localeID } from "date-fns/locale"
-import { KATEGORI_PUBLIKASI, TARGET_PENERIMA } from "../utils/constants"
+import { KATEGORI_PUBLIKASI, TARGET_PENERIMA, getKategoriColor } from "../utils/constants"
 import { toast } from "sonner"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { createPublikasi } from "../utils/actions"
+import { PublikasiFormData } from "../types/publikasi"
+import { Role, KlasifikasiPublikasi } from "@prisma/client"
 
 // Komponen pilihan target penerima
-const TargetRecipients = ({ onSelected }: { onSelected: (selected: string[]) => void }) => {
-  const [selectedGroups, setSelectedGroups] = useState<string[]>([])
-  const groups = TARGET_PENERIMA
+const TargetRecipients = ({ 
+  onSelected, 
+  initialSelected = [] 
+}: { 
+  onSelected: (selected: Role[]) => void,
+  initialSelected?: Role[]
+}) => {
+  const [selectedGroups, setSelectedGroups] = useState<Role[]>(initialSelected)
 
-  const toggleGroup = (id: string) => {
+  // Update parent setiap kali selection berubah
+  useEffect(() => {
+    onSelected(selectedGroups)
+  }, [selectedGroups, onSelected])
+
+  const toggleGroup = (role: Role | 'all') => {
     setSelectedGroups(prev => {
-      // Jika "Semua Pengguna" dipilih, hilangkan semua pilihan lain
-      if (id === "all") {
-        return prev.includes("all") ? [] : ["all"]
+      // Jika "Semua Pengguna" dipilih
+      if (role === 'all') {
+        // Jika semua sudah dipilih, kosongkan
+        const allRoles = TARGET_PENERIMA.find(t => t.id === 'all')?.roles || []
+        const allSelected = allRoles.every(r => prev.includes(r))
+        
+        if (allSelected) {
+          return []
+        } else {
+          // Pilih semua
+          return [...allRoles]
+        }
       }
       
-      // Jika salah satu grup selain "all" dipilih, hapus "all" dari pilihan
-      const withoutAll = prev.filter(g => g !== "all")
-      
-      if (prev.includes(id)) {
-        return withoutAll.filter(g => g !== id)
+      // Untuk pilihan role spesifik
+      if (prev.includes(role as Role)) {
+        return prev.filter(r => r !== role)
       } else {
-        return [...withoutAll, id]
+        return [...prev, role as Role]
       }
     })
-    
-    // Update parent component
-    onSelected(selectedGroups)
   }
 
   return (
     <div className="space-y-2">
-      {groups.map(group => (
+      <div className="flex items-center space-x-2 pb-1 border-b">
+        <Checkbox 
+          id="group-all" 
+          checked={TARGET_PENERIMA.find(t => t.id === 'all')?.roles?.every(r => selectedGroups.includes(r)) ?? false}
+          onCheckedChange={() => {
+            toggleGroup('all')
+          }}
+        />
+        <label
+          htmlFor="group-all"
+          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          Semua Pengguna
+        </label>
+      </div>
+      
+      {TARGET_PENERIMA.filter(group => group.id !== 'all').map(group => (
         <div key={group.id} className="flex items-center space-x-2">
           <Checkbox 
             id={`group-${group.id}`} 
-            checked={selectedGroups.includes(group.id)}
+            checked={selectedGroups.includes(group.id as Role)}
             onCheckedChange={() => {
-              toggleGroup(group.id)
-              onSelected(selectedGroups)
+              toggleGroup(group.id as Role)
             }}
           />
           <label
@@ -89,27 +122,38 @@ const TargetRecipients = ({ onSelected }: { onSelected: (selected: string[]) => 
   )
 }
 
-export default function BuatPublikasiDialog() {
+interface BuatPublikasiDialogProps {
+  onSuccess?: () => void
+}
+
+export default function BuatPublikasiDialog({ onSuccess }: BuatPublikasiDialogProps) {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
-  const [category, setCategory] = useState("")
+  const [category, setCategory] = useState<KlasifikasiPublikasi | "">("")
   const [content, setContent] = useState("")
-  const [deadline, setDeadline] = useState<Date>()
-  const [attachment, setAttachment] = useState<File | null>(null)
-  const [targetRecipients, setTargetRecipients] = useState<string[]>([])
+  const [deadline, setDeadline] = useState<Date | undefined>()
+  const [attachments, setAttachments] = useState<string[]>([])
+  const [files, setFiles] = useState<File[]>([])
+  const [targetRecipients, setTargetRecipients] = useState<Role[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [previewDialog, setPreviewDialog] = useState(false)
+  const [attachmentName, setAttachmentName] = useState("")
 
-  // Kategori options untuk dropdown
-  const categoryOptions = KATEGORI_PUBLIKASI.map(item => ({
-    value: item.id,
-    label: item.label
-  }))
-
+  // Handle file upload
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setAttachment(e.target.files[0])
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files)
+      setFiles(prev => [...prev, ...newFiles])
+      
+      // Update attachment names for display
+      const newFileNames = newFiles.map(file => file.name)
+      setAttachments(prev => [...prev, ...newFileNames])
     }
+  }
+  
+  const handleRemoveAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index))
+    setFiles(prev => prev.filter((_, i) => i !== index))
   }
 
   const handleSubmit = async () => {
@@ -125,17 +169,43 @@ export default function BuatPublikasiDialog() {
 
     setIsSubmitting(true)
 
-    // Simulasi pengiriman data
-    setTimeout(() => {
-      toast.success("Publikasi berhasil dibuat", {
-        description: "Publikasi akan ditampilkan kepada target penerima"
-      })
+    try {
+      // Buat FormData object untuk publikasi + file uploads
+      const publikasiData: PublikasiFormData = {
+        judul: title,
+        isi: content,
+        klasifikasi: category as KlasifikasiPublikasi,
+        targetPenerima: targetRecipients,
+        deadline: deadline || null,
+        lampiran: attachments,
+      }
+
+      const result = await createPublikasi(publikasiData)
       
-      // Reset form
-      resetForm()
+      if (result.success) {
+        // Upload files jika ada
+        if (files.length > 0) {
+          toast.info("Mengunggah file lampiran...")
+          // Kode untuk upload file akan diimplementasikan nanti
+        }
+        
+        toast.success("Publikasi berhasil dibuat", {
+          description: "Publikasi akan ditampilkan kepada target penerima"
+        })
+        resetForm()
+        setOpen(false)
+        if (onSuccess) onSuccess()
+      } else {
+        toast.error("Gagal membuat publikasi", {
+          description: result.error
+        })
+      }
+    } catch (error) {
+      console.error("Error creating publikasi:", error)
+      toast.error("Terjadi kesalahan saat membuat publikasi")
+    } finally {
       setIsSubmitting(false)
-      setOpen(false)
-    }, 1500)
+    }
   }
 
   const resetForm = () => {
@@ -143,7 +213,8 @@ export default function BuatPublikasiDialog() {
     setCategory("")
     setDeadline(undefined)
     setContent("")
-    setAttachment(null)
+    setAttachments([])
+    setFiles([])
     setTargetRecipients([])
   }
 
@@ -156,7 +227,7 @@ export default function BuatPublikasiDialog() {
   }
 
   // Mendapatkan warna dan label kategori yang dipilih
-  const selectedCategory = KATEGORI_PUBLIKASI.find(item => item.id === category)
+  const selectedCategory = KATEGORI_PUBLIKASI.find(item => item.value === category)
 
   return (
     <>
@@ -170,249 +241,260 @@ export default function BuatPublikasiDialog() {
             Buat Publikasi
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[525px]">
+        <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Buat Publikasi</DialogTitle>
             <DialogDescription>
               Input informasi publikasi untuk disebarkan
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="title" className="text-right">
-                Judul
-              </Label>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+            {/* Kolom Kiri */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="title">Judul</Label>
               <Input
                 id="title"
                 placeholder="Masukkan judul publikasi"
-                className="col-span-3"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="category" className="text-right">
-                Kategori
-              </Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger id="category" className="col-span-3">
+              
+              <div className="space-y-2">
+                <Label htmlFor="category">Kategori</Label>
+                <Select value={category} onValueChange={(value) => setCategory(value as KlasifikasiPublikasi)}>
+                  <SelectTrigger id="category">
                   <SelectValue placeholder="Pilih kategori" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categoryOptions.map((option) => (
+                    {KATEGORI_PUBLIKASI.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
+                        <div className="flex items-center">
+                          <span className={`mr-2 ${option.value === 'PENTING' ? 'text-red-500' : option.value === 'SEGERA' ? 'text-orange-500' : option.value === 'RAHASIA' ? 'text-purple-500' : 'text-blue-500'}`}>●</span>
                       {option.label}
+                        </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="deadline" className="text-right">
-                Batas Waktu
-              </Label>
+              
+              <div className="space-y-2">
+                <Label htmlFor="deadline">Deadline</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
-                    id="deadline"
                     variant={"outline"}
-                    className="col-span-3 justify-start text-left font-normal"
+                      className={`w-full justify-start text-left font-normal ${
+                        !deadline && "text-muted-foreground"
+                      }`}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {deadline ? (
-                      format(deadline, "dd MMMM yyyy", { locale: localeID })
+                        format(deadline, "PPP", { locale: localeID })
                     ) : (
-                      <span>Pilih tanggal</span>
+                        <span>Pilih tanggal (opsional)</span>
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                  <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={deadline}
                     onSelect={setDeadline}
+                      disabled={(date) =>
+                        date < new Date(new Date().setHours(0, 0, 0, 0))
+                      }
                     initialFocus
                     locale={localeID}
                   />
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="target" className="text-right">
-                Target Penerima
-              </Label>
-              <div className="col-span-3">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start">
-                      <Users className="h-4 w-4 mr-2" />
-                      {targetRecipients.length === 0 
-                        ? "Pilih target penerima" 
-                        : targetRecipients.includes("all") 
-                          ? "Semua Pengguna" 
-                          : `${targetRecipients.length} grup dipilih`}
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                      <DialogTitle>Pilih Target Penerima</DialogTitle>
-                      <DialogDescription>
-                        Pilih grup yang akan menerima notifikasi publikasi ini
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4">
-                      <TargetRecipients onSelected={setTargetRecipients} />
-                    </div>
-                    <DialogFooter>
-                      <Button onClick={() => {}}>Simpan</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="attachment" className="text-right">
-                Lampiran
-              </Label>
-              <div className="col-span-3">
-                <div className="border rounded-md overflow-hidden">
-                  <label className="flex items-center justify-center w-full h-20 cursor-pointer hover:bg-gray-50">
-                    <div className="flex flex-col items-center justify-center">
-                      {attachment ? (
-                        <>
-                          <CheckCircle className="w-6 h-6 mb-1 text-green-500" />
-                          <p className="text-sm text-gray-500 text-center truncate max-w-full px-4">
-                            {attachment.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {(attachment.size / 1024).toFixed(2)} KB
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="w-6 h-6 mb-1 text-gray-500" />
-                          <p className="text-sm text-gray-500">
-                            <span className="font-semibold">Upload file</span>
-                          </p>
-                        </>
-                      )}
-                    </div>
-                    <input 
-                      id="attachment"
-                      type="file" 
-                      className="hidden" 
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" 
-                      onChange={handleFileChange}
-                    />
-                  </label>
+              
+              <div className="space-y-2">
+                <Label>Target Penerima</Label>
+                <div className="border rounded-md p-3 h-[120px] overflow-y-auto">
+                  <TargetRecipients 
+                    onSelected={setTargetRecipients} 
+                    initialSelected={targetRecipients}
+                  />
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-4 items-start gap-4">
-              <Label htmlFor="content" className="text-right pt-2">
-                Isi Publikasi
-              </Label>
-              <Textarea
-                id="content"
-                placeholder="Masukkan isi publikasi"
-                className="col-span-3"
-                rows={6}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-              />
+            
+            {/* Kolom Kanan */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="content">Isi Publikasi</Label>
+                <Textarea
+                  id="content"
+                  placeholder="Masukkan isi publikasi"
+                  rows={4}
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Lampiran</Label>
+                <div className="space-y-2">
+                  <div className="border-2 border-dashed rounded-lg p-4">
+                    <label className="flex flex-col items-center justify-center w-full cursor-pointer">
+                      <div className="flex flex-col items-center justify-center">
+                        <Upload className="h-8 w-8 mb-2 text-muted-foreground" />
+                        <p className="text-sm text-center">
+                          <span className="font-semibold">Klik untuk upload</span> atau drag and drop
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          PDF, DOC, XLS, JPG, PNG (Maks. 5MB)
+                        </p>
+                      </div>
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" 
+                        onChange={handleFileChange}
+                        multiple
+                      />
+                    </label>
+                  </div>
+                  
+                  {attachments.length > 0 && (
+                    <div className="border rounded-md p-2 mt-2 max-h-[150px] overflow-y-auto">
+                      <p className="text-sm text-muted-foreground mb-2">Daftar Lampiran:</p>
+                      <div className="space-y-1">
+                        {attachments.map((file, index) => (
+                          <div 
+                            key={index}
+                            className="flex items-center justify-between p-2 bg-muted/50 rounded-md"
+                          >
+                            <div className="flex items-center">
+                              <Upload className="h-4 w-4 mr-2 text-muted-foreground" />
+                              <span className="text-sm">{file}</span>
+                              {files[index] && (
+                                <span className="text-xs text-muted-foreground ml-2">
+                                  ({(files[index].size / 1024).toFixed(1)} KB)
+                                </span>
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 rounded-full"
+                              onClick={() => handleRemoveAttachment(index)}
+                            >
+                              <XCircle className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-          <DialogFooter className="space-x-2 flex">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Batal
-            </Button>
-            <Button type="button" variant="outline" onClick={handlePreview}>
+          
+          <DialogFooter className="gap-2 sm:justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handlePreview}
+              disabled={isSubmitting}
+            >
               <Eye className="mr-2 h-4 w-4" />
-              Preview
+              Pratinjau
             </Button>
-            <Button type="submit" onClick={handleSubmit} disabled={isSubmitting}>
-              {isSubmitting ? "Menyimpan..." : "Publikasikan"}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setOpen(false)}
+                disabled={isSubmitting}
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2"></div>
+                    Menyimpan...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Simpan Publikasi
+                  </>
+                )}
             </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Preview Dialog */}
       <Dialog open={previewDialog} onOpenChange={setPreviewDialog}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[550px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Preview Publikasi</DialogTitle>
+            <DialogTitle>Pratinjau Publikasi</DialogTitle>
             <DialogDescription>
-              Pratinjau publikasi sebelum dipublikasikan
+              Tampilan publikasi sebelum disimpan
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="border rounded-lg p-4 space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center space-x-2">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src="/avatar-admin.png" alt="Admin" />
-                    <AvatarFallback>AD</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h3 className="font-medium">Admin Lingkungan</h3>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date().toLocaleDateString('id-ID', { 
-                        day: 'numeric', 
-                        month: 'long', 
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
-                  </div>
-                </div>
+          <div className="space-y-6 my-2">
+            <div className="space-y-1">
+              <h3 className="text-xl font-semibold">{title}</h3>
                 {selectedCategory && (
                   <Badge 
-                    style={{ backgroundColor: selectedCategory.color === 'red' ? '#ef4444' : 
-                                            selectedCategory.color === 'orange' ? '#f97316' :
-                                            selectedCategory.color === 'purple' ? '#a855f7' : '#3b82f6' }}
-                    className="text-white"
+                  className={getKategoriColor(category as KlasifikasiPublikasi)}
                   >
                     {selectedCategory.label}
                   </Badge>
                 )}
               </div>
-              <h2 className="text-xl font-semibold">{title || "Judul Publikasi"}</h2>
-              <div className="whitespace-pre-wrap text-sm">
-                {content || "Isi publikasi akan ditampilkan di sini..."}
-              </div>
-              {deadline && (
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <CalendarIcon className="mr-1 h-4 w-4" />
-                  <span>Batas waktu: {format(deadline, "dd MMMM yyyy", { locale: localeID })}</span>
-                </div>
-              )}
-              {attachment && (
-                <div className="border rounded-md p-2 flex items-center space-x-2">
-                  <div className="bg-primary/10 p-2 rounded">
-                    <Upload className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="overflow-hidden">
-                    <p className="text-sm font-medium truncate">{attachment.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {(attachment.size / 1024).toFixed(2)} KB
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
+            
             <div className="flex items-center text-sm text-muted-foreground">
-              <Users className="mr-1 h-4 w-4" />
-              <span>Target: {targetRecipients.includes("all") 
-                ? "Semua Pengguna" 
-                : targetRecipients.map(id => 
-                    TARGET_PENERIMA.find(item => item.id === id)?.label
-                  ).filter(Boolean).join(", ")}</span>
+              <span className="flex items-center">
+                <Users className="h-4 w-4 mr-1.5" />
+                Target: {targetRecipients.length} grup
+              </span>
+              {deadline && (
+                <span className="ml-4 flex items-center">
+                  <CalendarIcon className="h-4 w-4 mr-1.5" />
+                  Deadline: {format(deadline, "dd MMMM yyyy", { locale: localeID })}
+                </span>
+              )}
             </div>
+            
+            <div className="border-t pt-4">
+              <div className="whitespace-pre-wrap">{content}</div>
+            </div>
+            
+            {attachments.length > 0 && (
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-medium mb-2">Lampiran:</h4>
+                <div className="space-y-1">
+                  {attachments.map((file, index) => (
+                    <div key={index} className="flex items-center text-sm">
+                      <Upload className="h-4 w-4 mr-2 text-muted-foreground" />
+                      {file}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button onClick={() => setPreviewDialog(false)}>Tutup</Button>
+            <Button variant="outline" onClick={() => setPreviewDialog(false)}>
+              Tutup Pratinjau
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

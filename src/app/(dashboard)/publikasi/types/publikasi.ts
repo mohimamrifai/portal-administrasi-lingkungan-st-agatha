@@ -1,3 +1,42 @@
+import { KlasifikasiPublikasi, Role, User, Publikasi as PrismaPublikasi } from "@prisma/client"
+
+// Definisi tipe publikasi dengan relasi yang sudah diambil
+export type PublikasiWithRelations = PrismaPublikasi & {
+  pembuat: {
+    username: string
+    role: Role
+  }
+  locked?: boolean
+}
+
+// Type untuk form publikasi
+export type PublikasiFormData = {
+  judul: string
+  isi: string
+  klasifikasi: KlasifikasiPublikasi
+  targetPenerima: Role[]
+  deadline: Date | null
+  lampiran: string[]
+}
+
+// Definisi interface untuk Laporan
+export interface Laporan {
+  id: string
+  judul: string
+  jenis: string
+  tanggal: string | Date
+  keterangan: string
+  lampiran: string
+  publikasiId: string
+}
+
+// Response dari server action
+export type ActionResponse<T = any> = {
+  success: boolean
+  data?: T
+  error?: string
+}
+
 export interface Publikasi {
   id: string
   judul: string
@@ -26,15 +65,4 @@ export type TargetPenerimaType =
   | "SuperUser"
   | "Kepala Keluarga"
   | "Anggota IKATA"
-  | "Peserta Doa Lingkungan"
-
-// Definisi interface untuk Laporan
-export interface Laporan {
-  id: string
-  judul: string
-  jenis: string
-  tanggal: string | Date
-  keterangan: string
-  lampiran: string
-  publikasiId: string
-} 
+  | "Peserta Doa Lingkungan" 

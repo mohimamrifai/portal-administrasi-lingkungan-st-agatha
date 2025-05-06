@@ -25,7 +25,7 @@ import {
   Save,
   Eye
 } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Calendar } from "@/components/ui/calendar"
 import {
   Popover,
@@ -72,9 +72,9 @@ const TargetRecipients = ({ onSelected }: { onSelected: (selected: string[]) => 
   }
 
   // Update parent component when selection changes
-  useState(() => {
+  useEffect(() => {
     onSelected(selectedGroups)
-  })
+  }, [selectedGroups, onSelected])
 
   return (
     <div className="space-y-2">
@@ -85,7 +85,6 @@ const TargetRecipients = ({ onSelected }: { onSelected: (selected: string[]) => 
             checked={selectedGroups.includes(group.id)}
             onCheckedChange={() => {
               toggleGroup(group.id)
-              onSelected(selectedGroups)
             }}
           />
           <label
@@ -212,7 +211,7 @@ export default function BuatPublikasi() {
               </SelectTrigger>
               <SelectContent>
                 {KATEGORI_PUBLIKASI.map((kategori) => (
-                  <SelectItem key={kategori.id} value={kategori.label}>
+                  <SelectItem key={kategori.value} value={kategori.label}>
                     <div className="flex items-center">
                       {renderCategoryIcon(kategori.label)}
                       {kategori.label}

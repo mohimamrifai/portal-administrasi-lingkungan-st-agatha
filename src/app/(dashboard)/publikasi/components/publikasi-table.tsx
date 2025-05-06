@@ -41,7 +41,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger
 } from "@/components/ui/alert-dialog"
 import {
   Select,
@@ -68,28 +67,20 @@ import {
   EyeIcon, 
   FileText,
   InfoIcon,
-  LockIcon,
-  MoreVertical, 
+  MoreHorizontal, 
   Pencil, 
-  Trash,
-  UnlockIcon,
   Users,
-  MoreHorizontal,
   CalendarIcon,
-  Clock,
-  CheckCircle,
-  Upload,
-  Bell,
-  Plus
+  Archive,
+  LockIcon
 } from "lucide-react"
-import { Publikasi, Laporan } from "../types/publikasi"
+import { PublikasiWithRelations } from "../types/publikasi"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import Link from "next/link"
-import { KATEGORI_PUBLIKASI, TARGET_PENERIMA } from "../utils/constants"
+import { KATEGORI_PUBLIKASI, TARGET_PENERIMA, roleToLabel, isPublikasiExpired } from "../utils/constants"
 import { 
   Popover,
   PopoverContent,
@@ -97,25 +88,25 @@ import {
 } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Switch } from "@/components/ui/switch"
-import BuatLaporanDialog from "./buat-laporan-dialog"
+import { KlasifikasiPublikasi, Role } from "@prisma/client"
+import { PublikasiActions } from "./publikasi-actions"
 
 // Definisi kolom tabel dengan urutan yang sudah ditukar
-export const columns: ColumnDef<Publikasi>[] = [
+export const columns = (onRefresh?: () => void): ColumnDef<PublikasiWithRelations>[] => [
   {
     accessorKey: "judul",
     header: () => <div className="text-left">Judul Publikasi</div>,
     cell: ({ row }) => {
-      const kategori = row.original.kategori;
+      const klasifikasi = row.original.klasifikasi;
       const getKategoriIcon = () => {
-        switch (kategori) {
-          case "Penting":
+        switch (klasifikasi) {
+          case "PENTING":
             return <span className="text-red-500">●</span>
-          case "Segera":
+          case "SEGERA":
             return <span className="text-orange-500">●</span>
-          case "Rahasia":
+          case "RAHASIA":
             return <span className="text-purple-500">●</span>
-          case "Umum":
+          case "UMUM":
             return <span className="text-blue-500">●</span>
           default:
             return null
@@ -126,17 +117,22 @@ export const columns: ColumnDef<Publikasi>[] = [
         <div className="max-w-[250px] break-words">
           <div className="font-medium line-clamp-2 flex items-center gap-1">
             {getKategoriIcon()} {row.getValue("judul")}
+            {row.original.locked && (
+              <span className="ml-2 text-gray-500">
+                <LockIcon className="h-3.5 w-3.5" />
+              </span>
+            )}
           </div>
         </div>
       )
     }
   },
   {
-    accessorKey: "tanggal",
+    accessorKey: "createdAt",
     header: () => <div className="text-left">Tanggal</div>,
     cell: ({ row }) => (
       <div className="text-left font-medium">
-        {format(new Date(row.getValue("tanggal")), "dd MMMM yyyy", { locale: localeID })}
+        {format(new Date(row.getValue("createdAt")), "dd MMMM yyyy", { locale: localeID })}
       </div>
     )
   },
@@ -144,115 +140,99 @@ export const columns: ColumnDef<Publikasi>[] = [
     accessorKey: "targetPenerima",
     header: () => <div className="text-left">Target Penerima</div>,
     cell: ({ row }) => {
+      const targets = row.original.targetPenerima;
       return (
         <div className="flex items-center">
           <Users className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-          <span>{row.getValue("targetPenerima")}</span>
+          <span>{targets.length > 1 ? `${targets.length} Grup` : roleToLabel(targets[0])}</span>
         </div>
       )
     }
   },
   {
-    accessorKey: "kategori",
+    accessorKey: "klasifikasi",
     header: () => <div className="text-left">Kategori</div>,
     cell: ({ row }) => {
-      const kategori = row.getValue("kategori") as string;
+      const kategori = row.getValue("klasifikasi") as KlasifikasiPublikasi;
       let badgeClass;
       
       switch (kategori) {
-        case "Penting":
+        case "PENTING":
           badgeClass = "bg-red-50 text-red-700 border-red-200";
           break;
-        case "Segera":
+        case "SEGERA":
           badgeClass = "bg-orange-50 text-orange-700 border-orange-200";
           break;
-        case "Rahasia":
+        case "RAHASIA":
           badgeClass = "bg-purple-50 text-purple-700 border-purple-200";
           break;
-        case "Umum":
+        case "UMUM":
           badgeClass = "bg-blue-50 text-blue-700 border-blue-200";
           break;
         default:
           badgeClass = "bg-gray-50 text-gray-700 border-gray-200";
       }
+
+      const kategoriLabel = KATEGORI_PUBLIKASI.find(k => k.value === kategori)?.label || kategori;
       
       return (
         <Badge className={`${badgeClass} font-medium`} variant="outline">
-          {kategori}
+          {kategoriLabel}
         </Badge>
       )
     }
   },
   {
-    accessorKey: "status",
+    accessorKey: "deadline",
     header: () => <div className="text-left">Status</div>,
     cell: ({ row }) => {
-      const status = row.getValue("status") as string;
+      const deadline = row.original.deadline;
+      const expired = deadline ? isPublikasiExpired(deadline) : false;
       
       return (
         <Badge 
-          variant={status === "aktif" ? "success" : "destructive"}
-          className={status === "aktif" ? "bg-green-50 text-green-700 hover:bg-green-50 border-green-200" : "bg-red-50 text-red-700 hover:bg-red-50 border-red-200"}
+          variant={!expired ? "success" : "destructive"}
+          className={!expired ? "bg-green-50 text-green-700 hover:bg-green-50 border-green-200" : "bg-red-50 text-red-700 hover:bg-red-50 border-red-200"}
         >
-          {status === "aktif" ? "Aktif" : "Kedaluwarsa"}
+          {!expired ? "Aktif" : "Kedaluwarsa"}
         </Badge>
       )
     }
   },
   {
-    accessorKey: "pembuat",
-    header: () => <div className="text-left">Pembuat</div>,
-    cell: ({ row }) => <div className="text-left">{row.getValue("pembuat")}</div>,
-  },
-  {
     id: "actions",
-    header: () => <div className="text-right">Aksi</div>,
     cell: ({ row }) => {
-      // Cell ini akan diisi oleh implementasi di dalam PublikasiTable
       return (
-        <div className="text-right flex justify-end">
-          {/* Placeholder - akan diganti saat rendering */}
+        <div className="flex justify-end">
+          <PublikasiActions publikasi={row.original} onRefresh={onRefresh} />
         </div>
-      );
-    },
-    enableSorting: false,
-    enableHiding: false,
-    size: 60
+      )
+    }
   }
 ]
 
 interface PublikasiTableProps {
-  data: Publikasi[]
+  data: PublikasiWithRelations[]
+  isLoading?: boolean
+  onRefresh?: () => void
 }
 
-export function PublikasiTable({ data }: PublikasiTableProps) {
-  const [sorting, setSorting] = useState<SortingState>([])
+export function PublikasiTable({ data, isLoading = false, onRefresh }: PublikasiTableProps) {
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "createdAt", desc: true }
+  ])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   
   // Dialog state
   const [viewDetailOpen, setViewDetailOpen] = useState(false)
-  const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [toggleLockDialogOpen, setToggleLockDialogOpen] = useState(false)
   const [notificationDialogOpen, setNotificationDialogOpen] = useState(false)
-  const [selectedPublication, setSelectedPublication] = useState<Publikasi | null>(null)
-  
-  // Edit form states
-  const [editTitle, setEditTitle] = useState("")
-  const [editContent, setEditContent] = useState("")
-  const [editCategory, setEditCategory] = useState("")
-  const [editTargetRecipients, setEditTargetRecipients] = useState<string[]>([])
-  const [editDeadline, setEditDeadline] = useState<Date>()
-  const [editAttachment, setEditAttachment] = useState<File | null>(null)
-  const [editSendNotification, setEditSendNotification] = useState(true)
-  
-  // Tambahkan state untuk dialog buat laporan dan publikasi yang dipilih
-  const [buatLaporanDialogOpen, setBuatLaporanDialogOpen] = useState(false)
-  const [selectedPublikasiForReport, setSelectedPublikasiForReport] = useState<Publikasi | null>(null)
+  const [selectedPublication, setSelectedPublication] = useState<PublikasiWithRelations | null>(null)
   
   const table = useReactTable({
     data,
-    columns,
+    columns: columns(onRefresh),
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
@@ -266,71 +246,9 @@ export function PublikasiTable({ data }: PublikasiTableProps) {
   })
 
   // Implementasi fungsi-fungsi untuk aksi pada tabel
-  const handleViewDetail = (publikasi: Publikasi) => {
+  const handleViewDetail = (publikasi: PublikasiWithRelations) => {
     setSelectedPublication(publikasi)
     setViewDetailOpen(true)
-  };
-
-  const handleEdit = (publikasi: Publikasi) => {
-    setSelectedPublication(publikasi)
-    setEditTitle(publikasi.judul)
-    setEditCategory(publikasi.kategori)
-    setEditContent("Isi konten publikasi yang akan diedit...")
-    setEditTargetRecipients([publikasi.targetPenerima])
-    // Jika ada deadline/tanggal publikasi, konversi ke Date
-    if (publikasi.tanggal) {
-      setEditDeadline(new Date(publikasi.tanggal))
-    }
-    // Inisialisasi attachment sebagai null karena kita tidak punya file fisik
-    setEditAttachment(null)
-    // Default notifikasi
-    setEditSendNotification(true)
-    setEditDialogOpen(true)
-  };
-
-  const handleSaveEdit = () => {
-    if (selectedPublication) {
-      // Validasi input
-      if (!editTitle || !editCategory || !editContent) {
-        toast.error("Silakan lengkapi semua kolom yang diperlukan");
-        return;
-      }
-
-      if (editTargetRecipients.length === 0) {
-        toast.error("Pilih minimal satu target penerima");
-        return;
-      }
-
-      // Simulasi penyimpanan data
-      // Di implementasi nyata, kita akan mengirim data ke server
-      toast.success("Publikasi berhasil diperbarui", {
-        description: `Publikasi "${editTitle}" telah diperbarui`,
-      });
-
-      // Menutup dialog setelah berhasil
-      setEditDialogOpen(false);
-
-      // Reset form (opsional)
-      setEditTitle("");
-      setEditCategory("");
-      setEditContent("");
-      setEditTargetRecipients([]);
-      setEditDeadline(undefined);
-      setEditAttachment(null);
-      setEditSendNotification(true);
-    }
-  };
-
-  const handleDeleteConfirm = (publikasi: Publikasi) => {
-    setSelectedPublication(publikasi)
-    setDeleteDialogOpen(true)
-  };
-
-  const handleDelete = (id: string, judul: string) => {
-    toast.error("Publikasi dihapus", {
-      description: `Publikasi "${judul}" telah dihapus`,
-    });
-    setDeleteDialogOpen(false)
   };
 
   const handleDownload = (id: string, filename: string) => {
@@ -339,153 +257,38 @@ export function PublikasiTable({ data }: PublikasiTableProps) {
     });
   };
 
-  const handleToggleLockConfirm = (publikasi: Publikasi) => {
-    setSelectedPublication(publikasi);
-    setToggleLockDialogOpen(true);
-  };
-
   const handleToggleLock = (id: string, judul: string, currentStatus: boolean) => {
-    if (currentStatus) {
-      // Jika saat ini terkunci, maka membuka kunci
-      toast.success("Publikasi dibuka", {
-        description: `Publikasi "${judul}" berhasil dibuka`,
-      });
-    } else {
-      // Jika saat ini tidak terkunci, maka mengunci
       toast.success("Publikasi dikunci", {
         description: `Publikasi "${judul}" berhasil dikunci`,
       });
-    }
     setToggleLockDialogOpen(false);
   };
 
-  const handleNotificationConfirm = (publikasi: Publikasi) => {
-    setSelectedPublication(publikasi);
-    setNotificationDialogOpen(true);
-  };
-
-  const handleSendNotification = (id: string, judul: string) => {
-    toast.success("Notifikasi dikirim", {
-      description: `Notifikasi untuk publikasi "${judul}" telah dikirim ke penerima terpilih`,
-    });
-    setNotificationDialogOpen(false);
-  };
-
-  // Tambahkan fungsi untuk membuat laporan
-  const handleCreateReport = (publikasi: Publikasi) => {
-    // Tampilkan dialog buat laporan
-    setBuatLaporanDialogOpen(true);
-    setSelectedPublikasiForReport(publikasi);
-  };
-
-  // Render Actions Cell Function
-  const renderActionsCell = (publikasi: Publikasi) => {
+  // Tambahkan tampilan loading jika data sedang dimuat:
+  if (isLoading) {
     return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0 flex items-center justify-center">
-            <span className="sr-only">Buka menu</span>
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[200px]">
-          <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => handleViewDetail(publikasi)} className="cursor-pointer">
-            <EyeIcon className="h-4 w-4 mr-2" />
-            Lihat Detail
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleEdit(publikasi)} className="cursor-pointer">
-            <Pencil className="h-4 w-4 mr-2" />
-            Edit
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleDownload(publikasi.id, "Lampiran publikasi.pdf")} className="cursor-pointer">
-            <Download className="h-4 w-4 mr-2" />
-            Unduh Lampiran
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleNotificationConfirm(publikasi)} className="cursor-pointer">
-            <Bell className="h-4 w-4 mr-2" />
-            Kirim Notifikasi
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleToggleLockConfirm(publikasi)} className="cursor-pointer">
-            {publikasi.locked ? (
-              <><UnlockIcon className="h-4 w-4 mr-2" />Buka Kunci</>
-            ) : (
-              <><LockIcon className="h-4 w-4 mr-2" />Kunci</>
-            )}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleCreateReport(publikasi)} className="cursor-pointer">
-            <FileText className="h-4 w-4 mr-2" />
-            Buat Laporan
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => handleDeleteConfirm(publikasi)} className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50">
-            <Trash className="h-4 w-4 mr-2" />
-            Hapus
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    );
-  };
-
-  // Komponen TargetRecipients
-  const TargetRecipients = ({ onSelected, initialSelected = [] }: { 
-    onSelected: (selected: string[]) => void,
-    initialSelected?: string[]
-  }) => {
-    const [selected, setSelected] = useState<string[]>(initialSelected);
-
-    useEffect(() => {
-      onSelected(selected);
-    }, [selected, onSelected]);
-
-    const toggleGroup = (id: string) => {
-      if (id === "all") {
-        if (selected.includes("all")) {
-          setSelected([]);
-        } else {
-          setSelected(["all"]);
-        }
-        return;
-      }
-
-      if (selected.includes("all")) {
-        setSelected([id]);
-        return;
-      }
-
-      if (selected.includes(id)) {
-        setSelected(selected.filter(item => item !== id));
-      } else {
-        setSelected([...selected, id]);
-      }
-    };
-
-    return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 gap-2">
-          {TARGET_PENERIMA.map((group) => (
-            <div key={group.id} className="flex items-center space-x-2">
-              <Checkbox 
-                id={`group-${group.id}`} 
-                checked={
-                  selected.includes(group.id) || 
-                  (group.id !== "all" && selected.includes("all"))
-                }
-                onCheckedChange={() => toggleGroup(group.id)}
-                disabled={group.id !== "all" && selected.includes("all")}
-              />
-              <label
-                htmlFor={`group-${group.id}`}
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                {group.label}
-              </label>
-            </div>
-          ))}
+      <div className="flex items-center justify-center py-10">
+        <div className="flex flex-col items-center gap-2">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+          <p className="text-sm text-muted-foreground">Memuat data...</p>
         </div>
       </div>
-    );
-  };
+    )
+  }
+  
+  // dan tambahkan pesan jika tidak ada data:
+  if (data.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-10">
+        <div className="flex flex-col items-center gap-2">
+          <div className="p-3 rounded-full bg-muted">
+            <Archive className="h-6 w-6 text-muted-foreground" />
+            </div>
+          <p className="text-muted-foreground">Tidak ada publikasi yang ditemukan</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -520,18 +323,16 @@ export function PublikasiTable({ data }: PublikasiTableProps) {
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
+                    className={row.original.locked ? "bg-gray-50 relative" : ""}
                   >
-                    {row.getVisibleCells().map((cell) => {
+                    {row.getVisibleCells().map((cell, cellIndex) => {
                       const isActions = cell.column.id === "actions";
                       return (
                         <TableCell 
                           key={cell.id}
-                          className={isActions ? "sticky right-0 bg-white shadow-md" : ""}
+                          className={`${isActions ? "sticky right-0 bg-white shadow-md" : ""} ${cellIndex === 0 && row.original.locked ? "border-l-2 border-l-gray-400" : ""}`}
                         >
-                          {isActions
-                            ? renderActionsCell(row.original)
-                            : flexRender(cell.column.columnDef.cell, cell.getContext())
-                          }
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </TableCell>
                       );
                     })}
@@ -539,7 +340,7 @@ export function PublikasiTable({ data }: PublikasiTableProps) {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                  <TableCell colSpan={columns(onRefresh).length} className="h-24 text-center">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <p className="text-muted-foreground">Tidak ada data publikasi yang sesuai dengan filter</p>
                       <Button
@@ -658,12 +459,12 @@ export function PublikasiTable({ data }: PublikasiTableProps) {
                 <Label className="text-right font-medium">Kategori:</Label>
                 <div className="col-span-3">
                   <Badge className={
-                    selectedPublication.kategori === "Penting" ? "bg-red-50 text-red-700 border-red-200" :
-                    selectedPublication.kategori === "Segera" ? "bg-orange-50 text-orange-700 border-orange-200" :
-                    selectedPublication.kategori === "Rahasia" ? "bg-purple-50 text-purple-700 border-purple-200" :
+                    selectedPublication.klasifikasi === "PENTING" ? "bg-red-50 text-red-700 border-red-200" :
+                    selectedPublication.klasifikasi === "SEGERA" ? "bg-orange-50 text-orange-700 border-orange-200" :
+                    selectedPublication.klasifikasi === "RAHASIA" ? "bg-purple-50 text-purple-700 border-purple-200" :
                     "bg-blue-50 text-blue-700 border-blue-200"
                   }>
-                    {selectedPublication.kategori}
+                    {selectedPublication.klasifikasi}
                   </Badge>
                 </div>
               </div>
@@ -671,15 +472,15 @@ export function PublikasiTable({ data }: PublikasiTableProps) {
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right font-medium">Tanggal:</Label>
                 <div className="col-span-3">
-                  {format(new Date(selectedPublication.tanggal), "dd MMMM yyyy", { locale: localeID })}
+                  {format(new Date(selectedPublication.createdAt), "dd MMMM yyyy", { locale: localeID })}
                 </div>
               </div>
               
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right font-medium">Status:</Label>
                 <div className="col-span-3">
-                  <Badge variant={selectedPublication.status === "aktif" ? "success" : "destructive"}>
-                    {selectedPublication.status === "aktif" ? "Aktif" : "Kedaluwarsa"}
+                  <Badge variant={!selectedPublication.deadline || !isPublikasiExpired(selectedPublication.deadline) ? "success" : "destructive"}>
+                    {!selectedPublication.deadline || !isPublikasiExpired(selectedPublication.deadline) ? "Aktif" : "Kedaluwarsa"}
                   </Badge>
                 </div>
               </div>
@@ -688,74 +489,33 @@ export function PublikasiTable({ data }: PublikasiTableProps) {
                 <Label className="text-right font-medium">Target:</Label>
                 <div className="col-span-3 flex items-center">
                   <Users className="h-4 w-4 mr-2 text-muted-foreground" />
-                  {selectedPublication.targetPenerima}
+                  {selectedPublication.targetPenerima.length > 1 ? `${selectedPublication.targetPenerima.length} Grup` : roleToLabel(selectedPublication.targetPenerima[0])}
                 </div>
               </div>
               
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right font-medium">Pembuat:</Label>
-                <div className="col-span-3">{selectedPublication.pembuat}</div>
+                <div className="col-span-3">{selectedPublication.pembuat.username} ({roleToLabel(selectedPublication.pembuat.role)})</div>
               </div>
               
               <div className="grid grid-cols-4 items-start gap-4">
                 <Label className="text-right font-medium pt-2">Isi:</Label>
                 <div className="col-span-3 rounded-md border p-3 min-h-[100px]">
-                  <p className="text-sm">
-                    Isi konten dari publikasi akan ditampilkan di sini...
-                  </p>
+                  <p className="text-sm">{selectedPublication.isi}</p>
                 </div>
               </div>
               
-              {selectedPublication.lampiran && (
+              {selectedPublication.lampiran && selectedPublication.lampiran.length > 0 && (
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label className="text-right font-medium">Lampiran:</Label>
                   <div className="col-span-3">
-                    <Button variant="outline" size="sm" onClick={() => handleDownload(selectedPublication.id, "Lampiran.pdf")}>
+                    <Button variant="outline" size="sm" onClick={() => handleDownload(selectedPublication.id, selectedPublication.lampiran[0])}>
                       <FileText className="h-4 w-4 mr-2" />
-                      Lampiran.pdf
+                      {selectedPublication.lampiran[0]}
                     </Button>
                   </div>
                 </div>
               )}
-              
-              {/* Bagian Laporan */}
-              <div className="grid grid-cols-4 items-start gap-4">
-                <Label className="text-right font-medium pt-2">Laporan:</Label>
-                <div className="col-span-3">
-                  {selectedPublication.laporan && selectedPublication.laporan.length > 0 ? (
-                    <div className="space-y-2">
-                      {selectedPublication.laporan.map((laporan) => (
-                        <div key={laporan.id} className="border rounded-md p-3 shadow-sm">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="font-medium">{laporan.judul}</div>
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                              {laporan.jenis}
-                            </Badge>
-                          </div>
-                          <div className="text-sm text-muted-foreground mb-2">
-                            {format(new Date(laporan.tanggal), "dd MMMM yyyy", { locale: localeID })}
-                          </div>
-                          <p className="text-sm mb-2">{laporan.keterangan}</p>
-                          {laporan.lampiran && (
-                            <Button variant="outline" size="sm" className="mt-2" onClick={() => handleDownload(laporan.id, laporan.lampiran)}>
-                              <FileText className="h-4 w-4 mr-2" />
-                              {laporan.lampiran}
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center p-4 border rounded-md">
-                      <p className="text-sm text-muted-foreground mb-2">Belum ada laporan untuk publikasi ini</p>
-                      <Button size="sm" onClick={() => handleCreateReport(selectedPublication)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Buat Laporan
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
           )}
           
@@ -765,316 +525,27 @@ export function PublikasiTable({ data }: PublikasiTableProps) {
         </DialogContent>
       </Dialog>
       
-      {/* Modal Edit */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-[650px] max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Pencil className="h-5 w-5" />
-              Edit Publikasi
-            </DialogTitle>
-            <DialogDescription>
-              Perbarui informasi publikasi ini
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedPublication && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Kolom Kiri */}
-              <div className="space-y-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="edit-title" className="text-right font-medium">Judul:</Label>
-                  <Input 
-                    id="edit-title" 
-                    className="col-span-3"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                  />
-                </div>
-                
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="edit-category" className="text-right font-medium">Kategori:</Label>
-                  <div className="col-span-3">
-                    <Select value={editCategory} onValueChange={setEditCategory}>
-                      <SelectTrigger id="edit-category">
-                        <SelectValue placeholder="Pilih kategori" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {KATEGORI_PUBLIKASI.map((kategori) => (
-                          <SelectItem key={kategori.id} value={kategori.label}>
-                            {kategori.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label className="text-right font-medium">Target Penerima:</Label>
-                  <div className="col-span-3">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start">
-                          <Users className="h-4 w-4 mr-2" />
-                          {editTargetRecipients.length === 0 
-                            ? "Pilih target penerima" 
-                            : editTargetRecipients.includes("all") 
-                              ? "Semua Pengguna" 
-                              : `${editTargetRecipients.length} grup dipilih`}
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Pilih Target Penerima</DialogTitle>
-                          <DialogDescription>
-                            Pilih grup yang akan menerima notifikasi publikasi ini
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="py-4">
-                          <TargetRecipients 
-                            onSelected={setEditTargetRecipients} 
-                            initialSelected={editTargetRecipients}
-                          />
-                        </div>
-                        <DialogFooter>
-                          <Button>Simpan</Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-4 items-start gap-4">
-                  <Label htmlFor="edit-content" className="text-right font-medium pt-2">Isi:</Label>
-                  <Textarea
-                    id="edit-content"
-                    className="col-span-3 min-h-[150px]"
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* Kolom Kanan */}
-              <div className="space-y-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label className="text-right font-medium">Batas Waktu:</Label>
-                  <div className="col-span-3">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant={"outline"}
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {editDeadline ? (
-                            format(editDeadline, "PPP", { locale: localeID })
-                          ) : (
-                            <span>Pilih tanggal</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={editDeadline}
-                          onSelect={setEditDeadline}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label className="text-right font-medium">Lampiran:</Label>
-                  <div className="col-span-3">
-                    <div className="border-2 border-dashed rounded-lg overflow-hidden">
-                      <label className="flex flex-col items-center justify-center w-full h-24 cursor-pointer hover:bg-gray-50">
-                        <div className="flex flex-col items-center justify-center pt-4 pb-2">
-                          {editAttachment ? (
-                            <>
-                              <CheckCircle className="w-6 h-6 mb-2 text-green-500" />
-                              <p className="text-sm text-gray-500 text-center truncate max-w-full px-4">
-                                {editAttachment.name}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {(editAttachment.size / 1024).toFixed(2)} KB
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              <Upload className="w-6 h-6 mb-2 text-gray-500" />
-                              <p className="text-sm text-gray-500">
-                                <span className="font-semibold">Klik untuk upload</span>
-                              </p>
-                              <p className="text-xs text-gray-500">PDF, DOC, XLS, JPG, PNG</p>
-                            </>
-                          )}
-                        </div>
-                        <input 
-                          type="file" 
-                          className="hidden" 
-                          accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" 
-                          onChange={(e) => {
-                            if (e.target.files && e.target.files[0]) {
-                              setEditAttachment(e.target.files[0])
-                            }
-                          }}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label className="text-right font-medium">Notifikasi:</Label>
-                  <div className="col-span-3">
-                    <div className="flex items-center space-x-2">
-                      <Switch 
-                        id="edit-notification"
-                        checked={editSendNotification}
-                        onCheckedChange={setEditSendNotification}
-                      />
-                      <Label
-                        htmlFor="edit-notification"
-                        className="text-sm font-medium leading-none"
-                      >
-                        Kirim notifikasi
-                      </Label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Batal</Button>
-            <Button onClick={handleSaveEdit}>Simpan Perubahan</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Dialog Konfirmasi Hapus */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Konfirmasi Penghapusan</AlertDialogTitle>
-            <AlertDialogDescription>
-              Apakah Anda yakin ingin menghapus publikasi &quot;{selectedPublication?.judul}&quot;? 
-              Tindakan ini tidak dapat dibatalkan.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={() => selectedPublication && handleDelete(selectedPublication.id, selectedPublication.judul)}
-              className="bg-red-500 hover:bg-red-600"
-            >
-              Hapus
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      
       {/* Dialog Konfirmasi Toggle Lock */}
       <AlertDialog open={toggleLockDialogOpen} onOpenChange={setToggleLockDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {selectedPublication?.locked ? "Buka Kunci Publikasi" : "Kunci Publikasi"}
+              Kunci Publikasi
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {selectedPublication?.locked ? (
-                <>Apakah Anda yakin ingin membuka kunci publikasi &quot;{selectedPublication?.judul}&quot;? Publikasi akan dapat diedit dan dihapus.</>
-              ) : (
-                <>Apakah Anda yakin ingin mengunci publikasi &quot;{selectedPublication?.judul}&quot;? Publikasi tidak akan dapat diedit atau dihapus sampai dibuka kuncinya.</>
-              )}
+              Apakah Anda yakin ingin mengunci publikasi &quot;{selectedPublication?.judul}&quot;? Publikasi tidak akan dapat diedit atau dihapus sampai dibuka kuncinya.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={() => selectedPublication && handleToggleLock(selectedPublication.id, selectedPublication.judul, selectedPublication.locked)}
+              onClick={() => selectedPublication && handleToggleLock(selectedPublication.id, selectedPublication.judul, false)}
             >
-              {selectedPublication?.locked ? "Buka Kunci" : "Kunci"}
+              Kunci
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Dialog Konfirmasi Kirim Notifikasi */}
-      <AlertDialog open={notificationDialogOpen} onOpenChange={setNotificationDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Kirim Notifikasi
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Apakah Anda yakin ingin mengirim notifikasi untuk publikasi &quot;{selectedPublication?.judul}&quot;? 
-              Notifikasi akan dikirim ke semua target penerima ({selectedPublication?.targetPenerima}).
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={() => selectedPublication && handleSendNotification(selectedPublication.id, selectedPublication.judul)}
-              className="bg-blue-500 hover:bg-blue-600"
-            >
-              Kirim Notifikasi
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Dialog Buat Laporan */}
-      {selectedPublikasiForReport && (
-        <BuatLaporanDialog
-          open={buatLaporanDialogOpen}
-          onOpenChange={setBuatLaporanDialogOpen}
-          publikasi={selectedPublikasiForReport}
-          onSubmit={(values) => {
-            // Validasi nilai yang diberikan
-            if (!values.title || !values.type) {
-              toast.error("Data laporan tidak lengkap");
-              return;
-            }
-            
-            // Buat objek laporan baru
-            const attachmentName = values.attachment ? values.attachment.name : "tidak-ada-lampiran.pdf";
-            
-            const newReport: Laporan = {
-              id: `lap-${Date.now()}`, // Generate ID unik
-              judul: values.title,
-              jenis: values.type,
-              tanggal: values.date || new Date(),
-              keterangan: values.description || "",
-              lampiran: attachmentName,
-              publikasiId: selectedPublikasiForReport.id
-            };
-            
-            // Update publikasi dengan laporan baru
-            // Di aplikasi nyata, ini akan menggunakan API untuk memperbarui data di server
-            if (!selectedPublikasiForReport.laporan) {
-              selectedPublikasiForReport.laporan = [];
-            }
-            selectedPublikasiForReport.laporan.push(newReport);
-            
-            toast.success("Laporan berhasil dibuat", {
-              description: `Laporan untuk publikasi "${selectedPublikasiForReport.judul}" telah dibuat`,
-            });
-            setBuatLaporanDialogOpen(false);
-            
-            // Jika detail laporan terbuka, perbarui tampilan
-            if (viewDetailOpen) {
-              setSelectedPublication({...selectedPublikasiForReport});
-            }
-          }}
-        />
-      )}
     </div>
   )
 } 

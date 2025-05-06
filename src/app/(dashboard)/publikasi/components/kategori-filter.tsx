@@ -1,86 +1,98 @@
-import * as React from "react"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { X } from "lucide-react"
-import { Table } from "@tanstack/react-table"
-import { Publikasi } from "../types/publikasi"
+"use client"
 
-interface KategoriOption {
-  value: string | null
-  label: string
-  key: string
-}
+import * as React from "react"
+import { Check, CircleSlash, TagIcon } from "lucide-react"
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuGroup, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu"
+import { Button } from "@/components/ui/button"
+import { Table } from "@tanstack/react-table"
+import { KATEGORI_PUBLIKASI } from "../utils/constants"
+import { KlasifikasiPublikasi } from "@prisma/client"
 
 interface KategoriFilterProps {
-  table: Table<Publikasi>
-  kategoriFilter: string | null
-  setKategoriFilter: (kategori: string | null) => void
+  table: Table<any>
+  kategoriFilter: KlasifikasiPublikasi | null
+  setKategoriFilter: (kategori: KlasifikasiPublikasi | null) => void
 }
 
-export function KategoriFilter({ table, kategoriFilter, setKategoriFilter }: KategoriFilterProps) {
-  // Kategori filter options
-  const kategoriOptions: KategoriOption[] = [
-    { value: null, label: "Semua Kategori", key: "all" },
-    { value: "Penting", label: "Penting", key: "penting" },
-    { value: "Umum", label: "Umum", key: "umum" },
-    { value: "Rahasia", label: "Rahasia", key: "rahasia" },
-    { value: "Segera", label: "Segera", key: "segera" }
-  ]
+export function KategoriFilter({ 
+  table, 
+  kategoriFilter, 
+  setKategoriFilter 
+}: KategoriFilterProps) {
+  const getKategoryLabel = (kategoriId: KlasifikasiPublikasi | null) => {
+    if (!kategoriId) return 'Semua Kategori'
+    const kategori = KATEGORI_PUBLIKASI.find(k => k.id === kategoriId)
+    return kategori ? kategori.label : 'Semua Kategori'
+  }
+
+  const getBadgeColor = (kategoriId: KlasifikasiPublikasi) => {
+    switch (kategoriId) {
+      case KlasifikasiPublikasi.PENTING:
+        return 'text-red-500'
+      case KlasifikasiPublikasi.SEGERA:
+        return 'text-orange-500'
+      case KlasifikasiPublikasi.RAHASIA:
+        return 'text-purple-500'
+      case KlasifikasiPublikasi.UMUM:
+        return 'text-blue-500'
+      default:
+        return 'text-gray-500'
+    }
+  }
 
   return (
-    <div className="flex flex-col space-y-2">
-      <Select
-        value={kategoriFilter || "all"}
-        onValueChange={(value) => {
-          const filter = value === "all" ? null : value
-          setKategoriFilter(filter)
-          if (filter) {
-            table.getColumn("kategori")?.setFilterValue(filter)
-          } else {
-            table.getColumn("kategori")?.setFilterValue(undefined)
-          }
-        }}
-      >
-        <SelectTrigger className="w-[160px]">
-          <SelectValue placeholder="Kategori" />
-        </SelectTrigger>
-        <SelectContent>
-          {kategoriOptions.map((option) => (
-            <SelectItem 
-              key={option.key} 
-              value={option.value === null ? "all" : option.value}
-            >
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      {/* Display active filter */}
-      {kategoriFilter && (
-        <Badge variant="outline" className="gap-1 px-2 py-1 w-fit">
-          <span>Kategori: {kategoriOptions.find(t => t.value === kategoriFilter)?.label}</span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="ml-1 h-4 w-4 p-0"
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button 
+          variant="outline" 
+          className="flex items-center gap-1 h-8 data-[state=open]:bg-accent"
+        >
+          <TagIcon className="h-3.5 w-3.5" />
+          <span>{getKategoryLabel(kategoriFilter)}</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>Filter Berdasarkan Kategori</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem 
             onClick={() => {
               setKategoriFilter(null)
-              table.getColumn("kategori")?.setFilterValue(undefined)
+              table.getColumn('kategori')?.setFilterValue('')
             }}
           >
-            <X className="h-3 w-3" />
-            <span className="sr-only">Clear kategori</span>
-          </Button>
-        </Badge>
-      )}
-    </div>
+            <div className="flex items-center gap-2">
+              <CircleSlash className="h-4 w-4" />
+              <span>Semua Kategori</span>
+              {kategoriFilter === null && <Check className="h-4 w-4 ml-auto" />}
+            </div>
+          </DropdownMenuItem>
+
+          {KATEGORI_PUBLIKASI.map((kategori) => (
+            <DropdownMenuItem
+              key={kategori.id}
+              onClick={() => {
+                setKategoriFilter(kategori.id)
+                table.getColumn('kategori')?.setFilterValue(kategori.id)
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <span className={`${getBadgeColor(kategori.id)} text-lg`}>●</span>
+                <span>{kategori.label}</span>
+                {kategoriFilter === kategori.id && <Check className="h-4 w-4 ml-auto" />}
+              </div>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 } 
