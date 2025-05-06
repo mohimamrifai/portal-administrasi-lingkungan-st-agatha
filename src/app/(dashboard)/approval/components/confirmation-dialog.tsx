@@ -12,14 +12,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { ApprovalItem } from "../types"
+import { StatusApproval } from "@prisma/client"
+import { ExtendedApproval } from "../types"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 
 interface ConfirmationDialogProps {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
-  selectedItem: ApprovalItem | null
+  selectedItem: ExtendedApproval | null
   confirmAction: 'approve' | 'reject' | null
   onConfirm: (reason?: string, message?: string) => void
   isLoading: boolean
@@ -54,17 +55,52 @@ export function ConfirmationDialog({
     }
   }
 
+  // Fungsi untuk mendapatkan tanggal
+  const getItemDate = (item: ExtendedApproval): Date => {
+    if (item.doaLingkungan) {
+      return new Date(item.doaLingkungan.tanggal);
+    } else if (item.kasLingkungan) {
+      return new Date(item.kasLingkungan.tanggal);
+    }
+    return new Date(item.createdAt);
+  };
+
+  // Fungsi untuk mendapatkan jumlah hadir
+  const getJumlahHadir = (item: ExtendedApproval): number => {
+    return item.doaLingkungan?.jumlahKKHadir || 0;
+  };
+
+  // Fungsi untuk mendapatkan total
+  const getTotal = (item: ExtendedApproval): number => {
+    if (item.doaLingkungan) {
+      return item.doaLingkungan.kolekteI + item.doaLingkungan.kolekteII + item.doaLingkungan.ucapanSyukur;
+    } else if (item.kasLingkungan) {
+      return item.kasLingkungan.debit;
+    }
+    return 0;
+  };
+
+  // Fungsi untuk mendapatkan keterangan
+  const getKeterangan = (item: ExtendedApproval): string => {
+    if (item.doaLingkungan) {
+      return item.doaLingkungan.tuanRumah.namaKepalaKeluarga;
+    } else if (item.kasLingkungan?.keterangan) {
+      return item.kasLingkungan.keterangan;
+    }
+    return '-';
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {confirmAction === 'approve' ? 'Konfirmasi Persetujuan' : 'Konfirmasi Edit'}
+            {confirmAction === 'approve' ? 'Konfirmasi Persetujuan' : 'Konfirmasi Penolakan'}
           </DialogTitle>
           <DialogDescription>
             {confirmAction === 'approve'
               ? 'Anda yakin ingin menyetujui permohonan ini? Data akan diintegrasikan ke Kas Lingkungan.'
-              : 'Anda yakin ingin mengedit permohonan ini?'}
+              : 'Anda yakin ingin menolak permohonan ini?'}
           </DialogDescription>
         </DialogHeader>
         
@@ -72,25 +108,28 @@ export function ConfirmationDialog({
           <div className="py-4">
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="font-semibold">Tanggal:</div>
-              <div>{format(selectedItem.tanggal, "dd/MM/yyyy", { locale: id })}</div>
+              <div>{format(getItemDate(selectedItem), "dd/MM/yyyy", { locale: id })}</div>
               
               <div className="font-semibold">Jumlah Hadir:</div>
-              <div>{selectedItem.jumlahHadir} orang</div>
+              <div>{getJumlahHadir(selectedItem)} orang</div>
               
               <div className="font-semibold">Total Biaya:</div>
-              <div>Rp {(selectedItem.kolekte1 + selectedItem.kolekte2 + selectedItem.ucapanSyukur).toLocaleString('id-ID')}</div>
+              <div>Rp {getTotal(selectedItem).toLocaleString('id-ID')}</div>
+
+              <div className="font-semibold">Keterangan:</div>
+              <div>{getKeterangan(selectedItem)}</div>
             </div>
             
             {confirmAction === 'reject' && (
               <div className="mt-4">
-                <Label htmlFor="rejection-reason" className="font-semibold mb-2">Alasan Edit:</Label>
+                <Label htmlFor="rejection-reason" className="font-semibold mb-2">Alasan Penolakan:</Label>
                 <Textarea
                   id="rejection-reason"
                   className="w-full"
                   rows={3}
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder="Masukkan alasan edit..."
+                  placeholder="Masukkan alasan penolakan..."
                 />
               </div>
             )}
@@ -125,7 +164,7 @@ export function ConfirmationDialog({
               ? 'Memproses...' 
               : confirmAction === 'approve' 
                 ? 'Setujui' 
-                : 'Edit'
+                : 'Tolak'
             }
           </Button>
         </DialogFooter>

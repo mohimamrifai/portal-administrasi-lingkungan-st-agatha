@@ -5,28 +5,36 @@ import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ApprovalItem } from "../types"
 import { ApprovalFilter } from "./approval-filter"
 import { ApprovalTable } from "./approval-table"
 import { ConfirmationDialog } from "./confirmation-dialog"
 import { ApprovalStats } from "./approval-stats"
 import { ApprovalHistory } from "./approval-history"
-import { fetchApprovalData, approveItem, rejectItem } from "../utils/service"
 import LoadingSkeleton from "./loading-skeleton"
+import { StatusApproval } from "@prisma/client"
+import { ExtendedApproval, ApprovalStats as ApprovalStatsType } from "../types"
+import { getApprovals, approveApproval, rejectApproval, getFilteredApprovals, getApprovalStats } from "../utils/actions"
 
 export default function ApprovalContent() {
   const [activeTab, setActiveTab] = useState("daftar")
-  const [selectedMonth, setSelectedMonth] = useState<string>(
-    `${new Date().getFullYear()}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`
-  )
+  const [selectedMonth, setSelectedMonth] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [approvalData, setApprovalData] = useState<ApprovalItem[]>([])
-  const [filteredData, setFilteredData] = useState<ApprovalItem[]>([])
+  const [approvalData, setApprovalData] = useState<ExtendedApproval[]>([])
+  const [filteredData, setFilteredData] = useState<ExtendedApproval[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [stats, setStats] = useState<ApprovalStatsType>({
+    total: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    totalAmount: 0,
+    thisMonthApproved: 0,
+    thisMonthAmount: 0
+  })
   
   // Dialog state
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<ApprovalItem | null>(null)
+  const [selectedItem, setSelectedItem] = useState<ExtendedApproval | null>(null)
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
 
@@ -35,8 +43,19 @@ export default function ApprovalContent() {
     const loadData = async () => {
       setIsLoading(true)
       try {
-        const data = await fetchApprovalData()
-        setApprovalData(data)
+        // Ambil data approval
+        const approvalsResponse = await getApprovals()
+        if (approvalsResponse.success && approvalsResponse.data) {
+          setApprovalData(approvalsResponse.data as ExtendedApproval[])
+        } else {
+          throw new Error(approvalsResponse.error || "Gagal memuat data approval")
+        }
+
+        // Ambil statistik
+        const statsResponse = await getApprovalStats()
+        if (statsResponse.success && statsResponse.data) {
+          setStats(statsResponse.data)
+        }
       } catch (error) {
         console.error("Error fetching approval data:", error)
         toast.error("Gagal memuat data. Silakan coba lagi.")
@@ -50,23 +69,50 @@ export default function ApprovalContent() {
 
   // Filter data berdasarkan bulan dan status
   useEffect(() => {
-    if (approvalData.length === 0) return
-    
-    const filterData = () => {
-      let filtered = approvalData;
-      if (selectedMonth !== 'all') {
-        const [year, month] = selectedMonth.split('-').map(n => parseInt(n))
-        filtered = filtered.filter(item => {
-          const itemYear = item.tanggal.getFullYear()
-          const itemMonth = item.tanggal.getMonth() + 1
-          return itemYear === year && itemMonth === month
-        })
+    const filterData = async () => {
+      if (approvalData.length === 0) return
+
+      try {
+        const filteredResponse = await getFilteredApprovals(selectedMonth, statusFilter)
+        if (filteredResponse.success && filteredResponse.data) {
+          setFilteredData(filteredResponse.data as ExtendedApproval[])
+        } else {
+          throw new Error(filteredResponse.error || "Gagal memfilter data")
+        }
+      } catch (error) {
+        console.error("Error filtering data:", error)
+        toast.error("Gagal memfilter data. Menggunakan data yang tersedia.")
+        // Fallback ke filter lokal jika server action gagal
+        let filtered = [...approvalData]
+        
+        if (statusFilter !== "all") {
+          const statusEnum = statusFilter.toUpperCase() as StatusApproval
+          filtered = filtered.filter(item => item.status === statusEnum)
+        }
+        
+        if (selectedMonth !== 'all') {
+          const [year, month] = selectedMonth.split('-').map(n => parseInt(n))
+          filtered = filtered.filter(item => {
+            let itemDate: Date | null = null
+            
+            if (item.doaLingkungan) {
+              itemDate = new Date(item.doaLingkungan.tanggal)
+            } else if (item.kasLingkungan) {
+              itemDate = new Date(item.kasLingkungan.tanggal)
+            }
+            
+            if (!itemDate) return false
+            
+            const itemYear = itemDate.getFullYear()
+            const itemMonth = itemDate.getMonth() + 1
+            return itemYear === year && itemMonth === month
+          })
+        }
+        
+        setFilteredData(filtered)
       }
-      if (statusFilter !== "all") {
-        filtered = filtered.filter(item => item.status === statusFilter as 'pending' | 'approved' | 'rejected')
-      }
-      setFilteredData(filtered)
     }
+    
     filterData()
   }, [selectedMonth, statusFilter, approvalData])
 
@@ -81,14 +127,14 @@ export default function ApprovalContent() {
   }
 
   // Membuka dialog konfirmasi untuk approve
-  const handleOpenApproveDialog = (item: ApprovalItem) => {
+  const handleOpenApproveDialog = (item: ExtendedApproval) => {
     setSelectedItem(item)
     setConfirmAction('approve')
     setIsDialogOpen(true)
   }
   
   // Membuka dialog konfirmasi untuk reject
-  const handleOpenRejectDialog = (item: ApprovalItem) => {
+  const handleOpenRejectDialog = (item: ExtendedApproval) => {
     setSelectedItem(item)
     setConfirmAction('reject')
     setIsDialogOpen(true)
@@ -102,16 +148,20 @@ export default function ApprovalContent() {
     
     try {
       if (confirmAction === 'approve') {
-        const success = await approveItem(selectedItem, message)
+        const success = await approveApproval(selectedItem.id)
         
         if (success) {
-          // Update approval data
-          const updatedData = approvalData.map(item => 
-            item.id === selectedItem.id
-              ? { ...item, status: 'approved' as const, message }
-              : item
-          )
-          setApprovalData(updatedData)
+          // Reload data untuk mendapatkan perubahan terbaru
+          const approvalsResponse = await getApprovals()
+          if (approvalsResponse.success && approvalsResponse.data) {
+            setApprovalData(approvalsResponse.data as ExtendedApproval[])
+          }
+          
+          // Reload statistik
+          const statsResponse = await getApprovalStats()
+          if (statsResponse.success && statsResponse.data) {
+            setStats(statsResponse.data)
+          }
           
           toast.success(`Persetujuan berhasil. Data telah diintegrasikan ke Kas Lingkungan.`)
           toast.info(`Notifikasi telah dikirim ke pengurus.`)
@@ -119,20 +169,24 @@ export default function ApprovalContent() {
           toast.error("Gagal mengintegrasikan data ke Kas Lingkungan. Silakan coba lagi.")
         }
       } else {
-        const success = await rejectItem(selectedItem, reason, message)
+        const success = await rejectApproval(selectedItem.id, reason)
         
         if (success) {
-          // Update approval data
-          const updatedData = approvalData.map(item => 
-            item.id === selectedItem.id
-              ? { ...item, status: 'rejected' as const, reason, message }
-              : item
-          )
-          setApprovalData(updatedData)
+          // Reload data untuk mendapatkan perubahan terbaru
+          const approvalsResponse = await getApprovals()
+          if (approvalsResponse.success && approvalsResponse.data) {
+            setApprovalData(approvalsResponse.data as ExtendedApproval[])
+          }
           
-          toast.info(`Permohonan diedit. Notifikasi telah dikirim ke pengurus.`)
+          // Reload statistik
+          const statsResponse = await getApprovalStats()
+          if (statsResponse.success && statsResponse.data) {
+            setStats(statsResponse.data)
+          }
+          
+          toast.info(`Permohonan ditolak. Notifikasi telah dikirim ke pengurus.`)
         } else {
-          toast.error("Gagal mengedit permohonan. Silakan coba lagi.")
+          toast.error("Gagal menolak permohonan. Silakan coba lagi.")
         }
       }
       
@@ -152,7 +206,7 @@ export default function ApprovalContent() {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <ApprovalStats items={approvalData} />
+      <ApprovalStats stats={stats} />
 
       {/* Tabs */}
       <Tabs
@@ -160,20 +214,20 @@ export default function ApprovalContent() {
         onValueChange={setActiveTab}
         className="w-full"
       >
-        <TabsList className="mb-4 bg-muted/60">
-          <TabsTrigger value="daftar">Daftar Approval</TabsTrigger>
-          <TabsTrigger value="riwayat">Riwayat Approval</TabsTrigger>
+        <TabsList className="mb-4 bg-muted/60 w-full sm:w-auto grid grid-cols-2 sm:flex">
+          <TabsTrigger value="daftar" className="flex-1 px-4">Daftar Approval</TabsTrigger>
+          <TabsTrigger value="riwayat" className="flex-1 px-4">Riwayat Approval</TabsTrigger>
         </TabsList>
 
         <TabsContent value="daftar" className="space-y-4">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-col space-y-1.5 p-4 sm:p-6">
               <CardTitle>Daftar Persetujuan</CardTitle>
               <CardDescription>
                 Kelola semua permohonan yang memerlukan persetujuan
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
               {/* Filter */}
               <div className="mb-6">
                 <ApprovalFilter
@@ -196,7 +250,7 @@ export default function ApprovalContent() {
 
         <TabsContent value="riwayat" className="space-y-4">
           <Card>
-            <CardContent>
+            <CardContent className="p-4 sm:p-6">
               <ApprovalHistory selectedMonth={selectedMonth} approvalData={approvalData} />
             </CardContent>
           </Card>

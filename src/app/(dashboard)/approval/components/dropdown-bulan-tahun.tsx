@@ -14,55 +14,79 @@ export function DropdownBulanTahun({ value, onChange, className }: {
   onChange: (val: string) => void;
   className?: string;
 }) {
-  const [bulan, setBulan] = React.useState<string>(value === 'all' ? 'all' : value.split("-")[1] || "01");
-  const [tahun, setTahun] = React.useState<string>(value === 'all' ? new Date().getFullYear().toString() : value.split("-")[0] || new Date().getFullYear().toString());
+  const currentYear = new Date().getFullYear().toString();
+  
+  // Default 'all' untuk bulan dan tahun sekarang untuk value awal
+  const [bulan, setBulan] = React.useState<string>(value === 'all' ? 'all' : value.split("-")[1] || "all");
+  const [tahun, setTahun] = React.useState<string>(value === 'all' ? 'all' : value.split("-")[0] || currentYear);
 
   React.useEffect(() => {
     if (value === 'all') {
       setBulan('all');
+      setTahun('all');
     } else {
-      setBulan(value.split("-")[1] || "01");
-      setTahun(value.split("-")[0] || new Date().getFullYear().toString());
+      const parts = value.split("-");
+      if (parts.length === 2) {
+        setTahun(parts[0]);
+        setBulan(parts[1]);
+      }
     }
   }, [value]);
 
   const handleBulanChange = (val: string) => {
-    if (val === 'all') {
-      setBulan('all');
+    setBulan(val);
+    if (val === 'all' && tahun === 'all') {
       onChange('all');
+    } else if (val === 'all') {
+      onChange(`${tahun}-all`);
+    } else if (tahun === 'all') {
+      onChange(`all-${val}`);
     } else {
-      setBulan(val);
       onChange(`${tahun}-${val}`);
     }
   };
+  
   const handleTahunChange = (val: string) => {
     setTahun(val);
-    onChange(`${val}-${bulan}`);
+    if (val === 'all' && bulan === 'all') {
+      onChange('all');
+    } else if (val === 'all') {
+      onChange(`all-${bulan}`);
+    } else if (bulan === 'all') {
+      onChange(`${val}-all`);
+    } else {
+      onChange(`${val}-${bulan}`);
+    }
   };
 
   return (
-    <div className={`flex gap-2 ${className || ""}`}>
-      <Select value={bulan} onValueChange={handleBulanChange}>
-        <SelectTrigger className="w-[120px]">
-          <SelectValue>{bulan === 'all' ? 'Semua Bulan' : bulanLabel[parseInt(bulan, 10) - 1]}</SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Semua Bulan</SelectItem>
-          {bulanList.map((b, i) => (
-            <SelectItem key={b} value={b}>{bulanLabel[i]}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select value={tahun} onValueChange={handleTahunChange}>
-        <SelectTrigger className="w-[90px]">
-          <SelectValue>{tahun}</SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {tahunList.map((t) => (
-            <SelectItem key={t} value={t}>{t}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    <div className={`flex flex-col sm:flex-row gap-2 w-full ${className || ""}`}>
+      <div className="w-full">
+        <Select value={bulan} onValueChange={handleBulanChange}>
+          <SelectTrigger className="w-full">
+            <SelectValue>{bulan === 'all' ? 'Semua Bulan' : bulanLabel[parseInt(bulan, 10) - 1]}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Bulan</SelectItem>
+            {bulanList.map((b, i) => (
+              <SelectItem key={b} value={b}>{bulanLabel[i]}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="w-full">
+        <Select value={tahun} onValueChange={handleTahunChange}>
+          <SelectTrigger className="w-full">
+            <SelectValue>{tahun === 'all' ? 'Semua Tahun' : tahun}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Tahun</SelectItem>
+            {tahunList.map((t) => (
+              <SelectItem key={t} value={t}>{t}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
-} 
+}

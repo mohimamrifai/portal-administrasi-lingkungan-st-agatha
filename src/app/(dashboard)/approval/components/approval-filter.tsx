@@ -24,22 +24,31 @@ export function ApprovalFilter({
   statusFilter,
 }: ApprovalFilterProps) {
   return (
-    <div className="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-4">
-      <DropdownBulanTahun
-        value={selectedMonth}
-        onChange={val => onMonthChange({ target: { value: val } } as React.ChangeEvent<HTMLInputElement>)}
-      />
-      <Select onValueChange={onStatusFilterChange} value={statusFilter} defaultValue="all">
-        <SelectTrigger className="w-full md:w-[180px]">
-          <SelectValue placeholder="Filter Status" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Semua Status</SelectItem>
-          <SelectItem value="pending">Menunggu Persetujuan</SelectItem>
-          <SelectItem value="approved">Disetujui</SelectItem>
-          <SelectItem value="rejected">Ditolak</SelectItem>
-        </SelectContent>
-      </Select>
+    <div className="flex flex-col gap-4 w-full">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-muted-foreground">Pilih Periode</label>
+          <DropdownBulanTahun
+            value={selectedMonth}
+            onChange={val => onMonthChange({ target: { value: val } } as React.ChangeEvent<HTMLInputElement>)}
+            className="w-full"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-muted-foreground">Status</label>
+          <Select onValueChange={onStatusFilterChange} value={statusFilter} defaultValue="all">
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Filter Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Status</SelectItem>
+              <SelectItem value="pending">Menunggu Persetujuan</SelectItem>
+              <SelectItem value="approved">Disetujui</SelectItem>
+              <SelectItem value="rejected">Ditolak</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
     </div>
   )
 } 

@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
-import { ApprovalItem } from "../types"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { StatusApproval } from "@prisma/client"
+import { ExtendedApproval } from "../types"
 import { 
   MessageCircleIcon, 
   ChevronLeftIcon, 
@@ -46,20 +47,20 @@ import {
 import { Input } from "@/components/ui/input"
 
 interface ApprovalTableProps {
-  items: ApprovalItem[]
-  onApprove: (item: ApprovalItem) => void
-  onReject: (item: ApprovalItem) => void
+  items: ExtendedApproval[]
+  onApprove: (item: ExtendedApproval) => void
+  onReject: (item: ExtendedApproval) => void
 }
 
 export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps) {
-  const [selectedItem, setSelectedItem] = useState<ApprovalItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<ExtendedApproval | null>(null);
   const [messageDialogOpen, setMessageDialogOpen] = useState(false);
   const [confirmationDialogOpen, setConfirmationDialogOpen] = useState(false);
   const [actionType, setActionType] = useState<'reset' | 'approve' | 'reject' | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editValues, setEditValues] = useState({
-    kolekte1: 0,
-    kolekte2: 0,
+    kolekteI: 0,
+    kolekteII: 0,
     ucapanSyukur: 0,
     keterangan: ""
   });
@@ -113,18 +114,18 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
     setCurrentPage(1); // Reset to first page when changing page size
   };
 
-  const viewMessage = (item: ApprovalItem) => {
+  const viewMessage = (item: ExtendedApproval) => {
     setSelectedItem(item);
     setMessageDialogOpen(true);
   };
 
-  const handleResetStatus = (item: ApprovalItem) => {
+  const handleResetStatus = (item: ExtendedApproval) => {
     setSelectedItem(item);
     setActionType('reset');
     setConfirmationDialogOpen(true);
   };
 
-  const handleChangeStatus = (item: ApprovalItem, newStatus: 'approve' | 'reject') => {
+  const handleChangeStatus = (item: ExtendedApproval, newStatus: 'approve' | 'reject') => {
     setSelectedItem(item);
     setActionType(newStatus);
     setConfirmationDialogOpen(true);
@@ -147,228 +148,279 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
   };
 
   // Fungsi untuk membuka dialog edit
-  const handleEditNominal = (item: ApprovalItem) => {
+  const handleEditNominal = (item: ExtendedApproval) => {
+    if (!item.doaLingkungan) return;
+    
     setSelectedItem(item);
     setEditValues({
-      kolekte1: item.kolekte1,
-      kolekte2: item.kolekte2,
-      ucapanSyukur: item.ucapanSyukur,
-      keterangan: item.keterangan || ""
+      kolekteI: item.doaLingkungan.kolekteI,
+      kolekteII: item.doaLingkungan.kolekteII,
+      ucapanSyukur: item.doaLingkungan.ucapanSyukur,
+      keterangan: item.doaLingkungan.tuanRumah.namaKepalaKeluarga || ""
     });
     setEditDialogOpen(true);
   };
 
   // Fungsi untuk menyimpan hasil edit
   const handleSaveEdit = () => {
-    if (!selectedItem) return;
-    // Update data pada items (harus di-lift ke parent jika ingin persist)
-    selectedItem.kolekte1 = editValues.kolekte1;
-    selectedItem.kolekte2 = editValues.kolekte2;
-    selectedItem.ucapanSyukur = editValues.ucapanSyukur;
-    selectedItem.keterangan = editValues.keterangan;
+    if (!selectedItem || !selectedItem.doaLingkungan) return;
+    
+    // Update server-side dan refresh data (implementasi di komponen parent)
+    console.log('Save edit data', selectedItem.id, editValues);
     setEditDialogOpen(false);
+  };
+
+  // Fungsi untuk mendapatkan tanggal
+  const getItemDate = (item: ExtendedApproval): Date => {
+    if (item.doaLingkungan) {
+      return new Date(item.doaLingkungan.tanggal);
+    } else if (item.kasLingkungan) {
+      return new Date(item.kasLingkungan.tanggal);
+    }
+    return new Date(item.createdAt);
+  };
+
+  // Fungsi untuk mendapatkan nilai kolekte I
+  const getKolekteI = (item: ExtendedApproval): number => {
+    return item.doaLingkungan?.kolekteI || 0;
+  };
+
+  // Fungsi untuk mendapatkan nilai kolekte II
+  const getKolekteII = (item: ExtendedApproval): number => {
+    return item.doaLingkungan?.kolekteII || 0;
+  };
+
+  // Fungsi untuk mendapatkan nilai ucapan syukur
+  const getUcapanSyukur = (item: ExtendedApproval): number => {
+    return item.doaLingkungan?.ucapanSyukur || 0;
+  };
+
+  // Fungsi untuk mendapatkan keterangan
+  const getKeterangan = (item: ExtendedApproval): string => {
+    if (item.doaLingkungan) {
+      return item.doaLingkungan.tuanRumah.namaKepalaKeluarga;
+    } else if (item.kasLingkungan?.keterangan) {
+      return item.kasLingkungan.keterangan;
+    }
+    return '-';
+  };
+
+  // Fungsi untuk mendapatkan jumlah hadir
+  const getJumlahHadir = (item: ExtendedApproval): number => {
+    return item.doaLingkungan?.jumlahKKHadir || 0;
+  };
+
+  // Fungsi untuk mendapatkan total
+  const getTotal = (item: ExtendedApproval): number => {
+    if (item.doaLingkungan) {
+      return item.doaLingkungan.kolekteI + item.doaLingkungan.kolekteII + item.doaLingkungan.ucapanSyukur;
+    } else if (item.kasLingkungan) {
+      return item.kasLingkungan.debit;
+    }
+    return 0;
   };
 
   return (
     <div className="space-y-4">
-      <div className="rounded-md border relative overflow-x-auto max-w-[1020px]">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Tanggal</TableHead>
-              <TableHead>Kolekte I</TableHead>
-              <TableHead>Kolekte II</TableHead>
-              <TableHead>Ucapan Syukur</TableHead>
-              <TableHead>Keterangan</TableHead>
-              <TableHead>Jumlah Hadir</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Pesan</TableHead>
-              <TableHead className="sticky right-0 bg-white z-20 shadow-lg text-right">Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {currentItems.length > 0 ? (
-              currentItems.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{format(item.tanggal, "dd/MM/yyyy", { locale: id })}</TableCell>
-                  <TableCell>Rp {item.kolekte1.toLocaleString('id-ID')}</TableCell>
-                  <TableCell>Rp {item.kolekte2.toLocaleString('id-ID')}</TableCell>
-                  <TableCell>Rp {item.ucapanSyukur.toLocaleString('id-ID')}</TableCell>
-                  <TableCell>{item.keterangan || '-'}</TableCell>
-                  <TableCell>{item.jumlahHadir} orang</TableCell>
-                  <TableCell>Rp {(item.kolekte1 + item.kolekte2 + item.ucapanSyukur).toLocaleString('id-ID')}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={item.status === 'approved' ? 'success' : item.status === 'rejected' ? 'destructive' : 'outline'}
-                      className={
-                        item.status === 'pending'
-                          ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'
-                          : item.status === 'approved'
-                          ? 'bg-green-100 text-green-800 hover:bg-green-100'
-                          : 'bg-red-100 text-red-800 hover:bg-red-100'
-                      }
-                    >
-                      {item.status === 'pending'
-                        ? 'Menunggu'
-                        : item.status === 'approved'
-                        ? 'Disetujui'
-                        : 'Diedit'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {item.message || item.reason ? (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              onClick={() => viewMessage(item)}
-                            >
-                              <MessageCircleIcon className="h-4 w-4 text-blue-500" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Lihat pesan</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="sticky right-0 bg-white z-20 shadow-lg text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
-                          <span className="sr-only">Menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {item.status === 'pending' && (
-                          <>
-                            <DropdownMenuItem onClick={() => onApprove(item)}>
-                              <CheckIcon className="mr-2 h-4 w-4 text-green-600" />
-                              <span>Setujui</span>
-                            </DropdownMenuItem>
+      <div className="rounded-md border shadow-sm overflow-hidden">
+        <div className="overflow-x-auto max-w-full">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[110px]">Tanggal</TableHead>
+                <TableHead className="w-[100px]">Kolekte I</TableHead>
+                <TableHead className="w-[100px]">Kolekte II</TableHead>
+                <TableHead className="w-[120px]">Ucapan Syukur</TableHead>
+                <TableHead className="min-w-[150px]">Keterangan</TableHead>
+                <TableHead className="w-[100px]">Jumlah Hadir</TableHead>
+                <TableHead className="w-[100px]">Total</TableHead>
+                <TableHead className="w-[100px]">Status</TableHead>
+                <TableHead className="sticky right-0 bg-white shadow-md text-right w-[70px]">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {currentItems.length > 0 ? (
+                currentItems.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>{format(getItemDate(item), "dd/MM/yyyy", { locale: id })}</TableCell>
+                    <TableCell>Rp {getKolekteI(item).toLocaleString('id-ID')}</TableCell>
+                    <TableCell>Rp {getKolekteII(item).toLocaleString('id-ID')}</TableCell>
+                    <TableCell>Rp {getUcapanSyukur(item).toLocaleString('id-ID')}</TableCell>
+                    <TableCell className="max-w-[200px] truncate" title={getKeterangan(item)}>{getKeterangan(item)}</TableCell>
+                    <TableCell>{getJumlahHadir(item)} orang</TableCell>
+                    <TableCell>Rp {getTotal(item).toLocaleString('id-ID')}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={item.status === StatusApproval.APPROVED ? 'success' : item.status === StatusApproval.REJECTED ? 'destructive' : 'outline'}
+                        className={
+                          item.status === StatusApproval.PENDING
+                            ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'
+                            : item.status === StatusApproval.APPROVED
+                            ? 'bg-green-100 text-green-800 hover:bg-green-100'
+                            : 'bg-red-100 text-red-800 hover:bg-red-100'
+                        }
+                      >
+                        {item.status === StatusApproval.PENDING
+                          ? 'Menunggu'
+                          : item.status === StatusApproval.APPROVED
+                          ? 'Disetujui'
+                          : 'Ditolak'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="sticky right-0 bg-white shadow-md text-right p-0 pr-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                            <span className="sr-only">Menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-[200px]">
+                          {item.status === StatusApproval.PENDING && (
+                            <>
+                              <DropdownMenuItem onClick={() => handleChangeStatus(item, 'approve')}>
+                                <CheckIcon className="mr-2 h-4 w-4 text-green-600" />
+                                <span>Setujui</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleChangeStatus(item, 'reject')}>
+                                <XIcon className="mr-2 h-4 w-4 text-red-600" />
+                                <span>Tolak/Edit</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                            </>
+                          )}
+                          {item.doaLingkungan && (
                             <DropdownMenuItem onClick={() => handleEditNominal(item)}>
                               <PencilIcon className="mr-2 h-4 w-4 text-blue-600" />
                               <span>Edit Nominal</span>
                             </DropdownMenuItem>
-                          </>
-                        )}
-
-                        {item.status === 'approved' && (
-                          <>
+                          )}
+                          {(item.status === StatusApproval.APPROVED || item.status === StatusApproval.REJECTED) && (
                             <DropdownMenuItem onClick={() => handleResetStatus(item)}>
                               <RotateCcwIcon className="mr-2 h-4 w-4 text-amber-600" />
-                              <span>Batalkan Persetujuan</span>
+                              <span>Reset Status</span>
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleChangeStatus(item, 'reject')}>
-                              <XIcon className="mr-2 h-4 w-4 text-red-600" />
-                              <span>Ubah Jadi Diedit</span>
-                            </DropdownMenuItem>
-                          </>
-                        )}
-
-                        {item.status === 'rejected' && (
-                          <>
-                            <DropdownMenuItem onClick={() => handleResetStatus(item)}>
-                              <RotateCcwIcon className="mr-2 h-4 w-4 text-amber-600" />
-                              <span>Batalkan Edit</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleChangeStatus(item, 'approve')}>
-                              <CheckIcon className="mr-2 h-4 w-4 text-green-600" />
-                              <span>Ubah Jadi Disetujui</span>
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-10">
+                    <div className="flex flex-col items-center justify-center space-y-3">
+                      <AlertCircleIcon className="h-8 w-8 text-muted-foreground" />
+                      <div className="text-muted-foreground">
+                        <p className="text-sm">Tidak ada data yang ditemukan</p>
+                        <p className="text-xs">Coba ubah filter atau kunjungi lain waktu</p>
+                      </div>
+                    </div>
                   </TableCell>
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={10} className="h-24 text-center">
-                  Tidak ada data
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
-      
+
       {/* Pagination */}
-      {items.length > 0 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
-          <div className="text-sm text-muted-foreground">
-            Menampilkan {startIndex + 1}-{endIndex} dari {totalItems} item
-          </div>
-          <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2">
+      {totalItems > 0 && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-2 text-sm">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <div>Baris per halaman:</div>
             <Select
               value={pageSize.toString()}
               onValueChange={handlePageSizeChange}
             >
-              <SelectTrigger className="w-[130px] h-9">
-                <SelectValue />
+              <SelectTrigger className="h-8 w-16">
+                <SelectValue placeholder={pageSize.toString()} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="5">5 per halaman</SelectItem>
-                <SelectItem value="10">10 per halaman</SelectItem>
-                <SelectItem value="20">20 per halaman</SelectItem>
-                <SelectItem value="50">50 per halaman</SelectItem>
+                <SelectItem value="5">5</SelectItem>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
               </SelectContent>
             </Select>
-            <div className="flex items-center space-x-1">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-9 w-9"
-                onClick={goToFirstPage}
-                disabled={currentPage === 1}
-              >
-                <ChevronsLeftIcon className="h-4 w-4" />
-                <span className="sr-only">Halaman pertama</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-9 w-9"
-                onClick={goToPreviousPage}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeftIcon className="h-4 w-4" />
-                <span className="sr-only">Halaman sebelumnya</span>
-              </Button>
-              <span className="text-sm font-medium px-2">
-                {currentPage} / {totalPages || 1}
-              </span>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-9 w-9"
-                onClick={goToNextPage}
-                disabled={currentPage === totalPages || totalPages === 0}
-              >
-                <ChevronRightIcon className="h-4 w-4" />
-                <span className="sr-only">Halaman berikutnya</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-9 w-9"
-                onClick={goToLastPage}
-                disabled={currentPage === totalPages || totalPages === 0}
-              >
-                <ChevronsRightIcon className="h-4 w-4" />
-                <span className="sr-only">Halaman terakhir</span>
-              </Button>
+            <div className="text-xs">
+              {startIndex + 1}-{endIndex} dari {totalItems}
             </div>
+          </div>
+
+          <div className="flex items-center gap-1 w-full sm:w-auto justify-center sm:justify-end">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={goToFirstPage}
+              disabled={currentPage === 1}
+            >
+              <ChevronsLeftIcon className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={goToPreviousPage}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeftIcon className="h-4 w-4" />
+            </Button>
+
+            {/* Simplified pagination display for all screen sizes */}
+            {totalPages <= 3 ? (
+              // Show all pages if 3 or fewer
+              <div className="flex items-center gap-1 mx-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? "default" : "outline"}
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => goToPage(page)}
+                  >
+                    {page}
+                  </Button>
+                ))}
+              </div>
+            ) : (
+              // Show simplified pagination for more pages
+              <div className="flex items-center gap-1 mx-1">
+                {/* Current page always visible */}
+                <Button
+                  variant="default"
+                  size="icon"
+                  className="h-8 w-8"
+                >
+                  {currentPage}
+                </Button>
+                
+                {/* Show total pages counter instead of too many buttons */}
+                <span className="text-xs text-muted-foreground mx-1 whitespace-nowrap">
+                  dari {totalPages}
+                </span>
+              </div>
+            )}
+
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={goToNextPage}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronRightIcon className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={goToLastPage}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronsRightIcon className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       )}
@@ -377,18 +429,24 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
       <Dialog open={messageDialogOpen} onOpenChange={setMessageDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Pesan</DialogTitle>
+            <DialogTitle>Detail Pesan</DialogTitle>
             <DialogDescription>
-              {selectedItem?.status === 'rejected' ? 'Alasan edit:' : 'Catatan:'}
+              {selectedItem?.status === StatusApproval.APPROVED
+                ? "Informasi persetujuan"
+                : "Alasan pengeditan/penolakan"}
             </DialogDescription>
           </DialogHeader>
-          <div className="p-4 rounded-md bg-gray-50">
-            <p>{selectedItem?.status === 'rejected' && selectedItem?.reason 
-              ? selectedItem.reason 
-              : selectedItem?.message || 'Tidak ada pesan.'}</p>
+          <div className="space-y-4 py-4">
+            <div className="rounded-lg bg-muted p-4">
+              <p className="text-sm">
+                {selectedItem?.status === StatusApproval.REJECTED
+                  ? "Alasan: " + (selectedItem as any)?.reason || "Tidak ada alasan yang diberikan."
+                  : (selectedItem as any)?.message || "Tidak ada pesan."}
+              </p>
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setMessageDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setMessageDialogOpen(false)}>
               Tutup
             </Button>
           </DialogFooter>
@@ -399,93 +457,96 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
       <Dialog open={confirmationDialogOpen} onOpenChange={setConfirmationDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Konfirmasi</DialogTitle>
+            <DialogTitle>
+              {actionType === 'approve'
+                ? 'Konfirmasi Persetujuan'
+                : actionType === 'reject'
+                ? 'Konfirmasi Penolakan'
+                : 'Reset Status'}
+            </DialogTitle>
             <DialogDescription>
-              {actionType === 'reset'
-                ? 'Apakah Anda yakin ingin membatalkan status persetujuan ini?'
-                : actionType === 'approve'
-                ? 'Apakah Anda yakin ingin mengubah status menjadi disetujui?'
-                : 'Apakah Anda yakin ingin mengubah status menjadi diedit?'}
+              {actionType === 'approve'
+                ? 'Apakah Anda yakin ingin menyetujui item ini? Data akan diintegrasikan ke Kas Lingkungan.'
+                : actionType === 'reject'
+                ? 'Apakah Anda yakin ingin menolak item ini?'
+                : 'Apakah Anda yakin ingin mereset status item ini ke Menunggu Persetujuan?'}
             </DialogDescription>
           </DialogHeader>
-          <div className="p-4 rounded-md bg-amber-50 flex items-start space-x-2">
-            <AlertCircleIcon className="h-5 w-5 text-amber-600 mt-0.5" />
-            <p className="text-sm text-amber-800">
-              {actionType === 'reset'
-                ? 'Tindakan ini akan mengembalikan status persetujuan menjadi "Menunggu".'
-                : 'Tindakan ini akan mengubah status persetujuan saat ini.'}
-            </p>
-          </div>
-          <DialogFooter className="flex space-x-2 justify-end">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmationDialogOpen(false)}>
               Batal
             </Button>
-            <Button 
-              variant={actionType === 'reject' ? 'destructive' : 'default'} 
+            <Button
+              variant={actionType === 'approve' ? 'default' : actionType === 'reject' ? 'destructive' : 'secondary'}
               onClick={confirmAction}
             >
-              Ya, Lanjutkan
+              {actionType === 'approve'
+                ? 'Setujui'
+                : actionType === 'reject'
+                ? 'Tolak'
+                : 'Reset'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Nominal Dialog */}
+      {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Edit Nominal Kolekte</DialogTitle>
+            <DialogTitle>Edit Data Doa Lingkungan</DialogTitle>
             <DialogDescription>
-              Ubah nominal kolekte dan keterangan sesuai kebutuhan.
+              Perbarui nilai kolekte dan ucapan syukur
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Kolekte I</label>
-              <Input
-                type="number"
-                value={editValues.kolekte1}
-                onChange={e => setEditValues({ ...editValues, kolekte1: Number(e.target.value) })}
-                min={0}
-              />
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="kolekte1" className="text-sm font-medium">Kolekte I</label>
+                <Input
+                  id="kolekte1"
+                  type="number"
+                  value={editValues.kolekteI}
+                  onChange={(e) => setEditValues({ ...editValues, kolekteI: Number(e.target.value) })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="kolekte2" className="text-sm font-medium">Kolekte II</label>
+                <Input
+                  id="kolekte2"
+                  type="number"
+                  value={editValues.kolekteII}
+                  onChange={(e) => setEditValues({ ...editValues, kolekteII: Number(e.target.value) })}
+                  className="col-span-3"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Kolekte II</label>
+            <div className="space-y-2">
+              <label htmlFor="ucapanSyukur" className="text-sm font-medium">Ucapan Syukur</label>
               <Input
-                type="number"
-                value={editValues.kolekte2}
-                onChange={e => setEditValues({ ...editValues, kolekte2: Number(e.target.value) })}
-                min={0}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Ucapan Syukur</label>
-              <Input
+                id="ucapanSyukur"
                 type="number"
                 value={editValues.ucapanSyukur}
-                onChange={e => setEditValues({ ...editValues, ucapanSyukur: Number(e.target.value) })}
-                min={0}
+                onChange={(e) => setEditValues({ ...editValues, ucapanSyukur: Number(e.target.value) })}
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Keterangan</label>
+            <div className="space-y-2">
+              <label htmlFor="keterangan" className="text-sm font-medium">Keterangan</label>
               <Input
-                type="text"
+                id="keterangan"
                 value={editValues.keterangan}
-                onChange={e => setEditValues({ ...editValues, keterangan: e.target.value })}
+                onChange={(e) => setEditValues({ ...editValues, keterangan: e.target.value })}
+                disabled
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-              Batal
-            </Button>
-            <Button onClick={handleSaveEdit}>
-              Simpan
-            </Button>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Batal</Button>
+            <Button onClick={handleSaveEdit}>Simpan Perubahan</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 } 

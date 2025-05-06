@@ -1,7 +1,6 @@
 "use client"
 
-import { ApprovalItem } from "../types"
-import { calculateApprovalStats } from "../utils/service"
+import { ApprovalStats as ApprovalStatsType } from "../types"
 import {
   Card,
   CardContent,
@@ -19,12 +18,10 @@ import {
 } from "lucide-react"
 
 interface ApprovalStatsProps {
-  items: ApprovalItem[]
+  stats: ApprovalStatsType
 }
 
-export function ApprovalStats({ items }: ApprovalStatsProps) {
-  const stats = calculateApprovalStats(items)
-
+export function ApprovalStats({ stats }: ApprovalStatsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Total Permohonan */}
