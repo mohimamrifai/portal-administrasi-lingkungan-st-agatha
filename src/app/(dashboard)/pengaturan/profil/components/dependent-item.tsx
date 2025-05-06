@@ -7,13 +7,29 @@ import { Edit, Trash2, Camera } from "lucide-react"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 import { Dependent, DependentType, Gender } from "../types"
+import { Badge } from "@/components/ui/badge"
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardHeader,
+  CardTitle,
+  CardFooter
+} from "@/components/ui/card"
+import { 
+  Pencil,
+  User, 
+  Calendar,
+  GraduationCap, 
+  Heart
+} from "lucide-react"
 
 interface DependentItemProps {
   dependent: Dependent
   onEdit: (dependent: Dependent) => void
   onDelete: (dependent: Dependent) => void
   onImageUpload: (entityType: 'familyHead' | 'spouse' | 'dependent', id?: number) => void
-  readOnly?: boolean
+  readOnly: boolean
 }
 
 export function DependentItem({ 
@@ -21,10 +37,8 @@ export function DependentItem({
   onEdit, 
   onDelete, 
   onImageUpload,
-  readOnly = false
+  readOnly
 }: DependentItemProps) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  
   // Helper untuk mendapatkan inisial nama
   const getInitials = (name: string) => {
     return name
@@ -35,81 +49,89 @@ export function DependentItem({
       .slice(0, 2);
   }
 
+  // Format tanggal
+  const formatDate = (date: Date | null) => {
+    if (!date) return "-";
+    return format(date, "dd MMM yyyy", { locale: id });
+  }
+
   return (
-    <div className="flex items-start gap-3 p-4 border rounded-md hover:bg-muted/30 transition-colors">
-      <div className="relative">
-        <Avatar className="h-16 w-16 border border-primary/10">
-          {dependent.imageUrl ? (
-            <AvatarImage src={dependent.imageUrl} alt={dependent.name} />
-          ) : (
-            <AvatarFallback className="text-xl">{getInitials(dependent.name)}</AvatarFallback>
-          )}
-        </Avatar>
+    <Card className="overflow-hidden border hover:border-primary/30 transition-all">
+      <div className="flex flex-col">
+        <div className="p-3 flex items-center gap-3">
+          <div className="relative">
+            <Avatar className="h-12 w-12 border-2 border-primary/10">
+              <AvatarImage src={dependent.imageUrl || ""} alt={dependent.name} />
+              <AvatarFallback>
+                {getInitials(dependent.name)}
+              </AvatarFallback>
+            </Avatar>
+            {!readOnly && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-background border border-border"
+                onClick={() => onImageUpload('dependent', dependent.id)}
+              >
+                <Camera className="h-3 w-3" />
+                <span className="sr-only">Ubah foto</span>
+              </Button>
+            )}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-medium truncate leading-tight">{dependent.name}</h3>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <Badge variant={dependent.dependentType === DependentType.CHILD ? "default" : "secondary"} className="text-[10px] px-1 py-0 h-4">
+                {dependent.dependentType === DependentType.CHILD ? 'Anak' : 'Kerabat'}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                {formatDate(dependent.birthDate)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <CardContent className="p-3 pt-0 pb-0 border-t border-border/20">
+          <div className="grid grid-cols-2 gap-1.5 text-xs">
+            <div className="flex items-center gap-1">
+              <GraduationCap className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+              <span className="truncate text-muted-foreground">{dependent.education}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+              <span className="truncate text-muted-foreground">{dependent.religion}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Heart className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+              <span className="truncate text-muted-foreground">{dependent.maritalStatus}</span>
+            </div>
+          </div>
+        </CardContent>
+
         {!readOnly && (
-          <Button 
-            variant="outline" 
-            size="icon" 
-            className="absolute -bottom-1 -right-1 rounded-full h-6 w-6 bg-background"
-            onClick={() => onImageUpload('dependent', dependent.id)}
-          >
-            <Camera className="h-3 w-3" />
-            <span className="sr-only">Upload foto</span>
-          </Button>
+          <CardFooter className="p-2 flex justify-end gap-1 border-t border-border/20">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-7 px-2 text-xs"
+              onClick={() => onEdit(dependent)}
+            >
+              <Pencil className="h-3 w-3 mr-1" />
+              Edit
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+              onClick={() => onDelete(dependent)}
+            >
+              <Trash2 className="h-3 w-3 mr-1" />
+              Hapus
+            </Button>
+          </CardFooter>
         )}
       </div>
-      
-      <div className="flex-1">
-        <div className="flex justify-between items-start">
-          <div>
-            <h4 className="font-medium text-base">{dependent.name}</h4>
-            <p className="text-sm text-muted-foreground mt-1">{dependent.dependentType}</p>
-          </div>
-          
-          {!readOnly && (
-            <div className="flex space-x-1">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => onEdit(dependent)}
-                className="h-8 w-8"
-              >
-                <Edit className="h-4 w-4" />
-                <span className="sr-only">Edit</span>
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => onDelete(dependent)}
-                className="h-8 w-8 text-destructive hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4" />
-                <span className="sr-only">Hapus</span>
-              </Button>
-            </div>
-          )}
-        </div>
-        
-        <div className="mt-2 text-sm grid gap-2 grid-cols-2">
-          <div>
-            <span className="text-muted-foreground">Tanggal Lahir: </span>
-            <span>
-              {format(new Date(dependent.birthDate), "dd MMM yyyy", { locale: id })}
-            </span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Jenis Kelamin: </span>
-            <span>{dependent.gender}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Tempat Lahir: </span>
-            <span>{dependent.birthPlace || "-"}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Pendidikan: </span>
-            <span>{dependent.education || "-"}</span>
-          </div>
-        </div>
-      </div>
-    </div>
+    </Card>
   )
 } 

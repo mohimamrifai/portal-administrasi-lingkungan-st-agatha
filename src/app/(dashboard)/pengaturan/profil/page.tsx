@@ -9,11 +9,6 @@ export const metadata: Metadata = {
   description: "Pengaturan data Kepala Keluarga, Pasangan, dan Tanggungan"
 }
 
-// Halaman ini tersedia untuk semua role dengan fungsionalitas yang sama
-// Pengaturan akses diimplementasikan melalui:
-// - routeAccessMap di middleware.ts 
-// - navMain di nav-menu.ts yang menampilkan menu untuk role yang bersangkutan
-
 export default function ProfilPage() {
   return (
     <div className="p-4">

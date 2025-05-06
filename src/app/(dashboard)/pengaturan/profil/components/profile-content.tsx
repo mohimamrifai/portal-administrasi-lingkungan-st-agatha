@@ -136,56 +136,109 @@ export default function ProfileContent() {
   }
   
   // Simulasi upload gambar
-  const handleImageUpload = (entityType: 'familyHead' | 'spouse' | 'dependent', id?: number) => {
+  const handleImageUpload = async (entityType: 'familyHead' | 'spouse' | 'dependent', id?: number) => {
     // Cek apakah pengguna memiliki izin untuk memperbarui data
     if (!roleAccess.canEdit) {
       toast.error(`Hanya pengguna dengan role Umat yang dapat memperbarui data`)
       return
     }
     
-    // Dalam aplikasi nyata, ini akan membuka file picker dan melakukan upload
-    // Untuk simulasi, kita hanya mengubah URL gambar profile dengan avatar acak baru
-    const randomNumber = Math.floor(Math.random() * 70) + 1;
-    const newImageUrl = `https://i.pravatar.cc/300?img=${randomNumber}`;
+    // Buka file picker
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
     
-    if (!profileData) return;
-    
-    if (entityType === 'familyHead') {
-      setProfileData({
-        ...profileData,
-        familyHead: {
-          ...profileData.familyHead,
-          imageUrl: newImageUrl
-        }
-      });
-      toast.success("Foto profil berhasil diperbarui");
-    } else if (entityType === 'spouse' && profileData.spouse) {
-      setProfileData({
-        ...profileData,
-        spouse: {
-          ...profileData.spouse,
-          imageUrl: newImageUrl
-        }
-      });
-      toast.success("Foto pasangan berhasil diperbarui");
-    } else if (entityType === 'dependent' && id) {
-      const updatedDependents = profileData.dependents.map(dependent => {
-        if (dependent.id === id) {
-          return {
-            ...dependent,
-            imageUrl: newImageUrl
-          };
-        }
-        return dependent;
-      });
+    input.onchange = async (e: Event) => {
+      const target = e.target as HTMLInputElement
+      if (!target.files || target.files.length === 0) return
       
-      setProfileData({
-        ...profileData,
-        dependents: updatedDependents
-      });
-      toast.success("Foto tanggungan berhasil diperbarui");
+      const file = target.files[0]
+      if (!file) return
+      
+      try {
+        setIsSaving(true)
+        const toastId = toast.loading('Sedang mengunggah foto...', {
+          duration: 10000 // 10 detik
+        })
+        
+        // Konversi file ke FormData untuk dikirim ke server
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('entityType', entityType)
+        
+        if (id) {
+          formData.append('id', id.toString())
+        }
+        
+        // Upload file ke server
+        const response = await fetch('/api/profile/upload-image', {
+          method: 'POST',
+          body: formData
+        })
+        
+        if (!response.ok) {
+          throw new Error('Gagal mengunggah foto')
+        }
+        
+        const data = await response.json()
+        
+        // Update state dengan URL gambar baru
+        if (!profileData) return
+        
+        if (entityType === 'familyHead') {
+          setProfileData({
+            ...profileData,
+            familyHead: {
+              ...profileData.familyHead,
+              imageUrl: data.fileUrl
+            }
+          })
+          toast.success("Foto profil berhasil diperbarui", {
+            id: toastId,
+            duration: 3000
+          })
+        } else if (entityType === 'spouse' && profileData.spouse) {
+          setProfileData({
+            ...profileData,
+            spouse: {
+              ...profileData.spouse,
+              imageUrl: data.fileUrl
+            }
+          })
+          toast.success("Foto pasangan berhasil diperbarui", {
+            id: toastId,
+            duration: 3000
+          })
+        } else if (entityType === 'dependent' && id) {
+          const updatedDependents = profileData.dependents.map(dependent => {
+            if (dependent.id === id) {
+              return {
+                ...dependent,
+                imageUrl: data.fileUrl
+              }
+            }
+            return dependent
+          })
+          
+          setProfileData({
+            ...profileData,
+            dependents: updatedDependents
+          })
+          toast.success("Foto tanggungan berhasil diperbarui", {
+            id: toastId,
+            duration: 3000
+          })
+        }
+      } catch (error) {
+        console.error(error)
+        toast.error("Gagal mengunggah foto. Pastikan ukuran file tidak terlalu besar dan format file didukung (jpg, png, webp).")
+      } finally {
+        setIsSaving(false)
+      }
     }
-  };
+    
+    input.click()
+  }
   
   // Handler untuk menyimpan data Kepala Keluarga
   const handleFamilyHeadSubmit = (values: FamilyHeadFormValues) => {
@@ -488,7 +541,7 @@ export default function ProfileContent() {
     return (
       <Alert className="mb-4">
         <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
+        <AlertDescription className="text-xs sm:text-sm">
           {roleAccess.message}
         </AlertDescription>
       </Alert>
@@ -500,38 +553,38 @@ export default function ProfileContent() {
     if (!profileData) return null;
     
     return (
-      <Card className="mb-6">
-        <CardHeader className="pb-3">
+      <Card className="mb-4 gap-0 overflow-hidden">
+        <CardHeader className="p-3 pb-2 sm:p-4 sm:pb-3">
           <div className="flex justify-between items-center">
-            <CardTitle>Informasi Akun</CardTitle>
-            <Badge>{userRole}</Badge>
+            <CardTitle className="text-base sm:text-lg">Informasi Akun</CardTitle>
+            <Badge className="text-xs h-5">{userRole}</Badge>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16 border-2 border-primary/10">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-14 w-14 shrink-0 border-2 border-primary/10">
               {profileData.familyHead.imageUrl ? (
                 <AvatarImage 
                   src={profileData.familyHead.imageUrl} 
                   alt={profileData.familyHead.fullName} 
                 />
               ) : (
-                <AvatarFallback className="text-xl">
+                <AvatarFallback className="text-base">
                   {getInitials(profileData.familyHead.fullName)}
                 </AvatarFallback>
               )}
             </Avatar>
-            <div>
-              <h3 className="text-lg font-semibold">{profileData.familyHead.fullName}</h3>
-              <p className="text-sm text-muted-foreground">
+            <div className="min-w-0">
+              <h3 className="text-base font-semibold truncate">{profileData.familyHead.fullName}</h3>
+              <p className="text-xs text-muted-foreground truncate">
                 {profileData.familyHead.address}
               </p>
-              <div className="flex gap-4 mt-1">
-                <p className="text-sm text-muted-foreground">
+              <div className="flex flex-wrap gap-2 mt-1">
+                <p className="text-xs text-muted-foreground">
                   {profileData.familyHead.phoneNumber}
                 </p>
                 {profileData.familyHead.email && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs text-muted-foreground truncate">
                     {profileData.familyHead.email}
                   </p>
                 )}
@@ -578,41 +631,51 @@ export default function ProfileContent() {
       
       {/* Tab data profil */}
       <Tabs defaultValue={activeTab} className="w-full" onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="kepala-keluarga">Kepala Keluarga</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 h-auto">
+          <TabsTrigger value="kepala-keluarga" className="py-2 text-xs sm:text-sm data-[state=active]:font-medium">
+            Kepala Keluarga
+          </TabsTrigger>
           {profileData.familyHead.maritalStatus === MaritalStatus.MARRIED && (
-            <TabsTrigger value="pasangan">Pasangan</TabsTrigger>
+            <TabsTrigger value="pasangan" className="py-2 text-xs sm:text-sm data-[state=active]:font-medium">
+              Pasangan
+            </TabsTrigger>
           )}
-          <TabsTrigger value="tanggungan">Tanggungan</TabsTrigger>
+          <TabsTrigger value="tanggungan" className="py-2 text-xs sm:text-sm data-[state=active]:font-medium">
+            Tanggungan
+          </TabsTrigger>
         </TabsList>
         
         {/* Tab Kepala Keluarga */}
         <TabsContent value="kepala-keluarga" className="space-y-4">
-          <div className="flex flex-col md:flex-row gap-6">
-            <div className="flex flex-col items-center w-full md:w-1/4">
-              <Avatar className="h-40 w-40 border-4 border-primary/10">
-                {profileData.familyHead.imageUrl ? (
-                  <AvatarImage src={profileData.familyHead.imageUrl} alt={profileData.familyHead.fullName} />
-                ) : (
-                  <AvatarFallback className="text-4xl">
-                    {getInitials(profileData.familyHead.fullName)}
-                  </AvatarFallback>
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col items-center">
+              <div className="relative">
+                <Avatar className="h-28 w-28 border-4 border-primary/10">
+                  {profileData.familyHead.imageUrl ? (
+                    <AvatarImage src={profileData.familyHead.imageUrl} alt={profileData.familyHead.fullName} />
+                  ) : (
+                    <AvatarFallback className="text-3xl">
+                      {getInitials(profileData.familyHead.fullName)}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+                {roleAccess.canEdit && (
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    className="absolute bottom-2 right-2 h-8 w-8 rounded-full bg-background border border-border shadow"
+                    onClick={() => handleImageUpload('familyHead')}
+                  >
+                    <Camera className="h-4 w-4" />
+                    <span className="sr-only">Ubah Foto</span>
+                  </Button>
                 )}
-              </Avatar>
-              {roleAccess.canEdit && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="mt-4"
-                  onClick={() => handleImageUpload('familyHead')}
-                >
-                  <Camera className="mr-2 h-4 w-4" />
-                  Ubah Foto
-                </Button>
-              )}
+              </div>
+              <h3 className="mt-2 font-medium text-lg">{profileData.familyHead.fullName}</h3>
+              <p className="text-sm text-muted-foreground">{profileData.familyHead.phoneNumber}</p>
             </div>
             
-            <div className="w-full md:w-3/4">
+            <div className="w-full">
               <FamilyHeadForm 
                 defaultValues={profileData.familyHead} 
                 onSubmit={handleFamilyHeadSubmit}
@@ -626,31 +689,39 @@ export default function ProfileContent() {
         {/* Tab Pasangan */}
         {profileData.familyHead.maritalStatus === MaritalStatus.MARRIED && (
           <TabsContent value="pasangan" className="space-y-4">
-            <div className="flex flex-col md:flex-row gap-6">
-              <div className="flex flex-col items-center w-full md:w-1/4">
-                <Avatar className="h-40 w-40 border-4 border-primary/10">
-                  {profileData.spouse?.imageUrl ? (
-                    <AvatarImage src={profileData.spouse.imageUrl} alt={profileData.spouse?.fullName || ''} />
-                  ) : (
-                    <AvatarFallback className="text-4xl">
-                      {profileData.spouse ? getInitials(profileData.spouse.fullName) : <User className="h-10 w-10" />}
-                    </AvatarFallback>
+            <div className="flex flex-col gap-6">
+              <div className="flex flex-col items-center">
+                <div className="relative">
+                  <Avatar className="h-28 w-28 border-4 border-primary/10">
+                    {profileData.spouse?.imageUrl ? (
+                      <AvatarImage src={profileData.spouse.imageUrl} alt={profileData.spouse?.fullName || ''} />
+                    ) : (
+                      <AvatarFallback className="text-3xl">
+                        {profileData.spouse ? getInitials(profileData.spouse.fullName) : <User className="h-10 w-10" />}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  {roleAccess.canEdit && profileData.spouse && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className="absolute bottom-2 right-2 h-8 w-8 rounded-full bg-background border border-border shadow"
+                      onClick={() => handleImageUpload('spouse')}
+                    >
+                      <Camera className="h-4 w-4" />
+                      <span className="sr-only">Ubah Foto</span>
+                    </Button>
                   )}
-                </Avatar>
-                {roleAccess.canEdit && profileData.spouse && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-4"
-                    onClick={() => handleImageUpload('spouse')}
-                  >
-                    <Camera className="mr-2 h-4 w-4" />
-                    Ubah Foto
-                  </Button>
+                </div>
+                {profileData.spouse && (
+                  <>
+                    <h3 className="mt-2 font-medium text-lg">{profileData.spouse.fullName}</h3>
+                    <p className="text-sm text-muted-foreground">{profileData.spouse.phoneNumber}</p>
+                  </>
                 )}
               </div>
               
-              <div className="w-full md:w-3/4">
+              <div className="w-full">
                 <SpouseForm 
                   defaultValues={profileData.spouse || undefined} 
                   onSubmit={handleSpouseSubmit}
@@ -665,17 +736,19 @@ export default function ProfileContent() {
         {/* Tab Tanggungan */}
         <TabsContent value="tanggungan" className="space-y-4">
           {showDependentForm ? (
-            <DependentForm 
-              defaultValues={editingDependent || undefined}
-              onSubmit={handleDependentSubmit}
-              onCancel={handleCancelDependentForm}
-              isSubmitting={isSaving}
-            />
+            <div className="bg-background/80 p-3 border rounded-lg">
+              <DependentForm 
+                defaultValues={editingDependent || undefined}
+                onSubmit={handleDependentSubmit}
+                onCancel={handleCancelDependentForm}
+                isSubmitting={isSaving}
+              />
+            </div>
           ) : (
             <>
               {profileData.dependents.length === 0 ? (
-                <div className="text-center py-10 border rounded-lg">
-                  <p className="text-muted-foreground mb-4">Belum ada data tanggungan</p>
+                <div className="text-center py-8 px-4 border rounded-lg">
+                  <p className="text-muted-foreground mb-3">Belum ada data tanggungan</p>
                   {roleAccess.canEdit && (
                     <Button
                       variant="outline"
@@ -688,21 +761,22 @@ export default function ProfileContent() {
                   )}
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-medium">Daftar Tanggungan</h3>
+                    <h3 className="text-base font-medium">Daftar Tanggungan</h3>
                     {roleAccess.canEdit && (
                       <Button
                         variant="outline"
                         size="sm"
+                        className="h-8"
                         onClick={() => setShowDependentForm(true)}
                       >
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Tambah Tanggungan
+                        <PlusCircle className="mr-1.5 h-3.5 w-3.5" />
+                        <span className="text-xs">Tambah</span>
                       </Button>
                     )}
                   </div>
-                  <div className="grid grid-cols-1 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {profileData.dependents.map((dependent) => (
                       <DependentItem
                         key={dependent.id}

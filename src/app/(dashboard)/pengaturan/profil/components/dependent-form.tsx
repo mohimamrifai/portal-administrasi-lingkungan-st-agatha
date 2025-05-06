@@ -25,7 +25,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { CalendarIcon, X } from "lucide-react"
+import { CalendarIcon, X, Loader2, Save } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
@@ -103,7 +103,7 @@ export function DependentForm({
       
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
             {/* Nama */}
             <FormField
               control={form.control}
@@ -145,9 +145,7 @@ export function DependentForm({
                 </FormItem>
               )}
             />
-          </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
             {/* Tempat Lahir */}
             <FormField
               control={form.control}
@@ -206,9 +204,7 @@ export function DependentForm({
                 </FormItem>
               )}
             />
-          </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
             {/* Jenis Tanggungan */}
             <FormField
               control={form.control}
@@ -264,9 +260,7 @@ export function DependentForm({
                 </FormItem>
               )}
             />
-          </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
             {/* Agama */}
             <FormField
               control={form.control}
@@ -425,24 +419,35 @@ export function DependentForm({
             />
           )}
 
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
+          {/* Form actions */}
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onCancel} 
+              disabled={isSubmitting}
+              className="w-full sm:w-auto"
+              size="sm"
             >
-              Batal
+              <span className="text-xs sm:text-sm">Batal</span>
             </Button>
             <Button 
-              type="submit"
-              disabled={isSubmitting}
+              type="submit" 
+              disabled={isSubmitting} 
+              className="w-full sm:w-auto"
+              size="sm"
             >
-              {isSubmitting 
-                ? "Menyimpan..." 
-                : isEditMode 
-                  ? "Perbarui Tanggungan" 
-                  : "Tambah Tanggungan"
-              }
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  <span className="text-xs sm:text-sm">Menyimpan...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="mr-1.5 h-3.5 w-3.5" />
+                  <span className="text-xs sm:text-sm">Simpan</span>
+                </>
+              )}
             </Button>
           </div>
         </form>

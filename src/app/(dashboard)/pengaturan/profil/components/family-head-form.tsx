@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { CalendarIcon, Save } from "lucide-react"
+import { CalendarIcon, Save, Loader2 } from "lucide-react"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 
@@ -80,7 +80,7 @@ export function FamilyHeadForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
           {/* Nama Lengkap */}
           <FormField
             control={form.control}
@@ -581,21 +581,27 @@ export function FamilyHeadForm({
           )}
         />
 
-        {!readOnly && (
-          <Button type="submit" disabled={isSubmitting}>
+        {/* Form actions */}
+        <div className="flex justify-end pt-2">
+          <Button 
+            type="submit" 
+            disabled={isSubmitting || readOnly} 
+            className="w-full sm:w-auto"
+            size="sm"
+          >
             {isSubmitting ? (
               <>
-                <span className="animate-spin mr-2">•</span>
-                <span>Menyimpan...</span>
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                <span className="text-xs sm:text-sm">Menyimpan...</span>
               </>
             ) : (
               <>
-                <Save className="mr-2 h-4 w-4" />
-                <span>Simpan Data</span>
+                <Save className="mr-1.5 h-3.5 w-3.5" />
+                <span className="text-xs sm:text-sm">Simpan</span>
               </>
             )}
           </Button>
-        )}
+        </div>
       </form>
     </Form>
   )
