@@ -2,10 +2,9 @@
 
 import { useState } from "react"
 import { format } from "date-fns"
-import { CalendarIcon, Info } from "lucide-react"
+import { CalendarIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -42,15 +41,7 @@ export default function SelectiveWipeTab({
 }: SelectiveWipeTabProps) {
   return (
     <div className="space-y-4">
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertTitle>Penghapusan Selektif</AlertTitle>
-        <AlertDescription>
-          Hapus data berdasarkan rentang waktu dan jenis data tertentu.
-        </AlertDescription>
-      </Alert>
-      
-      <div className="grid grid-cols-2 gap-4 mt-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="start-date">Tanggal Mulai</Label>
           <Popover>
@@ -63,10 +54,10 @@ export default function SelectiveWipeTab({
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {startDate ? format(startDate, "dd MMMM yyyy") : "Pilih tanggal"}
+                {startDate ? format(startDate, "dd/MM/yyyy") : "Pilih tanggal"}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
+            <PopoverContent className="w-auto p-0" align="start">
               <Calendar
                 mode="single"
                 selected={startDate}
@@ -89,10 +80,10 @@ export default function SelectiveWipeTab({
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {endDate ? format(endDate, "dd MMMM yyyy") : "Pilih tanggal"}
+                {endDate ? format(endDate, "dd/MM/yyyy") : "Pilih tanggal"}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
+            <PopoverContent className="w-auto p-0" align="start">
               <Calendar
                 mode="single"
                 selected={endDate}
@@ -126,8 +117,8 @@ export default function SelectiveWipeTab({
           checked={backupConfirm}
           onCheckedChange={(checked) => setBackupConfirm(checked === true)}
         />
-        <Label htmlFor="backup-confirm" className="text-sm font-medium">
-          Saya telah melakukan backup data sebelum melakukan penghapusan
+        <Label htmlFor="backup-confirm" className="text-xs sm:text-sm font-medium">
+          Saya telah melakukan backup data sebelum penghapusan
         </Label>
       </div>
       

@@ -1,17 +1,16 @@
-"use client"
-
 import { Suspense } from "react"
 import WipeContent from "./components/wipe-content"
 import LoadingSkeleton from "./components/loading-skeleton"
+import { Metadata } from "next"
 
-// Halaman ini tersedia khusus untuk role SuperUser
-// Pengaturan akses diimplementasikan melalui:
-// - routeAccessMap di middleware.ts 
-// - navMain di nav-menu.ts yang menampilkan menu untuk role yang bersangkutan
+export const metadata: Metadata = {
+  title: "Wipe Data | Portal Administrasi Lingkungan St. Agatha",
+  description: "Halaman untuk menghapus data dari database",
+}
 
 export default function WipeDataPage() {
   return (
-    <div className="p-4">
+    <div className="p-0 md:p-4">
       <Suspense fallback={<LoadingSkeleton />}>
         <WipeContent />
       </Suspense>

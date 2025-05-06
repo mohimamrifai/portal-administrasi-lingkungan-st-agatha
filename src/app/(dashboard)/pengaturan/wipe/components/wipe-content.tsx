@@ -7,14 +7,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { useSession } from "next-auth/react"
 
 import SelectiveWipeTab from "./selective-wipe-tab"
 import EmergencyWipeTab from "./emergency-wipe-tab"
-import { wipeData, emergencyWipe, getDataTypeLabel } from "../utils"
+import DataStatsComponent from "./data-stats"
+import { getDataTypeLabel } from "../utils"
 import { DataType, WipeMode } from "../types"
+import { wipeDataAction, emergencyWipeAction } from "../actions/wipe-actions"
 
 export default function WipeContent() {
   const [startDate, setStartDate] = useState<Date>()
@@ -25,16 +27,16 @@ export default function WipeContent() {
   const [activeTab, setActiveTab] = useState<WipeMode>("selective")
   const [isProcessing, setIsProcessing] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
-  const { userRole } = useAuth()
+  const { data: session } = useSession()
   const router = useRouter()
   
   // Redirect jika bukan SuperUser
   useEffect(() => {
-    if (userRole !== "SuperUser") {
+    if (session?.user?.role !== "SUPER_USER") {
       toast.error("Anda tidak memiliki akses ke halaman ini")
       router.push("/dashboard")
     }
-  }, [userRole, router])
+  }, [session, router])
 
   const resetForm = () => {
     setStartDate(undefined)
@@ -57,15 +59,27 @@ export default function WipeContent() {
     
     try {
       if (activeTab === "selective") {
-        await wipeData({
+        const result = await wipeDataAction({
           dataType: dataType as DataType,
           startDate,
           endDate
         })
+
+        if (result.success) {
+          toast.success(result.message)
+        } else {
+          toast.error(result.message || "Terjadi kesalahan saat menghapus data")
+        }
       } else {
-        await emergencyWipe({
+        const result = await emergencyWipeAction({
           confirmText
         })
+
+        if (result.success) {
+          toast.success(result.message)
+        } else {
+          toast.error(result.message || "Terjadi kesalahan saat melakukan emergency wipe")
+        }
       }
     } catch (error) {
       toast.error("Terjadi kesalahan saat menghapus data")
@@ -81,7 +95,7 @@ export default function WipeContent() {
   const isEmergencyFormValid = confirmText === "EMERGENCY WIPE" && backupConfirm
 
   // Cek apakah user adalah SuperUser - hanya SuperUser yang boleh mengakses fitur ini
-  const isSuperUser = userRole === 'SuperUser'
+  const isSuperUser = session?.user?.role === 'SUPER_USER'
 
   // Jika bukan SuperUser, tampilkan pesan akses ditolak
   if (!isSuperUser) {
@@ -101,27 +115,29 @@ export default function WipeContent() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto px-4 py-6 md:py-8">
+      {isSuperUser && <DataStatsComponent />}
+      
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl font-bold">Wipe Data</CardTitle>
+          <CardTitle className="text-xl md:text-2xl font-bold">Wipe Data</CardTitle>
           <CardDescription>
-            Halaman ini hanya dapat diakses oleh SuperUser. Fitur ini digunakan untuk menghapus data berdasarkan parameter tertentu.
+            Halaman ini digunakan untuk menghapus data berdasarkan parameter yang ditentukan.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Alert variant="destructive" className="mb-6">
             <ShieldAlert className="h-5 w-5" />
-            <AlertTitle className="text-lg">Area Terbatas!</AlertTitle>
+            <AlertTitle className="text-base md:text-lg">Peringatan!</AlertTitle>
             <AlertDescription>
-              Area ini hanya untuk SuperUser. Tindakan yang dilakukan di halaman ini akan berdampak permanen pada database sistem.
+              Tindakan pada halaman ini bersifat permanen. Pastikan data telah dibackup sebelum melanjutkan.
             </AlertDescription>
           </Alert>
           
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as WipeMode)} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="selective">Penghapusan Selektif</TabsTrigger>
-              <TabsTrigger value="emergency">Emergency Wipe</TabsTrigger>
+            <TabsList className="w-full flex flex-wrap md:grid md:grid-cols-2 gap-2 mb-6">
+              <TabsTrigger className="flex-1" value="selective">Penghapusan Selektif</TabsTrigger>
+              <TabsTrigger className="flex-1" value="emergency">Emergency Wipe</TabsTrigger>
             </TabsList>
             
             <TabsContent value="selective" className="mt-4">
@@ -149,11 +165,12 @@ export default function WipeContent() {
             </TabsContent>
           </Tabs>
         </CardContent>
-        <CardFooter className="flex justify-between border-t pt-4">
+        <CardFooter className="flex flex-col sm:flex-row gap-2 border-t pt-4">
           <Button 
             variant="outline" 
             onClick={resetForm}
             disabled={isProcessing}
+            className="w-full sm:w-auto"
           >
             Reset
           </Button>
@@ -161,7 +178,7 @@ export default function WipeContent() {
           {activeTab === "selective" ? (
             <Button 
               variant="destructive" 
-              className="ml-auto"
+              className="w-full sm:w-auto sm:ml-auto"
               disabled={!isSelectiveFormValid || isProcessing}
               onClick={() => setShowConfirmation(true)}
             >
@@ -180,7 +197,7 @@ export default function WipeContent() {
           ) : (
             <Button 
               variant="destructive" 
-              className="ml-auto"
+              className="w-full sm:w-auto sm:ml-auto"
               disabled={!isEmergencyFormValid || isProcessing}
               onClick={() => setShowConfirmation(true)}
             >
@@ -201,14 +218,14 @@ export default function WipeContent() {
       </Card>
       
       <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-md mx-auto">
           <AlertDialogHeader>
             <AlertDialogTitle>Konfirmasi Penghapusan Data</AlertDialogTitle>
             <AlertDialogDescription>
               {activeTab === "selective" ? (
                 `Tindakan ini akan menghapus permanen ${dataType ? getDataTypeLabel(dataType as DataType) : ""} dari ${startDate ? startDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : "..."} hingga ${endDate ? endDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : "..."}.`
               ) : (
-                "TINDAKAN INI AKAN MENGHAPUS PERMANEN SELURUH DATA DALAM SISTEM. PASTIKAN ANDA BENAR-BENAR YAKIN DAN TELAH MEMBUAT BACKUP LENGKAP."
+                "TINDAKAN INI AKAN MENGHAPUS PERMANEN SELURUH DATA DALAM SISTEM."
               )}
             </AlertDialogDescription>
             
@@ -216,12 +233,17 @@ export default function WipeContent() {
               Data yang sudah dihapus tidak dapat dikembalikan.
             </div>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isProcessing}>Batal</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
+            <AlertDialogCancel 
+              disabled={isProcessing}
+              className="w-full sm:w-auto mt-2 sm:mt-0"
+            >
+              Batal
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleWipeData}
               disabled={isProcessing}
-              className="bg-red-600 hover:bg-red-700"
+              className="w-full sm:w-auto bg-red-600 hover:bg-red-700"
             >
               {isProcessing ? (
                 <span className="flex items-center">
