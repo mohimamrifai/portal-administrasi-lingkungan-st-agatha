@@ -1,15 +1,16 @@
 import { Suspense } from "react"
+import { Metadata } from "next"
 import PasswordForm from "./components/password-form"
 import LoadingSkeleton from "./components/loading-skeleton"
 
-// Halaman ini tersedia untuk semua role dengan fungsionalitas yang sama
-// Pengaturan akses diimplementasikan melalui:
-// - routeAccessMap di middleware.ts 
-// - navMain di nav-menu.ts yang menampilkan menu untuk role yang bersangkutan
+export const metadata: Metadata = {
+  title: "Ganti Password | Portal Administrasi Lingkungan St. Agatha",
+  description: "Halaman untuk mengubah password akun pengguna",
+}
 
 export default function GantiPasswordPage() {
   return (
-    <div className="p-4">
+    <div className="p-4 w-full">
       <h1 className="text-2xl font-bold mb-6">Ganti Password</h1>
       
       <div className="max-w-md mx-auto">

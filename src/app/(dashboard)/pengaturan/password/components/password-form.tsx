@@ -1,14 +1,18 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { AlertCircle, Eye, EyeOff, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { changePassword } from "../actions/change-password"
+import { toast } from "sonner"
 
 export default function PasswordForm() {
+  const router = useRouter()
   const [formData, setFormData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -18,6 +22,7 @@ export default function PasswordForm() {
     currentPassword?: string;
     newPassword?: string;
     confirmPassword?: string;
+    general?: string;
   }>({})
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
@@ -52,7 +57,7 @@ export default function PasswordForm() {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     // Validate form
@@ -80,17 +85,33 @@ export default function PasswordForm() {
     if (Object.keys(newErrors).length === 0) {
       setIsLoading(true)
       
-      // Simulate API call
-      setTimeout(() => {
-        // Reset form after successful submission
-        setFormData({
-          currentPassword: "",
-          newPassword: "",
-          confirmPassword: ""
+      try {
+        const result = await changePassword(formData.currentPassword, formData.newPassword)
+        
+        if (result.success) {
+          // Reset form after successful submission
+          setFormData({
+            currentPassword: "",
+            newPassword: "",
+            confirmPassword: ""
+          })
+          setIsSuccess(true)
+          toast.success("Password berhasil diubah")
+          router.refresh()
+        } else {
+          // Show error message
+          setErrors({ general: result.message })
+          toast.error(result.message)
+        }
+      } catch (error) {
+        console.error("Error changing password:", error)
+        setErrors({ 
+          general: "Terjadi kesalahan saat mengubah password" 
         })
+        toast.error("Terjadi kesalahan saat mengubah password")
+      } finally {
         setIsLoading(false)
-        setIsSuccess(true)
-      }, 1500)
+      }
     }
   }
 
@@ -108,6 +129,13 @@ export default function PasswordForm() {
             <AlertDescription>
               Password berhasil diubah.
             </AlertDescription>
+          </Alert>
+        )}
+        
+        {errors.general && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{errors.general}</AlertDescription>
           </Alert>
         )}
         
