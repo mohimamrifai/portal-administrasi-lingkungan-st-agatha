@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
-import { Eye, ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon, Edit, Trash2, FileText, MoreVertical, CalendarIcon } from "lucide-react"
+import { Eye, ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon, Edit, Trash2, FileText, MoreVertical, CalendarIcon, MoreHorizontal, X, Check, ReceiptIcon } from "lucide-react"
 import { 
   Table, 
   TableBody, 
@@ -19,6 +19,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
+  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -27,6 +28,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -45,474 +48,377 @@ import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
-import { PaymentHistory } from "../types"
-import { formatRupiah, getStatusColor } from "../utils/index"
+import { DanaMandiriHistory, IkataHistory } from "../types"
+import { formatRupiah, getDanaMandiriStatusColor, getIkataStatusColor, formatStatusIkata, getMonthName, getMonthRange } from "../utils"
 
 interface PaymentHistoryTableProps {
-  data: PaymentHistory[]
-  showUserColumn?: boolean
-  onStatusChange?: (payment: PaymentHistory, newStatus: string, newPaymentDate: Date | null) => void
-  onDelete?: (payment: PaymentHistory) => void
-  onExport?: (payment: PaymentHistory) => void
+  data: DanaMandiriHistory[] | IkataHistory[];
+  type: "Dana Mandiri" | "IKATA";
+  showUserColumn: boolean;
+  onStatusChange: ((payment: DanaMandiriHistory, status: boolean) => void) | 
+                 ((payment: IkataHistory, status: "LUNAS" | "SEBAGIAN_BULAN" | "BELUM_BAYAR") => void);
+  onDelete: ((payment: DanaMandiriHistory) => void) | 
+           ((payment: IkataHistory) => void);
 }
 
 export function PaymentHistoryTable({ 
   data, 
-  showUserColumn = false,
-  onStatusChange,
-  onDelete,
-  onExport
+  type,
+  showUserColumn, 
+  onStatusChange, 
+  onDelete
 }: PaymentHistoryTableProps) {
-  const [selectedPayment, setSelectedPayment] = useState<PaymentHistory | null>(null)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editMode, setEditMode] = useState(false)
-  const [selectedStatus, setSelectedStatus] = useState<string>("")
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [selectedItem, setSelectedItem] = useState<DanaMandiriHistory | IkataHistory | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [pendingDelete, setPendingDelete] = useState<PaymentHistory | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
   
-  // Reset to first page when data changes
+  // Fungsi untuk mendapatkan data untuk halaman saat ini
+  const getPaginatedData = (data: any[]) => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    return data.slice(startIndex, endIndex)
+  }
+  
+  // Mengatur ulang halaman ke 1 saat data berubah
   useEffect(() => {
     setCurrentPage(1)
   }, [data])
   
-  // Calculate pagination values
-  const totalItems = data.length
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
-  const startIndex = (currentPage - 1) * pageSize
-  const endIndex = Math.min(startIndex + pageSize, totalItems)
-  
-  // Get current page data
-  const currentData = data
-    .sort((a, b) => b.year - a.year) // Sort by year (newest first)
-    .slice(startIndex, endIndex)
-
-  // Jika tidak ada data, tampilkan pesan
-  if (data.length === 0) {
+  // Komponen pagination
+  const Pagination = ({ totalItems }: { totalItems: number }) => {
+    const totalPages = Math.ceil(totalItems / itemsPerPage)
+    
+    if (totalPages <= 1) return null
+    
     return (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {showUserColumn && <TableHead>Nama</TableHead>}
-            <TableHead>Tahun</TableHead>
-            <TableHead>Tanggal Bayar</TableHead>
-            <TableHead>Jumlah</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Aksi</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <TableRow>
-            <TableCell colSpan={showUserColumn ? 6 : 5} className="text-center">
-              Tidak ada data
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+      <div className="flex items-center justify-center space-x-2 py-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCurrentPage(1)}
+          disabled={currentPage === 1}
+        >
+          <ChevronsLeftIcon className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+          disabled={currentPage === 1}
+        >
+          <ChevronLeftIcon className="h-4 w-4" />
+        </Button>
+        
+        <span className="text-sm">
+          Halaman {currentPage} dari {totalPages}
+        </span>
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+          disabled={currentPage === totalPages}
+        >
+          <ChevronRightIcon className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCurrentPage(totalPages)}
+          disabled={currentPage === totalPages}
+        >
+          <ChevronsRightIcon className="h-4 w-4" />
+        </Button>
+      </div>
     )
   }
-
-  const handleViewDetails = (payment: PaymentHistory) => {
-    setSelectedPayment(payment)
-    setSelectedStatus(payment.status)
-    setSelectedDate(payment.paymentDate)
-    setEditMode(false)
-    setDialogOpen(true)
-  }
   
-  const handleStatusChange = () => {
-    if (selectedPayment && onStatusChange) {
-      // Jika status diubah menjadi Lunas dan belum ada tanggal, set ke hari ini
-      let newDate = selectedDate
-      if (selectedStatus === "Lunas" && !selectedDate) {
-        newDate = new Date()
-      }
-      
-      // Jika status diubah menjadi Belum Bayar, hapus tanggal
-      if (selectedStatus === "Belum Bayar") {
-        newDate = null
-      }
-      
-      onStatusChange(selectedPayment, selectedStatus, newDate)
-      setDialogOpen(false)
-    }
-  }
-  
-  const handleDelete = (payment: PaymentHistory) => {
-    setPendingDelete(payment)
-    setDeleteDialogOpen(true)
-  }
-  
-  const confirmDelete = () => {
-    if (pendingDelete && onDelete) {
-      onDelete(pendingDelete)
-      toast.success("Pembayaran berhasil dihapus")
-    }
-    setDeleteDialogOpen(false)
-    setPendingDelete(null)
-  }
-  
-  const cancelDelete = () => {
-    setDeleteDialogOpen(false)
-    setPendingDelete(null)
-  }
-  
-  const handleExport = (payment: PaymentHistory) => {
-    if (onExport) {
-      // Kirim data satu pembayaran ke parent (bisa dikembangkan untuk batch)
-      onExport(payment)
-    }
-  }
-  
-  // Watch for status change
-  useEffect(() => {
-    // Jika status diubah menjadi Lunas dan tidak ada tanggal, set tanggal ke hari ini
-    if (selectedStatus === "Lunas" && !selectedDate) {
-      setSelectedDate(new Date())
+  // Render tabel Dana Mandiri
+  if (type === "Dana Mandiri") {
+    const danaMandiriData = data as DanaMandiriHistory[]
+    const danaMandiriStatusChange = onStatusChange as (payment: DanaMandiriHistory, status: boolean) => void
+    const danaMandiriDelete = onDelete as (payment: DanaMandiriHistory) => void
+    
+    // Handler untuk mengubah status
+    const handleStatusChange = (payment: DanaMandiriHistory) => {
+      danaMandiriStatusChange(payment, !payment.statusSetor)
     }
     
-    // Jika status diubah menjadi Belum Bayar, hapus tanggal
-    if (selectedStatus === "Belum Bayar") {
-      setSelectedDate(null)
+    // Handler untuk hapus pembayaran
+    const handleDelete = (payment: DanaMandiriHistory) => {
+      setSelectedItem(payment)
+      setDeleteDialogOpen(true)
     }
-  }, [selectedStatus])
-  
-  // Pagination functions
-  const goToPage = (page: number) => {
-    setCurrentPage(page)
-  }
-  
-  const goToFirstPage = () => setCurrentPage(1)
-  const goToLastPage = () => setCurrentPage(totalPages)
-  const goToPreviousPage = () => setCurrentPage(prev => Math.max(1, prev - 1))
-  const goToNextPage = () => setCurrentPage(prev => Math.min(totalPages, prev + 1))
-  
-  // Handle page size change
-  const handlePageSizeChange = (value: string) => {
-    setPageSize(Number(value))
-    setCurrentPage(1) // Reset to first page when changing page size
-  }
-
-  // Tampilkan data dalam tabel
-  return (
-    <>
-      <div className="rounded-md border overflow-hidden">
-        <div className="overflow-x-auto">
+    
+    // Konfirmasi hapus
+    const confirmDelete = () => {
+      if (selectedItem) {
+        danaMandiriDelete(selectedItem as DanaMandiriHistory)
+      }
+      setDeleteDialogOpen(false)
+      setSelectedItem(null)
+    }
+    
+    return (
+      <>
+        <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[50px]">No</TableHead>
                 {showUserColumn && <TableHead>Nama Kepala Keluarga</TableHead>}
-                <TableHead>Tanggal Pembayaran</TableHead>
+                <TableHead>Tanggal</TableHead>
+                <TableHead>Tahun/Bulan</TableHead>
                 <TableHead>Jumlah</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="sticky right-0 bg-white shadow-md text-center">Aksi</TableHead>
+                <TableHead>Tanggal Setor</TableHead>
+                <TableHead className="text-right sticky right-0 bg-background">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currentData.map((payment) => (
-                <TableRow key={payment.id}>
-                  {showUserColumn && <TableCell>{payment.familyHeadName || 'Tidak ada nama'}</TableCell>}
-                  <TableCell>
-                    {payment.paymentDate
-                      ? format(payment.paymentDate, "d MMMM yyyy", { locale: id })
-                      : "-"}
+              {danaMandiriData.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={showUserColumn ? 8 : 7} className="h-24 text-center">
+                    Tidak ada data pembayaran
                   </TableCell>
-                  <TableCell>{formatRupiah(payment.amount)}</TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(payment.status)}>
-                      {payment.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="sticky right-0 bg-white shadow-md">
-                    {showUserColumn ? (
+                </TableRow>
+              ) : (
+                getPaginatedData(danaMandiriData).map((payment, index) => (
+                  <TableRow key={payment.id}>
+                    <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                    {showUserColumn && <TableCell>{payment.namaKepalaKeluarga}</TableCell>}
+                    <TableCell>
+                      {payment.tanggal ? format(new Date(payment.tanggal), "dd MMMM yyyy", { locale: id }) : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {payment.tahun}/{getMonthName(payment.bulan)}
+                    </TableCell>
+                    <TableCell>{formatRupiah(payment.jumlahDibayar)}</TableCell>
+                    <TableCell>
+                      <Badge className={getDanaMandiriStatusColor(payment.statusSetor)}>
+                        {payment.statusSetor ? "Sudah Disetor" : "Belum Disetor"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {payment.tanggalSetor 
+                        ? format(new Date(payment.tanggalSetor), "dd MMMM yyyy", { locale: id })
+                        : "-"
+                      }
+                    </TableCell>
+                    <TableCell className="text-right sticky right-0 bg-background">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="cursor-pointer"
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                            <span className="sr-only">Buka Menu</span>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Buka menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem
-                            onClick={() => handleViewDetails(payment)}
-                            className="cursor-pointer"
+                            onClick={() => handleStatusChange(payment)}
+                            className="flex items-center"
                           >
-                            <Eye className="mr-2 h-4 w-4" /> Lihat Detail
+                            {payment.statusSetor ? (
+                              <>
+                                <X className="mr-2 h-4 w-4" />
+                                <span>Tandai Belum Disetor</span>
+                              </>
+                            ) : (
+                              <>
+                                <Check className="mr-2 h-4 w-4" />
+                                <span>Tandai Sudah Disetor</span>
+                              </>
+                            )}
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => {
-                              setSelectedPayment(payment);
-                              setSelectedStatus(payment.status);
-                              setSelectedDate(payment.paymentDate);
-                              setEditMode(true);
-                              setDialogOpen(true);
-                            }}
-                            className="cursor-pointer"
+                            onClick={() => handleDelete(payment)}
+                            className="flex items-center text-destructive"
                           >
-                            <Edit className="mr-2 h-4 w-4" /> Edit Status
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleExport(payment)}
-                            className="cursor-pointer"
-                          >
-                            <FileText className="mr-2 h-4 w-4" /> Export PDF
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Button
-                              onClick={() => handleDelete(payment)}
-                              className="w-full justify-start bg-destructive text-white hover:bg-destructive/90 cursor-pointer"
-                              variant="default"
-                              size="sm"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4 text-white" /> Hapus
-                            </Button>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Hapus</span>
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleViewDetails(payment)}
-                        className="cursor-pointer"
-                      >
-                        <Eye className="h-4 w-4" />
-                        <span className="sr-only">Lihat Detail</span>
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </div>
-      </div>
-      
-      {/* Pagination Controls */}
-      {data.length > 0 && (
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-4 px-2">
-          <div className="flex flex-col md:flex-row items-center gap-2 md:space-x-2 w-full md:w-auto text-center md:text-left">
-            <p className="text-sm text-muted-foreground">
-              Menampilkan {totalItems > 0 ? startIndex + 1 : 0}-{endIndex} dari {totalItems} transaksi
-            </p>
-            <div className="flex items-center gap-2 mt-2 md:mt-0">
-              <p className="text-sm text-muted-foreground">Tampilkan</p>
-              <Select 
-                value={pageSize.toString()} 
-                onValueChange={handlePageSizeChange}
-              >
-                <SelectTrigger className="h-8 w-[70px]">
-                  <SelectValue placeholder={pageSize.toString()} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">5</SelectItem>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="20">20</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-muted-foreground">per halaman</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center justify-center mt-4 md:mt-0 w-full md:w-auto">
-            <div className="flex items-center space-x-2">
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={goToFirstPage} 
-                disabled={currentPage === 1}
-                className="h-8 w-8"
-              >
-                <ChevronsLeftIcon className="h-4 w-4" />
-                <span className="sr-only">First Page</span>
-              </Button>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={goToPreviousPage} 
-                disabled={currentPage === 1}
-                className="h-8 w-8"
-              >
-                <ChevronLeftIcon className="h-4 w-4" />
-                <span className="sr-only">Previous Page</span>
-              </Button>
-              
-              <span className="text-sm mx-2 min-w-[90px] text-center">
-                Halaman {currentPage} dari {totalPages}
-              </span>
-              
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={goToNextPage} 
-                disabled={currentPage === totalPages}
-                className="h-8 w-8"
-              >
-                <ChevronRightIcon className="h-4 w-4" />
-                <span className="sr-only">Next Page</span>
-              </Button>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={goToLastPage} 
-                disabled={currentPage === totalPages}
-                className="h-8 w-8"
-              >
-                <ChevronsRightIcon className="h-4 w-4" />
-                <span className="sr-only">Last Page</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Dialog detail pembayaran */}
-      <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {editMode ? "Edit Status Pembayaran" : "Detail Pembayaran"}
-            </AlertDialogTitle>
-          </AlertDialogHeader>
-          {selectedPayment && (
-            <div className="mt-4 space-y-3">
-              {showUserColumn && selectedPayment.familyHeadName && (
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="font-medium">Nama</div>
-                  <div>{selectedPayment.familyHeadName}</div>
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="font-medium">Jenis Pembayaran</div>
-                <div>{selectedPayment.type}</div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="font-medium">Deskripsi</div>
-                <div>{selectedPayment.description}</div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="font-medium">Tahun</div>
-                <div>{selectedPayment.year}</div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="font-medium">Jumlah</div>
-                <div>{formatRupiah(selectedPayment.amount)}</div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="font-medium">Status</div>
-                {editMode ? (
-                  <Select 
-                    value={selectedStatus} 
-                    onValueChange={setSelectedStatus}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Pilih status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Lunas">Lunas</SelectItem>
-                      <SelectItem value="Menunggu">Menunggu</SelectItem>
-                      <SelectItem value="Belum Bayar">Belum Bayar</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div>
-                    <Badge className={getStatusColor(selectedPayment.status)}>
-                      {selectedPayment.status}
-                    </Badge>
-                  </div>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="font-medium">Tanggal Bayar</div>
-                {editMode ? (
-                  <div>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full pl-3 text-left font-normal",
-                            !selectedDate && "text-muted-foreground"
-                          )}
-                          disabled={selectedStatus === "Belum Bayar"}
-                        >
-                          {selectedDate ? (
-                            format(selectedDate, "d MMMM yyyy", { locale: id })
-                          ) : (
-                            <span>Pilih tanggal</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={selectedDate as Date}
-                          onSelect={(date) => date ? setSelectedDate(date) : setSelectedDate(null)}
-                          disabled={(date) => date > new Date()}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {selectedStatus === "Lunas" 
-                        ? "Tanggal harus diisi untuk status Lunas" 
-                        : selectedStatus === "Menunggu"
-                          ? "Opsional untuk status Menunggu"
-                          : "Tidak tersedia untuk status Belum Bayar"}
-                    </p>
-                  </div>
-                ) : (
-                  <div>
-                    {selectedPayment.paymentDate
-                      ? format(selectedPayment.paymentDate, "d MMMM yyyy", { locale: id })
-                      : "-"}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          <AlertDialogFooter>
-            <AlertDialogCancel>Tutup</AlertDialogCancel>
-            {editMode ? (
-              <AlertDialogAction onClick={handleStatusChange}>
-                Simpan Perubahan
+        
+        <Pagination totalItems={danaMandiriData.length} />
+        
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
+              <AlertDialogDescription>
+                Apakah Anda yakin ingin menghapus data pembayaran ini? 
+                Tindakan ini tidak dapat dibatalkan.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Batal</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground">
+                Hapus
               </AlertDialogAction>
-            ) : (
-              selectedPayment?.status === "Belum Bayar" && (
-                <AlertDialogAction>Bayar Sekarang</AlertDialogAction>
-              )
-            )}
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* AlertDialog konfirmasi hapus */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
-          </AlertDialogHeader>
-          <div>
-            Apakah Anda yakin ingin menghapus pembayaran ini?
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={cancelDelete}>Batalkan</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={e => { e.preventDefault(); confirmDelete(); }} 
-              className="bg-destructive text-white hover:bg-destructive/90">
-              Hapus
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
-  )
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    )
+  }
+  
+  // Render tabel IKATA
+  else {
+    const ikataData = data as IkataHistory[]
+    const ikataStatusChange = onStatusChange as (payment: IkataHistory, status: "LUNAS" | "SEBAGIAN_BULAN" | "BELUM_BAYAR") => void
+    const ikataDelete = onDelete as (payment: IkataHistory) => void
+    
+    // Handler untuk mengubah status menjadi lunas
+    const handleStatusLunas = (payment: IkataHistory) => {
+      ikataStatusChange(payment, "LUNAS")
+    }
+    
+    // Handler untuk mengubah status menjadi sebagian bulan
+    const handleStatusSebagian = (payment: IkataHistory) => {
+      ikataStatusChange(payment, "SEBAGIAN_BULAN")
+    }
+    
+    // Handler untuk mengubah status menjadi belum bayar
+    const handleStatusBelumBayar = (payment: IkataHistory) => {
+      ikataStatusChange(payment, "BELUM_BAYAR")
+    }
+    
+    // Handler untuk hapus pembayaran
+    const handleDelete = (payment: IkataHistory) => {
+      setSelectedItem(payment)
+      setDeleteDialogOpen(true)
+    }
+    
+    // Konfirmasi hapus
+    const confirmDelete = () => {
+      if (selectedItem) {
+        ikataDelete(selectedItem as IkataHistory)
+      }
+      setDeleteDialogOpen(false)
+      setSelectedItem(null)
+    }
+    
+    return (
+      <>
+        <div className="rounded-md border overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[50px]">No</TableHead>
+                {showUserColumn && <TableHead>Nama Kepala Keluarga</TableHead>}
+                <TableHead>Tahun</TableHead>
+                <TableHead>Bulan</TableHead>
+                <TableHead>Jumlah</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right sticky right-0 bg-background">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {ikataData.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={showUserColumn ? 7 : 6} className="h-24 text-center">
+                    Tidak ada data pembayaran
+                  </TableCell>
+                </TableRow>
+              ) : (
+                getPaginatedData(ikataData).map((payment, index) => (
+                  <TableRow key={payment.id}>
+                    <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                    {showUserColumn && <TableCell>{payment.namaKepalaKeluarga}</TableCell>}
+                    <TableCell>{payment.tahun}</TableCell>
+                    <TableCell>
+                      {getMonthRange(payment.bulanAwal, payment.bulanAkhir)}
+                    </TableCell>
+                    <TableCell>{formatRupiah(payment.jumlahDibayar)}</TableCell>
+                    <TableCell>
+                      <Badge className={getIkataStatusColor(payment.status)}>
+                        {formatStatusIkata(payment.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right sticky right-0 bg-background">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Buka menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleStatusLunas(payment)}
+                            className="flex items-center"
+                            disabled={payment.status === "LUNAS"}
+                          >
+                            <Check className="mr-2 h-4 w-4" />
+                            <span>Tandai Lunas</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleStatusSebagian(payment)}
+                            className="flex items-center"
+                            disabled={payment.status === "SEBAGIAN_BULAN"}
+                          >
+                            <ReceiptIcon className="mr-2 h-4 w-4" />
+                            <span>Tandai Sebagian Bulan</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleStatusBelumBayar(payment)}
+                            className="flex items-center"
+                            disabled={payment.status === "BELUM_BAYAR"}
+                          >
+                            <X className="mr-2 h-4 w-4" />
+                            <span>Tandai Belum Bayar</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleDelete(payment)}
+                            className="flex items-center text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Hapus</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        
+        <Pagination totalItems={ikataData.length} />
+        
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
+              <AlertDialogDescription>
+                Apakah Anda yakin ingin menghapus data pembayaran ini? 
+                Tindakan ini tidak dapat dibatalkan.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Batal</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground">
+                Hapus
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    )
+  }
 } 

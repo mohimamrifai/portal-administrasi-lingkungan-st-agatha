@@ -8,6 +8,8 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select"
+import { Button } from "@/components/ui/button"
+import { CalendarIcon } from "lucide-react"
 
 interface YearFilterProps {
   availableYears: number[]
@@ -20,36 +22,45 @@ export function YearFilter({
   selectedYear, 
   onChange 
 }: YearFilterProps) {
-  const [value, setValue] = useState<string>(selectedYear?.toString() || "all")
-  
-  // Update value when selectedYear prop changes
-  useEffect(() => {
-    setValue(selectedYear?.toString() || "all")
-  }, [selectedYear])
-  
-  // Handle value change
-  const handleValueChange = (newValue: string) => {
-    setValue(newValue)
-    if (newValue === "all") {
-      onChange(undefined)
-    } else {
-      onChange(Number(newValue))
-    }
+  // Jika tidak ada tahun yang tersedia
+  if (availableYears.length === 0) {
+    return (
+      <div className="flex items-center">
+        <Select disabled>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Tidak ada data" />
+          </SelectTrigger>
+        </Select>
+      </div>
+    )
   }
   
+  // Nilai yang ditampilkan pada dropdown
+  const displayValue = selectedYear ? selectedYear.toString() : "all"
+  
   return (
-    <Select value={value} onValueChange={handleValueChange}>
-      <SelectTrigger className="w-[180px]">
-        <SelectValue placeholder="Pilih Tahun" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="all">Semua Tahun</SelectItem>
-        {availableYears.map((year) => (
-          <SelectItem key={year} value={year.toString()}>
-            {year}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className="flex items-center">
+      <Select value={displayValue} onValueChange={(value) => {
+        if (value === "all") {
+          onChange(undefined)
+        } else {
+          onChange(parseInt(value, 10))
+        }
+      }}>
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Pilih tahun">
+            {selectedYear ? selectedYear : "Semua Tahun"}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Semua Tahun</SelectItem>
+          {availableYears.map((year) => (
+            <SelectItem key={year} value={year.toString()}>
+              {year}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   )
 } 

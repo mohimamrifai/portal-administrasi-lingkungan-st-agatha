@@ -1,59 +1,38 @@
-import { PaymentHistory, PaymentStatus } from "../types";
+import { DanaMandiriHistory, IkataHistory } from "../types";
+import { StatusIuran } from "@prisma/client";
 
-// Fungsi untuk memfilter data pembayaran berdasarkan user ID dan tipe pembayaran
-export function filterPaymentsByUserAndType(
-  data: PaymentHistory[],
-  type: "Dana Mandiri" | "IKATA",
-  userId?: number,
-  showAllUsers = false
-): PaymentHistory[] {
-  let filteredData = data.filter(payment => payment.type === type);
-  
-  // Filter status sesuai brief
-  if (type === "Dana Mandiri") {
-    filteredData = filteredData.filter(payment => payment.status === "Lunas");
-  }
-  if (type === "IKATA") {
-    filteredData = filteredData.filter(payment => payment.status === "Lunas");
-  }
-  
-  // Jika perlu filter berdasarkan user ID
-  if (!showAllUsers && userId) {
-    filteredData = filteredData.filter(payment => payment.userId === userId);
-  }
-  
-  return filteredData;
+// Fungsi untuk mendapatkan warna badge berdasarkan status dana mandiri
+export function getDanaMandiriStatusColor(statusSetor: boolean): string {
+  return statusSetor
+    ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+    : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
 }
 
-// Fungsi untuk memfilter data berdasarkan tipe pembayaran dan tahun
-export function filterPaymentHistory(
-  data: PaymentHistory[],
-  type: "Dana Mandiri" | "IKATA",
-  year?: number
-): PaymentHistory[] {
-  return data.filter(
-    (payment) =>
-      payment.type === type && (year ? payment.year === year : true)
-  );
-}
-
-// Fungsi untuk mendapatkan daftar tahun unik dari data histori
-export function getUniqueYears(data: PaymentHistory[]): number[] {
-  const years = data.map((payment) => payment.year);
-  return [...new Set(years)].sort((a, b) => b - a); // Descending order
-}
-
-// Fungsi untuk mendapatkan warna badge berdasarkan status
-export function getStatusColor(status: PaymentStatus): string {
+// Fungsi untuk mendapatkan warna badge berdasarkan status ikata
+export function getIkataStatusColor(status: StatusIuran): string {
   switch (status) {
-    case "Lunas":
+    case "LUNAS":
       return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
-    case "Menunggu":
+    case "SEBAGIAN_BULAN":
       return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300";
-    case "Belum Bayar":
+    case "BELUM_BAYAR":
       return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
     default:
       return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
+  }
+}
+
+// Fungsi untuk memformat status ikata menjadi teks yang mudah dibaca
+export function formatStatusIkata(status: StatusIuran): string {
+  switch (status) {
+    case "LUNAS":
+      return "Lunas";
+    case "SEBAGIAN_BULAN":
+      return "Sebagian Bulan";
+    case "BELUM_BAYAR":
+      return "Belum Bayar";
+    default:
+      return status;
   }
 }
 
@@ -67,135 +46,77 @@ export function formatRupiah(amount: number): string {
   }).format(amount);
 }
 
-// Fungsi untuk membuat data histori pembayaran dummy
-export function generatePaymentHistoryData(): PaymentHistory[] {
-  const currentYear = new Date().getFullYear();
-  const history: PaymentHistory[] = [];
-  
-  // Data dummy untuk umat
-  const umatData = [
-    { id: 1, name: "Budi Santoso" },
-    { id: 2, name: "Joko Widodo" },
-    { id: 3, name: "Rina Marlina" },
-    { id: 4, name: "Agus Darmawan" },
-    { id: 5, name: "Siti Aminah" }
+// Fungsi untuk mendapatkan nama bulan
+export function getMonthName(month: number): string {
+  const months = [
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
   ];
+  
+  return months[month - 1] || "";
+}
 
-  // Membuat data histori untuk Dana Mandiri selama 3 tahun terakhir
-  for (let year = currentYear; year >= currentYear - 2; year--) {
-    // Buat data untuk setiap umat
-    umatData.forEach(umat => {
-      // Status berbeda untuk setiap umat berdasarkan id dan tahun
-      let status: PaymentStatus;
-      let paymentDate: Date | null = null;
-      
-      if (year === currentYear) {
-        // Tahun ini: Status bervariasi berdasarkan ID umat
-        if (umat.id % 3 === 0) {
-          status = "Lunas";
-          paymentDate = new Date(year, umat.id % 12, 10 + umat.id);
-        } else if (umat.id % 3 === 1) {
-          status = "Menunggu";
-          paymentDate = null;
-        } else {
-          status = "Belum Bayar";
-          paymentDate = null;
-        }
-      } else if (year === currentYear - 1) {
-        // Tahun lalu: Mayoritas lunas
-        if (umat.id % 5 === 0) {
-          status = "Belum Bayar";
-          paymentDate = null;
-        } else {
-          status = "Lunas";
-          paymentDate = new Date(year, (umat.id + 2) % 12, 5 + umat.id);
-        }
-      } else {
-        // 2 tahun lalu: Semua lunas
-        status = "Lunas";
-        paymentDate = new Date(year, (umat.id + 4) % 12, 15 - (umat.id % 5));
-      }
-      
-      // Tambahkan entry Dana Mandiri
-      history.push({
-        id: history.length + 1,
-        userId: umat.id,
-        familyHeadName: umat.name,
-        year,
-        paymentDate,
-        amount: 200000 + (year - (currentYear - 2)) * 50000,
-        status,
-        type: "Dana Mandiri",
-        description: `Dana Mandiri Tahun ${year}`,
-      });
-    });
+// Fungsi untuk mendapatkan rentang bulan (untuk IKATA)
+export function getMonthRange(bulanAwal: number | null, bulanAkhir: number | null): string {
+  if (bulanAwal === null || bulanAkhir === null) {
+    return "Tidak ada data bulan";
   }
-
-  // Membuat data histori untuk IKATA selama 3 tahun terakhir
-  for (let year = currentYear; year >= currentYear - 2; year--) {
-    // Per semester
-    for (let semester = 1; semester <= 2; semester++) {
-      // Buat data untuk setiap umat
-      umatData.forEach(umat => {
-        // Status berbeda untuk setiap umat berdasarkan id dan tahun/semester
-        let status: PaymentStatus;
-        let paymentDate: Date | null = null;
-        
-        if (year === currentYear) {
-          if (semester === 1) {
-            // Semester 1 tahun ini: mayoritas lunas
-            if (umat.id % 4 === 0) {
-              status = "Menunggu";
-              paymentDate = null;
-            } else {
-              status = "Lunas";
-              paymentDate = new Date(year, (umat.id % 3) + 1, 5 + umat.id);
-            }
-          } else {
-            // Semester 2 tahun ini: bervariasi
-            if (umat.id % 2 === 0) {
-              status = "Belum Bayar";
-              paymentDate = null;
-            } else if (umat.id % 3 === 0) {
-              status = "Menunggu";
-              paymentDate = null;
-            } else {
-              status = "Lunas";
-              paymentDate = new Date(year, 6 + (umat.id % 2), 10 + (umat.id % 15));
-            }
-          }
-        } else if (year === currentYear - 1) {
-          // Tahun lalu: Hampir semua lunas
-          if (umat.id === 5 && semester === 2) {
-            status = "Belum Bayar";
-            paymentDate = null;
-          } else {
-            status = "Lunas";
-            const month = semester === 1 ? (umat.id % 4) + 1 : (umat.id % 4) + 7;
-            paymentDate = new Date(year, month, 10 + (umat.id % 15));
-          }
-        } else {
-          // 2 tahun lalu: Semua lunas
-          status = "Lunas";
-          const month = semester === 1 ? (umat.id % 3) + 1 : (umat.id % 3) + 7;
-          paymentDate = new Date(year, month, 5 + (umat.id % 20));
-        }
-        
-        // Tambahkan entry IKATA
-        history.push({
-          id: history.length + 1,
-          userId: umat.id,
-          familyHeadName: umat.name,
-          year,
-          paymentDate,
-          amount: 75000 + (year - (currentYear - 2)) * 25000,
-          status,
-          type: "IKATA",
-          description: `Iuran IKATA Semester ${semester} ${year}`,
-        });
-      });
-    }
+  
+  if (bulanAwal === bulanAkhir) {
+    return getMonthName(bulanAwal);
   }
+  
+  return `${getMonthName(bulanAwal)} - ${getMonthName(bulanAkhir)}`;
+}
 
-  return history;
+// Fungsi untuk memfilter data Dana Mandiri berdasarkan tahun
+export function filterDanaMandiriByYear(
+  data: DanaMandiriHistory[],
+  year?: number
+): DanaMandiriHistory[] {
+  if (!year) return data;
+  return data.filter((payment) => payment.tahun === year);
+}
+
+// Fungsi untuk memfilter data IKATA berdasarkan tahun
+export function filterIkataByYear(
+  data: IkataHistory[],
+  year?: number
+): IkataHistory[] {
+  if (!year) return data;
+  return data.filter((payment) => payment.tahun === year);
+}
+
+// Fungsi untuk mendapatkan daftar tahun unik dari data Dana Mandiri
+export function getUniqueDanaMandiriYears(data: DanaMandiriHistory[]): number[] {
+  const years = data.map((payment) => payment.tahun);
+  return [...new Set(years)].sort((a, b) => b - a); // Descending order
+}
+
+// Fungsi untuk mendapatkan daftar tahun unik dari data IKATA
+export function getUniqueIkataYears(data: IkataHistory[]): number[] {
+  const years = data.map((payment) => payment.tahun);
+  return [...new Set(years)].sort((a, b) => b - a); // Descending order
+}
+
+// Fungsi untuk menggabungkan tahun dari kedua jenis pembayaran
+export function getCombinedYears(
+  danaMandiriData: DanaMandiriHistory[],
+  ikataData: IkataHistory[]
+): number[] {
+  const danaMandiriYears = getUniqueDanaMandiriYears(danaMandiriData);
+  const ikataYears = getUniqueIkataYears(ikataData);
+  
+  const allYears = [...danaMandiriYears, ...ikataYears];
+  return [...new Set(allYears)].sort((a, b) => b - a); // Descending order
 }

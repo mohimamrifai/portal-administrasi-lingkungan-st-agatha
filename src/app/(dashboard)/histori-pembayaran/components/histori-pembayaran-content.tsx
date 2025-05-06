@@ -5,55 +5,99 @@ import { format } from "date-fns"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { useAuth } from "@/contexts/auth-context"
 import { Input } from "@/components/ui/input"
-import { SearchIcon, X } from "lucide-react"
-import dynamic from 'next/dynamic';
-import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
-import { PaymentHistoryPdf } from './payment-history-pdf';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import LoadingSkeleton from "./loading-skeleton";
+import { SearchIcon, X, PlusCircleIcon } from "lucide-react"
 
 import { YearFilter } from "./year-filter"
 import { PaymentHistoryTable } from "./payment-history-table"
 import { SummaryCards } from "./summary-cards"
-import { PaymentHistory, PaymentStatus } from "../types"
+import { AddPaymentDialog } from "./add-payment-dialog"
+import LoadingSkeleton from "./loading-skeleton"
+import { DanaMandiriHistory, IkataHistory } from "../types"
 import { 
-  generatePaymentHistoryData, 
-  filterPaymentHistory, 
-  getUniqueYears,
-  filterPaymentsByUserAndType 
-} from "../utils/index"
+  filterDanaMandiriByYear, 
+  filterIkataByYear, 
+  getCombinedYears
+} from "../utils"
+import { 
+  getAllDanaMandiri, 
+  getDanaMandiriByKeluargaId, 
+  updateDanaMandiri, 
+  deleteDanaMandiri,
+  getTotalDanaMandiriByYear
+} from "../actions/dana-mandiri"
+import {
+  getAllIkata,
+  getIkataByKeluargaId,
+  updateIkata,
+  deleteIkata,
+  getTotalIkataByYear
+} from "../actions/ikata"
+import { getCurrentUserKeluarga, getCurrentUserRole } from "../actions/user"
 
 export default function HistoriPembayaranContent() {
-  const { userRole } = useAuth()
-  const isSuperUser = userRole === "SuperUser"
-  
-  // State untuk menyimpan data histori pembayaran
-  const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([])
+  // State
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const [keluargaId, setKeluargaId] = useState<string | null>(null)
+  const [danaMandiriData, setDanaMandiriData] = useState<DanaMandiriHistory[]>([])
+  const [ikataData, setIkataData] = useState<IkataHistory[]>([])
   const [selectedYear, setSelectedYear] = useState<number | undefined>(undefined)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedUserId, setSelectedUserId] = useState<number | undefined>(undefined)
-  const [showPdfDialog, setShowPdfDialog] = useState(false);
-  const [pdfType, setPdfType] = useState<'Dana Mandiri' | 'IKATA'>('Dana Mandiri');
-  const [pdfData, setPdfData] = useState<PaymentHistory[]>([]);
-  const [selectedRowPdf, setSelectedRowPdf] = useState<PaymentHistory | null>(null);
+  const [showAddPaymentDialog, setShowAddPaymentDialog] = useState(false)
+  const [paymentTypeToAdd, setPaymentTypeToAdd] = useState<"Dana Mandiri" | "IKATA">("Dana Mandiri")
+  const [danaMandiriTotal, setDanaMandiriTotal] = useState({ total: 0, count: 0 })
+  const [ikataTotal, setIkataTotal] = useState({ total: 0, count: 0 })
+  
+  // Mengecek apakah pengguna adalah SuperUser
+  const isSuperUser = userRole === "SUPER_USER"
   
   // Fetch data saat komponen di-mount
   useEffect(() => {
-    // Simulasi pemanggilan API
     const fetchData = async () => {
       try {
         setIsLoading(true)
-        // Simulasi delay
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        // Gunakan data dummy
-        const data = generatePaymentHistoryData()
-        setPaymentHistory(data)
+        
+        // Mendapatkan role pengguna
+        const role = await getCurrentUserRole()
+        setUserRole(role || null)
+        
+        // Jika bukan SuperUser, dapatkan keluargaId pengguna
+        let keluargaData = null
+        if (role !== "SUPER_USER") {
+          keluargaData = await getCurrentUserKeluarga()
+          setKeluargaId(keluargaData.id)
+          
+          // Dapatkan data pembayaran untuk keluarga ini
+          const danaMandiri = await getDanaMandiriByKeluargaId(keluargaData.id)
+          const ikata = await getIkataByKeluargaId(keluargaData.id)
+          
+          setDanaMandiriData(danaMandiri)
+          setIkataData(ikata)
+        } else {
+          // Dapatkan semua data pembayaran untuk SuperUser
+          const danaMandiri = await getAllDanaMandiri()
+          const ikata = await getAllIkata()
+          
+          setDanaMandiriData(danaMandiri)
+          setIkataData(ikata)
+        }
+        
+        // Set tahun default ke tahun terbaru yang ada di data
+        const years = getCombinedYears(danaMandiriData, ikataData)
+        if (years.length > 0) {
+          // Tidak perlu set selectedYear agar menampilkan semua data
+          
+          // Dapatkan total untuk data tanpa filter tahun
+          const danaMandiriTotalData = await getTotalDanaMandiriByYear(0) // 0 artinya semua tahun
+          const ikataTotalData = await getTotalIkataByYear(0) // 0 artinya semua tahun
+          
+          setDanaMandiriTotal(danaMandiriTotalData)
+          setIkataTotal(ikataTotalData)
+        }
       } catch (error) {
+        console.error("Error fetching data:", error)
         toast.error("Gagal memuat data histori pembayaran")
-        console.error(error)
       } finally {
         setIsLoading(false)
       }
@@ -62,53 +106,63 @@ export default function HistoriPembayaranContent() {
     fetchData()
   }, [])
   
-  // Data untuk tabel, difilter berdasarkan role dan search term
-  const getFilteredData = (type: "Dana Mandiri" | "IKATA") => {
-    let data = filterPaymentsByUserAndType(
-      paymentHistory, 
-      type, 
-      isSuperUser ? selectedUserId : 1, // Umat ID 1 untuk role Umat, opsional untuk SuperUser
-      isSuperUser // Flag untuk menentukan apakah menampilkan semua data atau hanya milik pengguna
-    )
+  // Mendapatkan total dan menghitung ringkasan saat tahun berubah
+  useEffect(() => {
+    const updateTotals = async () => {
+      try {
+        // Jika selectedYear adalah undefined, maka kita mendapatkan total semua tahun
+        const yearToQuery = selectedYear ?? 0;
+        const danaMandiriTotalData = await getTotalDanaMandiriByYear(yearToQuery);
+        const ikataTotalData = await getTotalIkataByYear(yearToQuery);
+        
+        setDanaMandiriTotal(danaMandiriTotalData);
+        setIkataTotal(ikataTotalData);
+      } catch (error) {
+        console.error("Error updating totals:", error);
+      }
+    };
     
-    // Filter berdasarkan tahun
-    if (selectedYear) {
-      data = data.filter(payment => payment.year === selectedYear)
-    }
+    updateTotals();
+  }, [selectedYear]);
+  
+  // Data untuk tabel, difilter berdasarkan tahun dan search term
+  const getFilteredDanaMandiriData = () => {
+    let data = filterDanaMandiriByYear(danaMandiriData, selectedYear)
     
     // Untuk SuperUser, tambahkan filter berdasarkan search term
-    if (isSuperUser && searchTerm) {
+    if (isSuperUser && searchTerm.trim() !== "") {
       const lowercaseSearchTerm = searchTerm.toLowerCase()
-      data = data.filter(payment => {
-        return payment.familyHeadName?.toLowerCase().includes(lowercaseSearchTerm) ||
-               payment.description?.toLowerCase().includes(lowercaseSearchTerm)
-      })
+      data = data.filter(payment => 
+        payment.namaKepalaKeluarga.toLowerCase().includes(lowercaseSearchTerm)
+      )
+    }
+    
+    return data
+  }
+  
+  const getFilteredIkataData = () => {
+    let data = filterIkataByYear(ikataData, selectedYear)
+    
+    // Filter untuk tidak menampilkan status BELUM_BAYAR
+    data = data.filter(payment => payment.status !== "BELUM_BAYAR")
+    
+    // Untuk SuperUser, tambahkan filter berdasarkan search term
+    if (isSuperUser && searchTerm.trim() !== "") {
+      const lowercaseSearchTerm = searchTerm.toLowerCase()
+      data = data.filter(payment => 
+        payment.namaKepalaKeluarga.toLowerCase().includes(lowercaseSearchTerm)
+      )
     }
     
     return data
   }
   
   // Data yang sudah difilter
-  const danaMandiriData = getFilteredData("Dana Mandiri")
-  const ikataData = getFilteredData("IKATA")
+  const filteredDanaMandiriData = getFilteredDanaMandiriData()
+  const filteredIkataData = getFilteredIkataData()
   
   // Mendapatkan daftar tahun untuk filter
-  const availableYears = getUniqueYears(paymentHistory)
-  
-  // Hitung ringkasan untuk data cards
-  const danaMandiriTotal = danaMandiriData.reduce((sum, payment) => {
-    if (payment.status === "Lunas") {
-      return sum + payment.amount
-    }
-    return sum
-  }, 0)
-  
-  const ikataTotal = ikataData.reduce((sum, payment) => {
-    if (payment.status === "Lunas") {
-      return sum + payment.amount
-    }
-    return sum
-  }, 0)
+  const availableYears = getCombinedYears(danaMandiriData, ikataData)
   
   // Handler untuk mengubah tahun yang dipilih
   const handleYearChange = (year?: number) => {
@@ -120,41 +174,168 @@ export default function HistoriPembayaranContent() {
     setSearchTerm(e.target.value)
   }
   
-  // Handler untuk mencetak PDF seluruh histori
-  const handlePrintPdf = (type: 'Dana Mandiri' | 'IKATA') => {
-    const data = type === 'Dana Mandiri' ? danaMandiriData : ikataData;
-    setPdfType(type);
-    setPdfData(data);
-    setShowPdfDialog(true);
-  };
-  
-  // Handler untuk ekspor PDF per baris
-  const handleExportPdf = (payment: PaymentHistory) => {
-    setSelectedRowPdf(payment);
-  };
-  
-  // Handler untuk mengubah status pembayaran
-  const handleStatusChange = (payment: PaymentHistory, newStatus: string, newPaymentDate: Date | null) => {
-    const updatedData = paymentHistory.map((item) => {
-      if (item.id === payment.id) {
-        return {
-          ...item,
-          status: newStatus as PaymentStatus,
-          paymentDate: newPaymentDate
-        }
+  // Handler untuk mengubah status Dana Mandiri
+  const handleDanaMandiriStatusChange = async (payment: DanaMandiriHistory, statusSetor: boolean) => {
+    try {
+      const result = await updateDanaMandiri(payment.id, {
+        statusSetor,
+        tanggalSetor: statusSetor ? new Date() : null
+      })
+      
+      if (result.success) {
+        // Update local state
+        setDanaMandiriData(prev => 
+          prev.map(item => 
+            item.id === payment.id 
+              ? { 
+                  ...item, 
+                  statusSetor, 
+                  tanggalSetor: statusSetor ? new Date() : null 
+                } 
+              : item
+          )
+        )
+        
+        toast.success(`Status berhasil diubah menjadi ${statusSetor ? "Sudah Disetor" : "Belum Disetor"}`)
+        
+        // Update total jika tahun yang diubah sama dengan tahun yang sedang dipilih
+        const yearToQuery = selectedYear ?? 0;
+        const danaMandiriTotalData = await getTotalDanaMandiriByYear(yearToQuery);
+        setDanaMandiriTotal(danaMandiriTotalData);
       }
-      return item
-    })
-    
-    setPaymentHistory(updatedData)
-    toast.success("Status pembayaran berhasil diperbarui")
+    } catch (error) {
+      console.error("Error updating payment status:", error)
+      toast.error("Gagal mengubah status pembayaran")
+    }
   }
   
-  // Handler untuk menghapus pembayaran
-  const handleDeletePayment = (payment: PaymentHistory) => {
-    const updatedData = paymentHistory.filter(item => item.id !== payment.id)
-    setPaymentHistory(updatedData)
-    toast.success("Pembayaran berhasil dihapus")
+  // Handler untuk mengubah status IKATA
+  const handleIkataStatusChange = async (payment: IkataHistory, status: "LUNAS" | "SEBAGIAN_BULAN" | "BELUM_BAYAR") => {
+    try {
+      const updates: any = { status }
+      
+      // Jika status berubah menjadi Lunas, atur bulanAwal dan bulanAkhir ke seluruh tahun
+      if (status === "LUNAS") {
+        updates.bulanAwal = 1
+        updates.bulanAkhir = 12
+      } else if (status === "BELUM_BAYAR") {
+        updates.bulanAwal = null
+        updates.bulanAkhir = null
+        updates.jumlahDibayar = 0
+      }
+      
+      const result = await updateIkata(payment.id, updates)
+      
+      if (result.success) {
+        // Update local state
+        setIkataData(prev => 
+          prev.map(item => 
+            item.id === payment.id ? { ...item, ...updates } : item
+          )
+        )
+        
+        const statusText = {
+          "LUNAS": "Lunas",
+          "SEBAGIAN_BULAN": "Sebagian Bulan",
+          "BELUM_BAYAR": "Belum Bayar"
+        }
+        
+        toast.success(`Status berhasil diubah menjadi ${statusText[status]}`)
+        
+        // Update total jika tahun yang diubah sama dengan tahun yang sedang dipilih
+        const yearToQuery = selectedYear ?? 0;
+        const ikataTotalData = await getTotalIkataByYear(yearToQuery);
+        setIkataTotal(ikataTotalData);
+      }
+    } catch (error) {
+      console.error("Error updating payment status:", error)
+      toast.error("Gagal mengubah status pembayaran")
+    }
+  }
+  
+  // Handler untuk menghapus pembayaran Dana Mandiri
+  const handleDeleteDanaMandiri = async (payment: DanaMandiriHistory) => {
+    try {
+      const result = await deleteDanaMandiri(payment.id)
+      
+      if (result.success) {
+        // Update local state
+        setDanaMandiriData(prev => prev.filter(item => item.id !== payment.id))
+        
+        toast.success("Pembayaran berhasil dihapus")
+        
+        // Perbarui total
+        const yearToQuery = selectedYear ?? 0;
+        const danaMandiriTotalData = await getTotalDanaMandiriByYear(yearToQuery);
+        setDanaMandiriTotal(danaMandiriTotalData);
+      }
+    } catch (error) {
+      console.error("Error deleting payment:", error)
+      toast.error("Gagal menghapus pembayaran")
+    }
+  }
+  
+  // Handler untuk menghapus pembayaran IKATA
+  const handleDeleteIkata = async (payment: IkataHistory) => {
+    try {
+      const result = await deleteIkata(payment.id)
+      
+      if (result.success) {
+        // Update local state
+        setIkataData(prev => prev.filter(item => item.id !== payment.id))
+        
+        toast.success("Pembayaran berhasil dihapus")
+        
+        // Perbarui total
+        const yearToQuery = selectedYear ?? 0;
+        const ikataTotalData = await getTotalIkataByYear(yearToQuery);
+        setIkataTotal(ikataTotalData);
+      }
+    } catch (error) {
+      console.error("Error deleting payment:", error)
+      toast.error("Gagal menghapus pembayaran")
+    }
+  }
+  
+  // Handler untuk menampilkan dialog tambah pembayaran
+  const handleShowAddPayment = (type: "Dana Mandiri" | "IKATA") => {
+    setPaymentTypeToAdd(type)
+    setShowAddPaymentDialog(true)
+  }
+  
+  // Handler setelah berhasil menambahkan pembayaran
+  const handlePaymentAdded = async () => {
+    // Refresh data
+    try {
+      setIsLoading(true)
+      
+      if (isSuperUser) {
+        const danaMandiri = await getAllDanaMandiri()
+        const ikata = await getAllIkata()
+        
+        setDanaMandiriData(danaMandiri)
+        setIkataData(ikata)
+      } else if (keluargaId) {
+        const danaMandiri = await getDanaMandiriByKeluargaId(keluargaId)
+        const ikata = await getIkataByKeluargaId(keluargaId)
+        
+        setDanaMandiriData(danaMandiri)
+        setIkataData(ikata)
+      }
+      
+      // Perbarui total
+      const yearToQuery = selectedYear ?? 0;
+      const danaMandiriTotalData = await getTotalDanaMandiriByYear(yearToQuery);
+      const ikataTotalData = await getTotalIkataByYear(yearToQuery);
+      
+      setDanaMandiriTotal(danaMandiriTotalData)
+      setIkataTotal(ikataTotalData)
+    } catch (error) {
+      console.error("Error refreshing data:", error)
+      toast.error("Gagal memperbarui data")
+    } finally {
+      setIsLoading(false)
+    }
   }
   
   // Jika masih loading, tampilkan pesan loading
@@ -170,10 +351,10 @@ export default function HistoriPembayaranContent() {
       
       {/* Summary Cards */}
       <SummaryCards
-        danaMandiriTotal={danaMandiriTotal}
-        danaMandiriCount={danaMandiriData.filter(payment => payment.status === "Lunas").length}
-        ikataTotal={ikataTotal}
-        ikataCount={ikataData.filter(payment => payment.status === "Lunas").length}
+        danaMandiriTotal={danaMandiriTotal.total}
+        danaMandiriCount={danaMandiriTotal.count}
+        ikataTotal={ikataTotal.total}
+        ikataCount={ikataTotal.count}
       />
       
       {/* Tabs */}
@@ -216,20 +397,25 @@ export default function HistoriPembayaranContent() {
               )}
             </div>
             
-            <Button 
-              variant="outline"
-              onClick={() => handlePrintPdf("Dana Mandiri")}
-            >
-              Print PDF
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => handleShowAddPayment("Dana Mandiri")}
+                className="flex items-center gap-1"
+              >
+                <PlusCircleIcon className="h-4 w-4" />
+                Tambah
+              </Button>
+            </div>
           </div>
+          
           <div className="rounded-md border">
             <PaymentHistoryTable 
-              data={danaMandiriData} 
+              data={filteredDanaMandiriData} 
+              type="Dana Mandiri"
               showUserColumn={isSuperUser}
-              onStatusChange={handleStatusChange}
-              onDelete={handleDeletePayment}
-              onExport={handleExportPdf}
+              onStatusChange={handleDanaMandiriStatusChange}
+              onDelete={handleDeleteDanaMandiri}
             />
           </div>
         </TabsContent>
@@ -267,99 +453,39 @@ export default function HistoriPembayaranContent() {
               )}
             </div>
             
-            <Button 
-              variant="outline"
-              onClick={() => handlePrintPdf("IKATA")}
-            >
-              Print PDF
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => handleShowAddPayment("IKATA")}
+                className="flex items-center gap-1"
+              >
+                <PlusCircleIcon className="h-4 w-4" />
+                Tambah
+              </Button>
+            </div>
           </div>
+          
           <div className="rounded-md border">
             <PaymentHistoryTable 
-              data={ikataData} 
+              data={filteredIkataData}
+              type="IKATA"
               showUserColumn={isSuperUser}
-              onStatusChange={handleStatusChange}
-              onDelete={handleDeletePayment}
-              onExport={handleExportPdf}
+              onStatusChange={handleIkataStatusChange}
+              onDelete={handleDeleteIkata}
             />
           </div>
         </TabsContent>
       </Tabs>
-
-      {/* Dialog PDF Preview untuk seluruh histori */}
-      <Dialog open={showPdfDialog} onOpenChange={setShowPdfDialog}>
-        <DialogContent className="max-w-[90vw] w-[90vw] max-h-[85vh] h-[85vh] p-2 flex flex-col overflow-hidden">
-          <div className="flex flex-col gap-2 flex-1 min-h-0">
-            <div className="flex-1 min-h-0 w-full h-full overflow-hidden flex items-center justify-center">
-              {pdfData.length > 0 ? (
-                <PDFViewer style={{ width: '100%', height: '100%' }} showToolbar={true}>
-                  <PaymentHistoryPdf data={pdfData} type={pdfType} year={selectedYear} />
-                </PDFViewer>
-              ) : (
-                <div className="text-center text-muted-foreground">
-                  <p>Tidak ada data untuk ditampilkan</p>
-                </div>
-              )}
-            </div>
-          </div>
-          <DialogFooter className="p-2 border-t bg-background mt-0 flex flex-row gap-2 justify-end">
-            {pdfData.length > 0 ? (
-              <PDFDownloadLink
-                document={<PaymentHistoryPdf data={pdfData} type={pdfType} year={selectedYear} />}
-                fileName={`histori-pembayaran-${pdfType.toLowerCase()}${selectedYear ? '-' + selectedYear : ''}.pdf`}
-                className="inline-block"
-              >
-                {({ loading }) => (
-                  <Button size="sm" variant="default" className="mr-2">
-                    {loading ? 'Menyiapkan PDF...' : 'Download PDF'}
-                  </Button>
-                )}
-              </PDFDownloadLink>
-            ) : null}
-            <Button size="sm" variant="outline" onClick={() => setShowPdfDialog(false)}>
-              Tutup
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog PDF Preview untuk satu baris (ekspor per transaksi) */}
-      <Dialog open={!!selectedRowPdf} onOpenChange={() => setSelectedRowPdf(null)}>
-        <DialogContent className="max-w-[90vw] w-[90vw] max-h-[85vh] h-[85vh] p-2 flex flex-col overflow-hidden">
-          <DialogTitle className="hidden">PDF Preview</DialogTitle>
-          <div className="flex flex-col gap-2 flex-1 min-h-0">
-            <div className="flex-1 min-h-0 w-full h-full overflow-hidden flex items-center justify-center">
-              {selectedRowPdf ? (
-                <PDFViewer style={{ width: '100%', height: '100%' }} showToolbar={true}>
-                  <PaymentHistoryPdf data={[selectedRowPdf]} type={selectedRowPdf.type} year={selectedRowPdf.year} />
-                </PDFViewer>
-              ) : (
-                <div className="text-center text-muted-foreground">
-                  <p>Tidak ada data untuk ditampilkan</p>
-                </div>
-              )}
-            </div>
-          </div>
-          <DialogFooter className="p-2 border-t bg-background mt-0 flex flex-row gap-2 justify-end">
-            {selectedRowPdf ? (
-              <PDFDownloadLink
-                document={<PaymentHistoryPdf data={[selectedRowPdf]} type={selectedRowPdf.type} year={selectedRowPdf.year} />}
-                fileName={`histori-pembayaran-${selectedRowPdf.type.toLowerCase()}-${selectedRowPdf.year}-${selectedRowPdf.familyHeadName || 'data'}.pdf`}
-                className="inline-block"
-              >
-                {({ loading }) => (
-                  <Button size="sm" variant="default" className="mr-2">
-                    {loading ? 'Menyiapkan PDF...' : 'Download PDF'}
-                  </Button>
-                )}
-              </PDFDownloadLink>
-            ) : null}
-            <Button size="sm" variant="outline" onClick={() => setSelectedRowPdf(null)}>
-              Tutup
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      
+      {/* Dialog untuk menambahkan pembayaran */}
+      <AddPaymentDialog
+        isOpen={showAddPaymentDialog}
+        onClose={() => setShowAddPaymentDialog(false)}
+        paymentType={paymentTypeToAdd}
+        onSuccess={handlePaymentAdded}
+        isSuperUser={isSuperUser}
+        defaultKeluargaId={!isSuperUser ? keluargaId || undefined : undefined}
+      />
     </div>
   )
 } 

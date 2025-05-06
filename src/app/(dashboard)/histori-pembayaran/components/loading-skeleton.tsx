@@ -1,54 +1,113 @@
-import { Skeleton } from '@/components/ui/skeleton';
+"use client"
+
+import { Skeleton } from "@/components/ui/skeleton"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { TableCell, TableHead, TableHeader, TableRow, Table, TableBody } from "@/components/ui/table"
 
 export default function LoadingSkeleton() {
   return (
     <div className="space-y-6 p-2">
-      {/* Skeleton Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="p-4 rounded-lg border bg-white dark:bg-muted flex flex-col gap-2">
-          <Skeleton className="h-6 w-1/3 mb-2" />
-          <Skeleton className="h-8 w-1/2" />
-        </div>
-        <div className="p-4 rounded-lg border bg-white dark:bg-muted flex flex-col gap-2">
-          <Skeleton className="h-6 w-1/3 mb-2" />
-          <Skeleton className="h-8 w-1/2" />
+      <div className="flex justify-between items-center">
+        <Skeleton className="h-8 w-48" />
+      </div>
+      
+      {/* Summary Cards Skeleton */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              <Skeleton className="h-4 w-24" />
+            </CardTitle>
+            <Skeleton className="size-4 rounded-full" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-8 w-32 mb-2" />
+            <Skeleton className="h-4 w-full" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              <Skeleton className="h-4 w-24" />
+            </CardTitle>
+            <Skeleton className="size-4 rounded-full" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-8 w-32 mb-2" />
+            <Skeleton className="h-4 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Tabs Skeleton */}
+      <div className="border-b">
+        <div className="flex gap-4">
+          <Skeleton className="h-10 w-28" />
+          <Skeleton className="h-10 w-28" />
         </div>
       </div>
-      {/* Skeleton Filter Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-4">
+      
+      {/* Filter Skeleton */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-wrap gap-2 items-center">
-          <Skeleton className="h-9 w-32" /> {/* Year Filter */}
-          <Skeleton className="h-9 w-64" /> {/* Search */}
+          <Skeleton className="h-8 w-28" />
+          <Skeleton className="h-8 w-16" />
+          <Skeleton className="h-8 w-16" />
         </div>
-        <Skeleton className="h-9 w-28" /> {/* Print PDF Button */}
+        <Skeleton className="h-10 w-28" />
       </div>
-      {/* Skeleton Table */}
-      <div className="rounded-md border mt-4 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr>
-                <th className="px-4 py-2"><Skeleton className="h-5 w-32" /></th>
-                <th className="px-4 py-2"><Skeleton className="h-5 w-32" /></th>
-                <th className="px-4 py-2"><Skeleton className="h-5 w-24" /></th>
-                <th className="px-4 py-2"><Skeleton className="h-5 w-20" /></th>
-                <th className="px-4 py-2"><Skeleton className="h-5 w-16" /></th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...Array(5)].map((_, i) => (
-                <tr key={i}>
-                  <td className="px-4 py-2"><Skeleton className="h-5 w-32 my-2" /></td>
-                  <td className="px-4 py-2"><Skeleton className="h-5 w-32 my-2" /></td>
-                  <td className="px-4 py-2"><Skeleton className="h-5 w-24 my-2" /></td>
-                  <td className="px-4 py-2"><Skeleton className="h-5 w-20 my-2" /></td>
-                  <td className="px-4 py-2"><Skeleton className="h-8 w-16 my-2 rounded" /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      
+      {/* Table Skeleton */}
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>
+                <Skeleton className="h-5 w-full" />
+              </TableHead>
+              <TableHead>
+                <Skeleton className="h-5 w-full" />
+              </TableHead>
+              <TableHead>
+                <Skeleton className="h-5 w-full" />
+              </TableHead>
+              <TableHead>
+                <Skeleton className="h-5 w-full" />
+              </TableHead>
+              <TableHead>
+                <Skeleton className="h-5 w-full" />
+              </TableHead>
+              <TableHead>
+                <Skeleton className="h-5 w-full" />
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Array.from({ length: 5 }).map((_, index) => (
+              <TableRow key={index}>
+                <TableCell>
+                  <Skeleton className="h-5 w-full" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-5 w-full" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-5 w-full" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-5 w-full" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-5 w-full" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-5 w-full" />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
     </div>
-  );
+  )
 } 
