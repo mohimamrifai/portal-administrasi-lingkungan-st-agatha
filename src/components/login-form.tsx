@@ -66,8 +66,13 @@ export function LoginForm({
         }
       } else if (res?.ok) {
         console.log("Login successful, navigating to:", res.url)
-        // Gunakan window.location untuk hard redirect
-        window.location.href = res.url || "/dashboard"
+        // Gunakan router.push sebagai alternatif, mungkin lebih baik utk handling SPA
+        router.push(res.url || "/dashboard") 
+        
+        // Gunakan setTimeout sebagai fallback jika router.push macet
+        setTimeout(() => {
+          window.location.href = res.url || "/dashboard"
+        }, 1000)
       }
     } catch (error) {
       console.error("Login error:", error)
