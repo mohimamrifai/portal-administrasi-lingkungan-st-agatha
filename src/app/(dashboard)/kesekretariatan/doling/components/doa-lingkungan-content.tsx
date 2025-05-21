@@ -43,6 +43,8 @@ import {
 
 import { setupReminderNotifications } from "../utils/reminder-notifications";
 import { JenisIbadat, SubIbadat, StatusApproval } from "@prisma/client";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
 
 export interface DoaLingkunganContentProps {
     initialDoling?: DolingData[];
@@ -109,15 +111,31 @@ export function DoaLingkunganContent({
                 getRekapitulasiBulanan(new Date().getFullYear())
             ]);
             
-            setJadwalState(dolingData);
-            setDetilState(dolingData);
+            // Urutkan jadwal berdasarkan tanggal terbaru dulu
+            const sortedDolingData = [...dolingData].sort((a, b) => {
+                const dateA = new Date(a.tanggal);
+                const dateB = new Date(b.tanggal);
+                return dateB.getTime() - dateA.getTime(); // Terbaru di atas
+            });
+            
+            setJadwalState(sortedDolingData);
+            setDetilState(sortedDolingData);
             setKepalaKeluargaState(keluargaData);
             setRiwayatState(riwayatData);
             setRekapitulasiState(rekapitulasi);
 
+            // Jika belum ada doling yang dipilih, pilih yang paling baru
+            if (!selectedDolingId && sortedDolingData.length > 0) {
+                setSelectedDolingId(sortedDolingData[0].id);
+            }
+
             // Jika ada doling yang dipilih, ambil data absensinya
             if (selectedDolingId) {
                 const absensiData = await getAbsensiByDolingId(selectedDolingId);
+                setAbsensiState(absensiData);
+            } else if (sortedDolingData.length > 0) {
+                // Jika tidak ada yang dipilih tapi ada data jadwal, ambil absensi dari jadwal terbaru
+                const absensiData = await getAbsensiByDolingId(sortedDolingData[0].id);
                 setAbsensiState(absensiData);
             }
         } catch (error) {
@@ -161,9 +179,52 @@ export function DoaLingkunganContent({
 
     // Log when tab changes
     useEffect(() => {
-        console.log("Active tab changed to:", activeTab);
-        console.log("Current user role:", userRole);
+        // Tab changed - no need to log in production
     }, [activeTab, userRole]);
+
+    // Effect untuk mengambil data absensi saat dolingId dipilih
+    useEffect(() => {
+        if (selectedDolingId) {
+            const fetchAbsensiData = async () => {
+                try {
+                    const absensiData = await getAbsensiByDolingId(selectedDolingId);
+                    setAbsensiState(absensiData);
+                } catch (error) {
+                    console.error("Error fetching absensi data:", error);
+                    toast.error("Gagal memuat data absensi");
+                }
+            };
+            
+            fetchAbsensiData();
+        }
+    }, [selectedDolingId]);
+
+    // Fetch data termasuk absensi saat tab absensi aktif
+    useEffect(() => {
+        if (activeTab === "absensi-doling") {
+            // Muat semua data absensi saat pertama kali tab absensi ditampilkan
+            const fetchAllAbsensiData = async () => {
+                try {
+                    // Jika tidak ada doling yang dipilih, ambil absensi dari jadwal terbaru
+                    if (!selectedDolingId && jadwalState.length > 0) {
+                        // Dapatkan jadwal terbaru (paling atas dalam daftar)
+                        const latestDoling = jadwalState[0]; 
+                        setSelectedDolingId(latestDoling.id);
+                        const absensiData = await getAbsensiByDolingId(latestDoling.id);
+                        setAbsensiState(absensiData);
+                    } else if (selectedDolingId) {
+                        // Jika sudah ada doling yang dipilih, muat datanya
+                        const absensiData = await getAbsensiByDolingId(selectedDolingId);
+                        setAbsensiState(absensiData);
+                    }
+                } catch (error) {
+                    console.error("Error fetching absensi data:", error);
+                }
+            };
+            
+            fetchAllAbsensiData();
+        }
+    }, [activeTab, jadwalState, selectedDolingId]);
 
     // Event handlers - Jadwal Doling ------------------------------------------
 
@@ -302,13 +363,35 @@ export function DoaLingkunganContent({
         setAbsensiFormOpen(true);
     };
 
-    const handleSubmitAbsensi = async (values: any) => {
+    const handleSubmitAbsensi = async (values: { 
+        doaLingkunganId: string, 
+        absensiData: { 
+            keluargaId: string, 
+            hadir: boolean, 
+            statusKehadiran: string 
+        }[] 
+    }) => {
         try {
-            await updateAbsensi(values.doaLingkunganId, values.absensiData);
+            // Set doling ID yang aktif dulu
             setSelectedDolingId(values.doaLingkunganId);
-            toast.success("Data absensi berhasil diperbarui");
+            
+            // Kirim data ke server
+            await updateAbsensi(values.doaLingkunganId, values.absensiData);
+            
+            // Ambil data absensi terbaru
+            const absensiData = await getAbsensiByDolingId(values.doaLingkunganId);
+            setAbsensiState(absensiData);
+            
+            // Jika tab saat ini bukan tab absensi, pindah ke tab absensi
+            if (activeTab !== "absensi-doling") {
+                setActiveTab("absensi-doling");
+            }
+            
+            // Tutup form
             setAbsensiFormOpen(false);
-            fetchData(); // Refresh data
+            
+            // Tampilkan pesan sukses
+            toast.success("Data absensi berhasil diperbarui");
         } catch (error) {
             console.error("Error submitting absensi:", error);
             toast.error("Gagal menyimpan absensi");
@@ -331,10 +414,13 @@ export function DoaLingkunganContent({
         setShowPDFPreview(true);
     };
 
+    // Fungsi untuk memilih DolingId ketika mengklik pada tabel jadwal atau detil
+    const handleSelectDolingId = (id: string) => {
+        setSelectedDolingId(id);
+    };
+
     // Render action buttons based on active tab
     const renderActionButtons = () => {
-        console.log("Rendering action buttons for tab:", activeTab, "with role:", userRole);
-        
         switch (activeTab) {
             case "jadwal-doling":
                 return (
@@ -347,7 +433,6 @@ export function DoaLingkunganContent({
             case "detil-doling":
                 return null;
             case "absensi-doling":
-                console.log("Should render absensi action button with role:", userRole);
                 return <AbsensiActionButtons onAddAbsensi={handleAddAbsensi} userRole={userRole || undefined} />;
             default:
                 return null;
@@ -387,6 +472,7 @@ export function DoaLingkunganContent({
                         jadwal={filteredJadwal}
                         onEdit={handleEditJadwal}
                         onDelete={handleDeleteJadwal}
+                        onSelectDoling={handleSelectDolingId}
                     />
                 </TabsContent>
 
@@ -398,16 +484,17 @@ export function DoaLingkunganContent({
                         onEdit={handleEditDetil}
                         onDelete={handleDeleteDetil}
                         onApprove={handleApproveDetil}
+                        onSelectDoling={handleSelectDolingId}
                     />
                 </TabsContent>
 
                 {/* Absensi Tab */}
                 <TabsContent value="absensi-doling">
                     {renderActionButtons()}
+                    
                     <AbsensiDolingTable
                         absensi={absensiState}
                         onEdit={handleEditAbsensi}
-                        onAdd={handleAddAbsensi}
                         jadwalDoling={jadwalState}
                     />
                 </TabsContent>
@@ -445,6 +532,7 @@ export function DoaLingkunganContent({
                 onSubmit={handleSubmitAbsensi}
                 detilDoling={detilState}
                 jadwalDoling={jadwalState}
+                keluargaList={kepalaKeluargaState}
             />
             <PrintJadwalDialog
                 open={printJadwalOpen}
