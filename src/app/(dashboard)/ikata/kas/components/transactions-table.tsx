@@ -555,15 +555,21 @@ export function TransactionsTable({
                                 <PencilIcon className="mr-2 h-4 w-4" />
                                 <span>Edit</span>
                               </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleToggleLock(tx.id)}
-                              >
-                                {tx.locked ?
-                                  <UnlockIcon className="mr-2 h-4 w-4" /> :
+                              {tx.locked ? (
+                                <DropdownMenuItem
+                                  onClick={() => handleToggleLock(tx.id)}
+                                >
+                                  <UnlockIcon className="mr-2 h-4 w-4" />
+                                  <span>Buka Kunci</span>
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem
+                                  onClick={() => handleToggleLock(tx.id)}
+                                >
                                   <LockIcon className="mr-2 h-4 w-4" />
-                                }
-                                <span>{tx.locked ? 'Buka Kunci' : 'Kunci'}</span>
-                              </DropdownMenuItem>
+                                  <span>Kunci</span>
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuSeparator />
                               <AlertDialogTrigger asChild>
                                 <DropdownMenuItem

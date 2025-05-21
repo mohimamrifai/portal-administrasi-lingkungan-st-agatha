@@ -50,7 +50,7 @@ interface FamilyHeadsTableProps {
   familyHeads: FamilyHead[];
   isLoading?: boolean;
   onEdit: (familyHead: FamilyHead) => void;
-  onDelete: (id: string, reason: "moved" | "deceased", memberName?: string) => Promise<void>;
+  onDelete: (id: string, reason: "moved" | "deceased" | "member_deceased", memberName?: string) => Promise<void>;
   onExportTemplate: () => void;
   onImportData: () => void;
   canModifyData?: boolean;
@@ -83,15 +83,20 @@ export function FamilyHeadsTable({
     { value: StatusKehidupan.MENINGGAL, label: "Meninggal", key: "deceased" },
   ];
 
-  const handleDelete = async (id: string, reason: "moved" | "deceased", memberName?: string) => {
+  const handleDelete = async (id: string, reason: "moved" | "deceased" | "member_deceased", memberName?: string) => {
     try {
       await onDelete(id, reason, memberName);
       
-      toast.success(
-        reason === "moved" 
-          ? "Status kepala keluarga berhasil diubah menjadi Pindah. Data akan dihapus otomatis setelah 1 tahun 1 bulan."
-          : "Status kepala keluarga berhasil diubah menjadi Meninggal."
-      );
+      let successMessage = "";
+      if (reason === "moved") {
+        successMessage = "Status kepala keluarga berhasil diubah menjadi Pindah. Data akan dihapus otomatis setelah 1 tahun 1 bulan.";
+      } else if (reason === "deceased") {
+        successMessage = "Status seluruh keluarga berhasil diubah menjadi Meninggal.";
+      } else if (reason === "member_deceased") {
+        successMessage = `Status ${memberName} berhasil diubah menjadi Meninggal.`;
+      }
+      
+      toast.success(successMessage);
     } catch (error) {
       toast.error("Terjadi kesalahan saat memperbarui status");
     } finally {
@@ -318,11 +323,12 @@ export function FamilyHeadsTable({
                     <TableCell className="min-w-[120px]">
                       {familyHead.jumlahAnggotaKeluarga} jiwa
                       <div className="text-xs text-muted-foreground mt-1">
-                        {familyHead.statusPernikahan === 'MENIKAH' && "1 pasangan"}
-                        {familyHead.statusPernikahan === 'MENIKAH' && (familyHead.jumlahAnakTertanggung > 0 || familyHead.jumlahKerabatTertanggung > 0) && ', '}
-                        {familyHead.jumlahAnakTertanggung > 0 && `${familyHead.jumlahAnakTertanggung} anak`}
-                        {familyHead.jumlahAnakTertanggung > 0 && familyHead.jumlahKerabatTertanggung > 0 && ', '}
-                        {familyHead.jumlahKerabatTertanggung > 0 && `${familyHead.jumlahKerabatTertanggung} kerabat`}
+                        <ul className="list-disc pl-4">
+                          <li>1 Kepala Keluarga</li>
+                          {familyHead.statusPernikahan === 'MENIKAH' && <li>1 Pasangan/Istri</li>}
+                          {familyHead.jumlahAnakTertanggung > 0 && <li>{familyHead.jumlahAnakTertanggung} Anak</li>}
+                          {familyHead.jumlahKerabatTertanggung > 0 && <li>{familyHead.jumlahKerabatTertanggung} Kerabat</li>}
+                        </ul>
                       </div>
                     </TableCell>
                     <TableCell className="min-w-[80px]">{getStatusBadge(familyHead.status)}</TableCell>

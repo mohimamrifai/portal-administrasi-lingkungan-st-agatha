@@ -105,20 +105,42 @@ export async function getKeuanganIkataData(bulan?: number, tahun?: number): Prom
       ? new Date(tahun, bulan + 1, 0)
       : undefined;
 
-    // Query untuk saldo awal (semua transaksi sebelum periode yang dipilih)
-    const saldoAwalQuery = dateStart 
-      ? await prisma.kasIkata.aggregate({
-          _sum: {
-            kredit: true,
-            debit: true,
-          },
-          where: {
-            tanggal: {
-              lt: dateStart,
-            },
-          },
-        })
-      : { _sum: { kredit: 0, debit: 0 } };
+    // Cek apakah ada setting saldo awal untuk bulan dan tahun ini
+    let saldoAwal = 0;
+    
+    if (bulan !== undefined && tahun !== undefined) {
+      const saldoAwalSetting = await prisma.saldoAwalIkata.findFirst({
+        where: {
+          tahun: tahun,
+          bulan: bulan
+        }
+      });
+      
+      if (saldoAwalSetting) {
+        // Jika ada setting saldo awal, gunakan nilai dari setting
+        saldoAwal = saldoAwalSetting.saldoAwal;
+      } else {
+        // Jika tidak ada setting, hitung saldo awal dari transaksi sebelumnya
+        const saldoAwalQuery = dateStart 
+          ? await prisma.kasIkata.aggregate({
+              _sum: {
+                kredit: true,
+                debit: true,
+              },
+              where: {
+                tanggal: {
+                  lt: dateStart,
+                },
+              },
+            })
+          : { _sum: { kredit: 0, debit: 0 } };
+        
+        saldoAwal = (saldoAwalQuery._sum.debit || 0) - (saldoAwalQuery._sum.kredit || 0);
+      }
+    } else {
+      // Jika bulan dan tahun tidak ditentukan, gunakan semua transaksi
+      saldoAwal = 0; // Saldo awal 0 jika menampilkan semua data
+    }
 
     // Query untuk transaksi pada bulan yang dipilih
     const transactionQuery = {
@@ -153,10 +175,6 @@ export async function getKeuanganIkataData(bulan?: number, tahun?: number): Prom
         jenisTranasksi: "UANG_KELUAR",
       },
     });
-
-    // Menghitung saldo awal
-    const saldoAwal = 
-      (saldoAwalQuery._sum.debit || 0) - (saldoAwalQuery._sum.kredit || 0);
 
     // Menghitung saldo akhir
     const pemasukan_value = pemasukan._sum.debit || 0;

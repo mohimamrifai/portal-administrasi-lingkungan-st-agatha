@@ -371,14 +371,14 @@ export const KasIKATAPDF = ({ period, summary, transactions = [] }: KasIKATAPDFP
 
         <View style={styles.signature}>
           <View style={styles.signatureCol}>
-            <Text style={styles.signatureTitle}>Dibuat oleh,</Text>
+            <Text style={styles.signatureTitle}>Dicetak oleh,</Text>
             <View style={styles.signatureLine} />
             <Text style={styles.signatureRole}>Wakil Bendahara Lingkungan</Text>
           </View>
           <View style={styles.signatureCol}>
-            <Text style={styles.signatureTitle}>Disetujui Oleh,</Text>
+            <Text style={styles.signatureTitle}>Disahkan Oleh,</Text>
             <View style={styles.signatureLine} />
-            <Text style={styles.signatureRole}>Ketua / Wakil Ketua Lingkungan</Text>
+            <Text style={styles.signatureRole}>Ketua Lingkungan</Text>
           </View>
         </View>
       </Page>

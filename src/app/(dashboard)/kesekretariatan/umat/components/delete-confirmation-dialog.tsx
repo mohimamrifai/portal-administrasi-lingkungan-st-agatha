@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
   Dialog, 
@@ -19,13 +18,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Check, ChevronsUpDown, RefreshCw } from "lucide-react";
 import { FamilyHead } from "../types";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { getFamilyMembers, syncFamilyDependents } from "../actions";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+
+interface FamilyMember {
+  id: string;
+  nama: string;
+  jenis: 'KEPALA_KELUARGA' | 'PASANGAN' | 'ANAK' | 'KERABAT';
+}
 
 interface DeleteConfirmationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   familyHead: FamilyHead | null;
-  onConfirm: (id: string, reason: "moved" | "deceased", memberName?: string) => Promise<void>;
+  onConfirm: (id: string, reason: "moved" | "deceased" | "member_deceased", memberName?: string) => Promise<void>;
 }
 
 export function DeleteConfirmationDialog({
@@ -34,16 +57,103 @@ export function DeleteConfirmationDialog({
   familyHead,
   onConfirm
 }: DeleteConfirmationDialogProps) {
-  const [deleteReason, setDeleteReason] = useState<"moved" | "deceased">("moved");
+  const [deleteReason, setDeleteReason] = useState<"moved" | "deceased" | "member_deceased">("moved");
   const [deceasedMemberName, setDeceasedMemberName] = useState("");
+  const [deceasedType, setDeceasedType] = useState<"all" | "member">("all");
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectOpen, setSelectOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Fetch family members when dialog opens
+  useEffect(() => {
+    async function loadFamilyMembers() {
+      if (open && familyHead && deceasedType === "member") {
+        setIsLoading(true);
+        try {
+          const members = await getFamilyMembers(familyHead.id);
+          console.log("Family members loaded:", members);
+          
+          // Check each type of member
+          const kepalaKeluarga = members.filter(m => m.jenis === 'KEPALA_KELUARGA');
+          const pasangan = members.filter(m => m.jenis === 'PASANGAN');
+          const anak = members.filter(m => m.jenis === 'ANAK');
+          const kerabat = members.filter(m => m.jenis === 'KERABAT');
+          
+          console.log("Family member types:", {
+            kepalaKeluarga: kepalaKeluarga.length,
+            pasangan: pasangan.length,
+            anak: anak.length,
+            kerabat: kerabat.length
+          });
+          
+          // Tampilkan peringatan jika ada ketidaksesuaian jumlah dengan data di UI
+          if (familyHead.jumlahAnakTertanggung !== anak.length) {
+            console.warn(
+              "Inconsistency: familyHead.jumlahAnakTertanggung =", 
+              familyHead.jumlahAnakTertanggung,
+              "but actual anak count =", 
+              anak.length
+            );
+          }
+          
+          setFamilyMembers(members);
+        } catch (error) {
+          console.error("Error fetching family members:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    }
+    
+    loadFamilyMembers();
+  }, [open, familyHead, deceasedType]);
+
+  const handleReasonChange = (value: "moved" | "deceased" | "member_deceased") => {
+    setDeleteReason(value);
+    if (value === "moved") {
+      setDeceasedMemberName("");
+      setDeceasedType("all");
+    }
+  };
+
+  const handleDeceasedTypeChange = (value: "all" | "member") => {
+    setDeceasedType(value);
+    setDeceasedMemberName("");
+  };
+
+  const handleSyncFamily = async () => {
+    if (!familyHead) return;
+    
+    setIsSyncing(true);
+    try {
+      const result = await syncFamilyDependents(familyHead.id);
+      
+      if (result.success) {
+        toast.success(result.message);
+        // Reload family members data
+        const members = await getFamilyMembers(familyHead.id);
+        setFamilyMembers(members);
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      console.error("Error syncing family data:", error);
+      toast.error("Terjadi kesalahan saat menyinkronkan data");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const handleConfirm = async () => {
     if (!familyHead) return;
     
+    const reason = deleteReason === "deceased" && deceasedType === "member" ? "member_deceased" : deleteReason;
+    
     await onConfirm(
       familyHead.id, 
-      deleteReason, 
-      deleteReason === "deceased" ? deceasedMemberName : undefined
+      reason, 
+      (reason === "member_deceased") ? deceasedMemberName : undefined
     );
   };
 
@@ -62,7 +172,7 @@ export function DeleteConfirmationDialog({
             <Label htmlFor="delete-reason">Alasan</Label>
             <Select 
               value={deleteReason} 
-              onValueChange={(value: "moved" | "deceased") => setDeleteReason(value)}
+              onValueChange={(value: "moved" | "deceased" | "member_deceased") => handleReasonChange(value)}
             >
               <SelectTrigger id="delete-reason">
                 <SelectValue placeholder="Pilih alasan" />
@@ -81,17 +191,117 @@ export function DeleteConfirmationDialog({
           </div>
 
           {deleteReason === "deceased" && (
-            <div className="space-y-2">
-              <Label htmlFor="deceased-member">Anggota Keluarga yang Meninggal</Label>
-              <Input
-                id="deceased-member"
-                placeholder="Nama anggota keluarga yang meninggal"
-                value={deceasedMemberName}
-                onChange={(e) => setDeceasedMemberName(e.target.value)}
-              />
-              <p className="text-sm text-muted-foreground">
-                Informasi ini akan digunakan untuk mencatat data kematian anggota keluarga.
-              </p>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Status Meninggal untuk</Label>
+                <RadioGroup 
+                  value={deceasedType} 
+                  onValueChange={(value: "all" | "member") => handleDeceasedTypeChange(value)}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="all" id="all" />
+                    <Label htmlFor="all" className="cursor-pointer">Seluruh Keluarga</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="member" id="member" />
+                    <Label htmlFor="member" className="cursor-pointer">Anggota Keluarga Tertentu</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {deceasedType === "all" && (
+                <p className="text-sm text-muted-foreground">
+                  Seluruh anggota keluarga akan ditandai sebagai meninggal. Ini akan memengaruhi data total kepala keluarga dan jumlah jiwa.
+                </p>
+              )}
+
+              {deceasedType === "member" && (
+                <div className="space-y-2">
+                  <Label htmlFor="deceased-member">Nama Anggota Keluarga</Label>
+                  <Popover open={selectOpen} onOpenChange={setSelectOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={selectOpen}
+                        className="w-full justify-between"
+                        disabled={isLoading || familyMembers.length === 0}
+                      >
+                        {isLoading ? "Memuat..." : 
+                          deceasedMemberName ? 
+                            familyMembers.find(member => member.nama === deceasedMemberName)?.nama || deceasedMemberName : 
+                            "Pilih anggota keluarga"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Cari anggota keluarga..." />
+                        <CommandEmpty>Tidak ada anggota keluarga yang ditemukan.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandList>
+                            {familyMembers.map((member) => (
+                              <CommandItem
+                                key={member.id}
+                                onSelect={() => {
+                                  setDeceasedMemberName(member.nama);
+                                  setSelectOpen(false);
+                                }}
+                                className="cursor-pointer"
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    deceasedMemberName === member.nama ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div className="flex flex-col">
+                                  <span>{member.nama}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {member.jenis === 'KEPALA_KELUARGA' ? 'Kepala Keluarga' : 
+                                      member.jenis === 'PASANGAN' ? 'Pasangan/Istri' : 
+                                      member.jenis === 'ANAK' ? 'Anak' : 'Kerabat'}
+                                  </span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandList>
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {familyHead && 
+                   ((familyHead.jumlahAnakTertanggung > 0 && !familyMembers.some(m => m.jenis === 'ANAK')) || 
+                    (familyHead.jumlahKerabatTertanggung > 0 && !familyMembers.some(m => m.jenis === 'KERABAT'))) && (
+                    <div className="rounded-md bg-yellow-50 p-3 mt-2">
+                      <div className="flex flex-col gap-2">
+                        <div className="text-yellow-700">
+                          <p className="text-sm font-medium">Perhatian: Data tidak konsisten</p>
+                          <p className="text-xs mt-1">
+                            {familyHead.jumlahAnakTertanggung > 0 && !familyMembers.some(m => m.jenis === 'ANAK') && 
+                              `Ada ${familyHead.jumlahAnakTertanggung} anak tertanggung yang tercatat tetapi datanya tidak ditemukan. `}
+                            {familyHead.jumlahKerabatTertanggung > 0 && !familyMembers.some(m => m.jenis === 'KERABAT') && 
+                              `Ada ${familyHead.jumlahKerabatTertanggung} kerabat tertanggung yang tercatat tetapi datanya tidak ditemukan. `}
+                          </p>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full bg-white border-yellow-300 text-yellow-700 hover:bg-yellow-50"
+                          onClick={handleSyncFamily}
+                          disabled={isSyncing}
+                        >
+                          <RefreshCw className={cn("mr-2 h-4 w-4", isSyncing && "animate-spin")} />
+                          {isSyncing ? "Menyinkronkan..." : "Perbaiki Data Tanggungan"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-sm text-muted-foreground">
+                    Hanya anggota keluarga yang dipilih akan ditandai sebagai meninggal. Status keluarga secara keseluruhan tetap aktif.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -106,7 +316,7 @@ export function DeleteConfirmationDialog({
           </Button>
           <Button 
             onClick={handleConfirm}
-            disabled={deleteReason === "deceased" && deceasedMemberName.trim() === ""}
+            disabled={(deleteReason === "deceased" && deceasedType === "member" && deceasedMemberName.trim() === "")}
             className="w-full sm:w-auto"
           >
             Konfirmasi

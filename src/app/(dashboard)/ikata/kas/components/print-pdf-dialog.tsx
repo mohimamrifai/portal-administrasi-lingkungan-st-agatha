@@ -10,8 +10,7 @@ import { IKATASummary, IKATATransaction } from '../types';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Download, X } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
+import { Alert } from '@/components/ui/alert';
 
 interface PrintPDFDialogProps {
   open: boolean;
@@ -33,16 +32,25 @@ export function PrintPDFDialog({
   onPrint 
 }: PrintPDFDialogProps) {
   const [isPDFReady, setIsPDFReady] = useState(false);
-  const [lockTransactions, setLockTransactions] = useState(false);
   
   // Jika skipConfirmation, tampilkan PDF langsung saat dialog dibuka
   useEffect(() => {
     if (open && skipConfirmation && !isPDFReady) {
-      handlePrint();
+      handleViewPDF();
     }
   }, [open, skipConfirmation]);
   
-  const handlePrint = () => {
+  const handleViewPDF = () => {
+    setIsPDFReady(true);
+  };
+
+  const handleClose = () => {
+    setIsPDFReady(false);
+    onOpenChange(false);
+  };
+  
+  // Function to handle PDF download and lock transactions
+  const handleDownloadPDF = () => {
     // Tanggal awal dan akhir periode cetak
     // Jika bulan = 0 (filter reset/semua data), maka ambil semua data
     let dateRange;
@@ -59,17 +67,11 @@ export function PrintPDFDialog({
       dateRange = { from: firstDay, to: lastDay };
     }
     
+    // Lock transactions when downloading
     onPrint({ 
       dateRange, 
-      lockTransactions 
+      lockTransactions: true 
     });
-    setIsPDFReady(true);
-  };
-
-  const handleClose = () => {
-    setIsPDFReady(false);
-    setLockTransactions(false);
-    onOpenChange(false);
   };
   
   // Format bulan dalam bahasa Indonesia
@@ -107,25 +109,17 @@ export function PrintPDFDialog({
               }
             </p>
             
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="lock-transactions" 
-                checked={lockTransactions}
-                onCheckedChange={(checked) => setLockTransactions(!!checked)}
-              />
-              <Label 
-                htmlFor="lock-transactions" 
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Kunci semua transaksi saat cetak
-              </Label>
-            </div>
-            
+            <Alert variant="default" className="mt-2">
+              <p className="text-xs text-muted-foreground">
+                Perhatian: Melihat PDF tidak akan mengunci transaksi. Penguncian transaksi hanya terjadi saat Anda mengklik tombol "Unduh PDF dan Kunci Data". Setelah dikunci, transaksi tidak dapat diedit atau dihapus kecuali oleh superuser.
+              </p>
+            </Alert>
+
             <DialogFooter>
               <Button variant="outline" onClick={handleClose}>
                 Batal
               </Button>
-              <Button onClick={handlePrint}>Lihat PDF</Button>
+              <Button onClick={handleViewPDF}>Lihat PDF</Button>
             </DialogFooter>
           </div>
         ) : (
@@ -137,7 +131,10 @@ export function PrintPDFDialog({
                 transactions={transactions}
               />
             </PDFViewer>
-            <DialogFooter>
+            <DialogFooter className="flex flex-col md:flex-row gap-2">
+              <Button variant="outline" onClick={handleClose}>
+                Tutup
+              </Button>
               <PDFDownloadLink
                 document={
                   <KasIKATAPDF 
@@ -148,11 +145,12 @@ export function PrintPDFDialog({
                 }
                 fileName={fileName}
                 className="flex"
+                onClick={handleDownloadPDF}
               >
-                {({ loading }) => (
+                {({ loading, url }) => (
                   <Button disabled={loading}>
                     <Download className="h-4 w-4 mr-2" /> 
-                    {loading ? 'Menyiapkan...' : 'Download'}
+                    {loading ? 'Menyiapkan...' : 'Unduh PDF dan Kunci Data'}
                   </Button>
                 )}
               </PDFDownloadLink>

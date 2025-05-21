@@ -299,10 +299,22 @@ export function FamilyHeadFormDialog({
                         value={field.value || 1}
                       />
                     </FormControl>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Total seluruh anggota keluarga termasuk KK, pasangan, anak dan kerabat.
-                      <br />Nilainya otomatis dihitung berdasarkan status pernikahan, jumlah anak, dan jumlah kerabat.
-                    </p>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      <p>Komposisi anggota keluarga:</p>
+                      <ul className="mt-1 pl-5 list-disc">
+                        <li>1 Kepala Keluarga</li>
+                        {statusPernikahanValue === StatusPernikahan.MENIKAH && (
+                          <li>1 Pasangan/Istri</li>
+                        )}
+                        {jumlahAnakValue > 0 && (
+                          <li>{jumlahAnakValue} Anak tertanggung</li>
+                        )}
+                        {jumlahKerabatValue > 0 && (
+                          <li>{jumlahKerabatValue} Kerabat tertanggung</li>
+                        )}
+                      </ul>
+                      <p className="mt-1">Total: {field.value} jiwa</p>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

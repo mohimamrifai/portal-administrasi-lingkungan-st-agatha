@@ -119,9 +119,16 @@ export async function getNotificationById(notificationId: string): Promise<any |
   noStore();
   
   try {
+    // Validasi parameter terlebih dahulu
+    if (!notificationId || typeof notificationId !== 'string') {
+      console.error("Invalid notification ID:", notificationId);
+      return null;
+    }
+    
     // Dapatkan session user
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
+      console.error("User not authenticated when fetching notification:", notificationId);
       return null;
     }
     
@@ -135,13 +142,34 @@ export async function getNotificationById(notificationId: string): Promise<any |
     });
     
     // Pastikan user adalah penerima notifikasi tersebut
-    if (!notification || notification.userId !== userId) {
+    if (!notification) {
+      console.error("Notification not found:", notificationId);
       return null;
     }
     
-    return notification;
+    if (notification.userId !== userId) {
+      console.error("User not authorized to view notification:", { 
+        notificationId, 
+        userId, 
+        notificationUserId: notification.userId 
+      });
+      return null;
+    }
+    
+    // Transformasi data untuk client dengan format yang konsisten
+    const formattedNotification = {
+      id: notification.id,
+      pesan: notification.pesan,
+      dibaca: notification.dibaca,
+      userId: notification.userId,
+      createdAt: notification.createdAt,
+      updatedAt: notification.updatedAt,
+      type: "info", // Default type untuk UI
+    };
+    
+    return formattedNotification;
   } catch (error) {
-    console.error("Error fetching notification by ID:", error);
+    console.error("Error fetching notification by ID:", notificationId, error);
     return null;
   }
 }
@@ -153,6 +181,14 @@ export async function markNotificationAsRead(notificationId: string): Promise<No
   noStore();
   
   try {
+    // Validasi parameter terlebih dahulu
+    if (!notificationId || typeof notificationId !== 'string') {
+      return {
+        success: false,
+        message: "ID notifikasi tidak valid"
+      };
+    }
+    
     // Dapatkan session user
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -164,15 +200,31 @@ export async function markNotificationAsRead(notificationId: string): Promise<No
     
     const userId = session.user.id;
     
-    // Periksa apakah notifikasi milik user
+    // Periksa apakah notifikasi ada
     const notification = await prisma.notification.findUnique({
       where: { id: notificationId }
     });
     
-    if (!notification || notification.userId !== userId) {
+    if (!notification) {
       return {
         success: false,
-        message: "Notifikasi tidak ditemukan atau tidak berhak mengaksesnya"
+        message: "Notifikasi tidak ditemukan"
+      };
+    }
+    
+    // Periksa apakah notifikasi milik user
+    if (notification.userId !== userId) {
+      return {
+        success: false,
+        message: "Tidak berhak mengakses notifikasi ini"
+      };
+    }
+    
+    // Jika sudah dibaca, tidak perlu update lagi
+    if (notification.dibaca) {
+      return {
+        success: true,
+        message: "Notifikasi sudah dibaca sebelumnya"
       };
     }
     
@@ -187,7 +239,7 @@ export async function markNotificationAsRead(notificationId: string): Promise<No
       message: "Notifikasi ditandai sebagai dibaca"
     };
   } catch (error) {
-    console.error("Error marking notification as read:", error);
+    console.error("Error marking notification as read:", notificationId, error);
     return {
       success: false,
       message: "Gagal menandai notifikasi sebagai dibaca"
@@ -282,6 +334,14 @@ export async function deleteNotification(notificationId: string): Promise<Notifi
   noStore();
   
   try {
+    // Validasi parameter
+    if (!notificationId || typeof notificationId !== 'string') {
+      return {
+        success: false,
+        message: "ID notifikasi tidak valid"
+      };
+    }
+    
     // Dapatkan session user
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -293,15 +353,23 @@ export async function deleteNotification(notificationId: string): Promise<Notifi
     
     const userId = session.user.id;
     
-    // Periksa apakah notifikasi milik user
+    // Periksa apakah notifikasi ada
     const notification = await prisma.notification.findUnique({
       where: { id: notificationId }
     });
     
-    if (!notification || notification.userId !== userId) {
+    if (!notification) {
       return {
         success: false,
-        message: "Notifikasi tidak ditemukan atau tidak berhak mengaksesnya"
+        message: "Notifikasi tidak ditemukan"
+      };
+    }
+    
+    // Periksa apakah notifikasi milik user
+    if (notification.userId !== userId) {
+      return {
+        success: false,
+        message: "Tidak berhak menghapus notifikasi ini"
       };
     }
     
@@ -310,12 +378,15 @@ export async function deleteNotification(notificationId: string): Promise<Notifi
       where: { id: notificationId }
     });
     
+    // Revalidasi path
+    revalidatePath('/notifications');
+    
     return {
       success: true,
       message: "Notifikasi berhasil dihapus"
     };
   } catch (error) {
-    console.error("Error deleting notification:", error);
+    console.error("Error deleting notification:", notificationId, error);
     return {
       success: false,
       message: "Gagal menghapus notifikasi"

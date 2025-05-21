@@ -8,12 +8,14 @@ import { SummaryCards } from './summary-cards';
 import { TransactionsTable } from './transactions-table';
 import { TransactionFormDialog } from './transaction-form-dialog';
 import { PrintPDFDialog } from './print-pdf-dialog';
-import { IKATASummary, IKATATransaction, PeriodFilter as PeriodFilterType, TransactionFormData } from '../types';
+import { SaldoAwalFormDialog } from './saldo-awal-form-dialog';
+import { IKATASummary, IKATATransaction, PeriodFilter as PeriodFilterType, TransactionFormData, SaldoAwalFormData } from '../types';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, Printer } from 'lucide-react';
+import { AlertCircle, Printer, Settings } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from 'sonner';
+import { setSaldoAwalIkata } from '../utils/kas-ikata-service';
 // import { useToast } from '@/components/ui/use-toast';
 // import { useTransactions } from '@/contexts/transactions-context';
 
@@ -288,7 +290,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
   const handlePrintPDF = (data: any) => {
     console.log('Print PDF:', data);
     
-    // Kunci semua transaksi pada periode yang dipilih jika opsi 'lock' diaktifkan
+    // Kunci semua transaksi pada periode yang dipilih saat PDF diunduh
     if (data.lockTransactions) {
       const updatedTransactions = transactions.map(tx => {
         // Periksa apakah transaksi termasuk dalam periode yang dipilih
@@ -311,8 +313,10 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
     // Reset konfirmasi
     setSkipConfirmation(false);
     
-    // Tutup dialog
-    setIsPrintDialogOpen(false);
+    // Tutup dialog setelah unduh selesai jika transaksi dikunci
+    if (data.lockTransactions) {
+      setIsPrintDialogOpen(false);
+    }
   };
 
   // Handler untuk memfilter transaksi berdasarkan periode
@@ -328,6 +332,34 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
       tahun: new Date().getFullYear()
     });
     setFilterActive(false);
+  };
+
+  // Fungsi untuk menangani pengaturan saldo awal
+  const handleSaveSaldoAwal = async (data: SaldoAwalFormData) => {
+    try {
+      // Panggil API untuk menyimpan saldo awal
+      const result = await setSaldoAwalIkata(data.saldoAwal);
+      
+      if (result.success) {
+        // Update local state
+        setSummaryData({
+          ...summaryData,
+          saldoAwal: data.saldoAwal,
+          saldoAkhir: data.saldoAwal + summaryData.pemasukan - summaryData.pengeluaran
+        });
+        
+        // Tampilkan notifikasi sukses
+        toast.success(result.message || "Saldo awal berhasil disimpan");
+        
+        // Refresh data dengan router.refresh
+        router.refresh();
+      } else {
+        toast.error(result.message || "Gagal menyimpan saldo awal");
+      }
+    } catch (error) {
+      console.error("Error saving saldo awal:", error);
+      toast.error("Gagal menyimpan saldo awal");
+    }
   };
 
   return (
@@ -364,15 +396,22 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
           )}
 
           {canModifyData && (
-            <Button 
-              onClick={() => {
-                setEditingTransaction(null);
-                setIsAddTransactionOpen(true);
-              }}
-              className="h-10"
-            >
-              Tambah Transaksi
-            </Button>
+            <>
+              <Button 
+                onClick={() => {
+                  setEditingTransaction(null);
+                  setIsAddTransactionOpen(true);
+                }}
+                className="h-10"
+              >
+                Tambah Transaksi
+              </Button>
+              
+              <SaldoAwalFormDialog
+                onSubmit={handleSaveSaldoAwal}
+                currentBalance={summaryData.saldoAwal}
+              />
+            </>
           )}
           
           <Button 
@@ -386,7 +425,9 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <SummaryCards summary={summaryData} />
+        <SummaryCards 
+          summary={summaryData} 
+        />
       </div>
 
       <Card>
