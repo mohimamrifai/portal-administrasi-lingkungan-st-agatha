@@ -106,6 +106,7 @@ interface SubmitDataType {
   bacaanI: string;
   pemazmur: string;
   jumlahPeserta: number;
+  status: string;
 }
 
 export function DetilDolingFormDialog({
@@ -125,7 +126,7 @@ export function DetilDolingFormDialog({
   const [subIbadat, setSubIbadat] = useState<SubIbadat | null>(detil?.subIbadat || null)
   const [temaIbadat, setTemaIbadat] = useState<string | null>(detil?.temaIbadat || null)
   const [keterangan, setKeterangan] = useState<string>("")
-  const [status, setStatus] = useState<string>(detil?.status || "terjadwal")
+  const [status, setStatus] = useState<string>(detil?.status === "selesai" || detil?.status === "dibatalkan" ? detil.status : "selesai")
   
   const [jumlahKehadiran, setJumlahKehadiran] = useState<KehadiranData>({
     jumlahKKHadir: detil?.jumlahKKHadir || 0,
@@ -183,7 +184,7 @@ export function DetilDolingFormDialog({
       setFormJenisIbadat(mapPrismaJenisIbadatToForm(detil.jenisIbadat));
       setSubIbadat(detil.subIbadat);
       setTemaIbadat(detil.temaIbadat);
-      setStatus(detil.status);
+      setStatus(detil.status === "selesai" || detil.status === "dibatalkan" ? detil.status : "selesai");
       
       setJumlahKehadiran({
         jumlahKKHadir: detil.jumlahKKHadir || 0,
@@ -234,6 +235,62 @@ export function DetilDolingFormDialog({
       if (jadwal) {
         setTanggalValue(format(new Date(jadwal.tanggal), 'yyyy-MM-dd'));
         setTuanRumahValue(jadwal.tuanRumah);
+        setJenisIbadat(jadwal.jenisIbadat);
+        setFormJenisIbadat(mapPrismaJenisIbadatToForm(jadwal.jenisIbadat));
+        setSubIbadat(jadwal.subIbadat);
+        setTemaIbadat(jadwal.temaIbadat);
+        setStatus(jadwal.status === "dibatalkan" ? "dibatalkan" : "selesai");
+        
+        // Jika jadwal telah memiliki data kehadiran dan kolekte, gunakan data tersebut
+        if (jadwal.jumlahKKHadir > 0) {
+          setJumlahKehadiran({
+            jumlahKKHadir: jadwal.jumlahKKHadir || 0,
+            bapak: jadwal.bapak || 0,
+            ibu: jadwal.ibu || 0,
+            omk: jadwal.omk || 0,
+            bir: jadwal.bir || 0,
+            biaBesar: jadwal.biaAtas || 0,
+            biaKecil: jadwal.biaBawah || 0,
+            totalHadir: 0
+          });
+        }
+        
+        if (jadwal.kolekteI > 0 || jadwal.kolekteII > 0 || jadwal.ucapanSyukur > 0) {
+          setKolekteData({
+            kolekte1: jadwal.kolekteI || 0,
+            kolekte2: jadwal.kolekteII || 0,
+            ucapanSyukur: jadwal.ucapanSyukur || 0
+          });
+        }
+        
+        // Jika jadwal telah memiliki data petugas, gunakan data tersebut
+        if (jadwal.pemimpinIbadat || jadwal.pemimpinRosario || jadwal.pembawaRenungan || jadwal.pembawaLagu || jadwal.doaUmat) {
+          setPetugasLiturgi({
+            pemimpin: jadwal.pemimpinIbadat || "", 
+            rosario: jadwal.pemimpinRosario || "",
+            renungan: jadwal.pembawaRenungan || "",
+            lagu: jadwal.pembawaLagu || "",
+            doaUmat: jadwal.doaUmat || "",
+            bacaan: "",
+            // Legacy fields
+            pemimpinIbadat: jadwal.pemimpinIbadat || "",
+            pemimpinRosario: jadwal.pemimpinRosario || "",
+            pembawaRenungan: jadwal.pembawaRenungan || "",
+            pembawaLagu: jadwal.pembawaLagu || ""
+          });
+        }
+        
+        if (jadwal.pemimpinMisa || jadwal.bacaanI || jadwal.pemazmur || jadwal.jumlahPeserta > 0) {
+          setPetugasMisa({
+            pemimpin: jadwal.pemimpinMisa || "",
+            bacaanPertama: jadwal.bacaanI || "",
+            pemazmur: jadwal.pemazmur || "",
+            jumlahPeserta: jadwal.jumlahPeserta || 0,
+            // Legacy fields
+            pemimpinMisa: jadwal.pemimpinMisa || "",
+            bacaanI: jadwal.bacaanI || ""
+          });
+        }
       }
     }
   }, [selectedJadwal, jadwalDoling]);
@@ -254,13 +311,31 @@ export function DetilDolingFormDialog({
     setJenisIbadat(reverseMappingJenisIbadat[value]);
   };
   
+  // Handler untuk status
+  const handleStatusChange = (value: string): void => {
+    setStatus(value);
+  };
+  
+  // Handle keterangan
+  const handleKeteranganChange = (value: string): void => {
+    setKeterangan(value);
+  };
+  
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    // Extract form data untuk update DolingDetail
+    // Tentukan ID yang akan digunakan - gunakan selectedJadwal jika ada pilihan, jika tidak gunakan detil?.id
+    const dataId = selectedJadwal !== "manual" && selectedJadwal ? selectedJadwal : detil?.id;
+    
+    if (!dataId) {
+      toast.error("ID jadwal tidak valid");
+      return;
+    }
+    
+    // Siapkan data untuk dikirim ke server
     const submitData: SubmitDataType = {
-      id: detil?.id,
-      jumlahKKHadir: jumlahKehadiran.jumlahKKHadir,
+      id: dataId,
+      jumlahKKHadir: jumlahKehadiran.jumlahKKHadir, 
       bapak: jumlahKehadiran.bapak,
       ibu: jumlahKehadiran.ibu,
       omk: jumlahKehadiran.omk,
@@ -270,33 +345,22 @@ export function DetilDolingFormDialog({
       kolekteI: kolekteData.kolekte1,
       kolekteII: kolekteData.kolekte2,
       ucapanSyukur: kolekteData.ucapanSyukur,
-      pemimpinIbadat: petugasLiturgi.pemimpin || "",
-      pemimpinRosario: petugasLiturgi.rosario || "",
-      pembawaRenungan: petugasLiturgi.renungan || "",
-      pembawaLagu: petugasLiturgi.lagu || "",
-      doaUmat: petugasLiturgi.doaUmat || "",
-      pemimpinMisa: petugasMisa.pemimpin || "",
-      bacaanI: petugasMisa.bacaanPertama || "",
-      pemazmur: petugasMisa.pemazmur || "",
-      jumlahPeserta: petugasMisa.jumlahPeserta || 0,
+      pemimpinIbadat: petugasLiturgi.pemimpin,
+      pemimpinRosario: petugasLiturgi.rosario,
+      pembawaRenungan: petugasLiturgi.renungan,
+      pembawaLagu: petugasLiturgi.lagu,
+      doaUmat: petugasLiturgi.doaUmat,
+      pemimpinMisa: petugasMisa.pemimpin,
+      bacaanI: petugasMisa.bacaanPertama,
+      pemazmur: petugasMisa.pemazmur,
+      jumlahPeserta: petugasMisa.jumlahPeserta,
+      status: status,
     };
     
-    // Hitung total peserta berdasarkan kategori jika tidak diisi langsung
-    if (!submitData.jumlahPeserta) {
-      submitData.jumlahPeserta = 
-        jumlahKehadiran.bapak + 
-        jumlahKehadiran.ibu + 
-        jumlahKehadiran.omk + 
-        jumlahKehadiran.bir + 
-        jumlahKehadiran.biaKecil + 
-        jumlahKehadiran.biaBesar;
-    }
+    // Log data yang akan dikirim
+    console.log("Mengirim data detil doling:", submitData);
     
-    // Tampilkan notifikasi sesuai brief
-    toast.success("Data berhasil disimpan", {
-      description: `Data doling untuk ${jenisIbadat} pada tanggal ${tanggalValue}`,
-    });
-    
+    // Kirim data ke parent component untuk diproses
     onSubmit(submitData);
   };
   
@@ -375,11 +439,6 @@ export function DetilDolingFormDialog({
     });
   };
   
-  // Handle keterangan
-  const handleKeteranganChange = (value: string): void => {
-    setKeterangan(value);
-  };
-  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[95vh] overflow-y-auto pb-10">
@@ -456,7 +515,7 @@ export function DetilDolingFormDialog({
             keterangan={keterangan}
             status={status}
             onKeteranganChange={handleKeteranganChange}
-            onStatusChange={setStatus}
+            onStatusChange={handleStatusChange}
           />
           
           <div className="flex justify-end space-x-2">

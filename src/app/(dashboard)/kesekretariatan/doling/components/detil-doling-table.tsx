@@ -93,7 +93,7 @@ export function DetilDolingTable({
     if (onApprove) {
       onApprove(id);
     } else {
-      toast.info("Fitur approval masih dalam pengembangan");
+      toast.error("Tidak dapat mengubah status approval");
     }
   };
 

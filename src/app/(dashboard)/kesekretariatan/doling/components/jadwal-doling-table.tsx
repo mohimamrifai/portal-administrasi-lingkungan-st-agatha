@@ -17,7 +17,8 @@ import {
   ChevronsRightIcon,
   CalendarIcon,
   UserIcon,
-  PhoneIcon
+  PhoneIcon,
+  PencilIcon
 } from "lucide-react";
 import { JadwalDoling } from "../types";
 import { Input } from "@/components/ui/input";
@@ -46,7 +47,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatTanggalWaktu } from "../utils/helpers";
-import { JenisIbadat } from "@prisma/client";
+import { JenisIbadat, SubIbadat } from "@prisma/client";
+import {
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface JadwalDolingTableProps {
   jadwal: JadwalDoling[];
@@ -115,6 +120,24 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete }: JadwalDolingTabl
       default:
         return <Badge variant="outline">{jenisIbadat}</Badge>;
     }
+  };
+
+  // Pembantu untuk mendapatkan label sub ibadat yang lebih mudah dibaca
+  const getSubIbadatLabel = (subIbadat: SubIbadat): string => {
+    const subIbadatMap: Record<SubIbadat, string> = {
+      [SubIbadat.IBADAT_SABDA]: "Ibadat Sabda",
+      [SubIbadat.IBADAT_SABDA_TEMATIK]: "Ibadat Sabda Tematik",
+      [SubIbadat.PRAPASKAH]: "Prapaskah (APP)",
+      [SubIbadat.BKSN]: "BKSN",
+      [SubIbadat.BULAN_ROSARIO]: "Bulan Rosario",
+      [SubIbadat.NOVENA_NATAL]: "Novena Natal",
+      [SubIbadat.MISA_SYUKUR]: "Misa Syukur",
+      [SubIbadat.MISA_REQUEM]: "Misa Requem",
+      [SubIbadat.MISA_ARWAH]: "Misa Arwah",
+      [SubIbadat.MISA_PELINDUNG]: "Misa Pelindung"
+    };
+    
+    return subIbadatMap[subIbadat] || subIbadat;
   };
 
   return (
@@ -230,10 +253,10 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete }: JadwalDolingTabl
                 <p>{selectedJadwal.alamat}</p>
                 
                 <p className="font-medium">Jenis Ibadat:</p>
-                <p>{getJenisIbadatBadge(selectedJadwal.jenisIbadat)}</p>
+                <div className="text-sm">{getJenisIbadatBadge(selectedJadwal.jenisIbadat)}</div>
                 
                 <p className="font-medium">Sub Ibadat:</p>
-                <p>{selectedJadwal.subIbadat || "-"}</p>
+                <p>{selectedJadwal.customSubIbadat || (selectedJadwal.subIbadat && getSubIbadatLabel(selectedJadwal.subIbadat)) || "-"}</p>
                 
                 <p className="font-medium">Tema:</p>
                 <p>{selectedJadwal.temaIbadat || "-"}</p>
@@ -301,7 +324,7 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete }: JadwalDolingTabl
                         size="icon"
                         onClick={() => onEdit(item)}
                       >
-                        <EditIcon className="h-4 w-4" />
+                        <PencilIcon className="h-4 w-4" />
                         <span className="sr-only">Edit</span>
                       </Button>
                       <AlertDialog>
