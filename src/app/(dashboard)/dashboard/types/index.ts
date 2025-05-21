@@ -25,6 +25,22 @@ export interface KesekretariatanSummary {
   kkPindah: number;
   umatMeninggalDunia: number;
   tingkatPartisipasiUmat: number;
+  detailKKBergabung: {
+    id: string;
+    nama: string;
+    tanggal: Date;
+  }[];
+  detailKKPindah: {
+    id: string;
+    nama: string;
+    tanggal: Date;
+  }[];
+  detailUmatMeninggal: {
+    id: string;
+    nama: string;
+    tanggal: Date;
+    statusKeluarga: string;
+  }[];
 }
 
 // Tipe data untuk Kepala Keluarga Penunggak

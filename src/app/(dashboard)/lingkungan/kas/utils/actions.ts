@@ -216,4 +216,101 @@ export async function approveTransaction(id: string, status: 'APPROVED' | 'REJEC
     console.error('Failed to update approval status:', error);
     return { success: false, error: 'Gagal memperbarui status approval' };
   }
+}
+
+// Menyimpan saldo awal
+export async function saveInitialBalance(amount: number) {
+  try {
+    // Cari konfigurasi saldo awal jika sudah ada
+    const existingConfig = await prisma.kasLingkungan.findFirst({
+      where: {
+        tipeTransaksi: TipeTransaksiLingkungan.LAIN_LAIN,
+        keterangan: "SALDO AWAL"
+      }
+    });
+
+    // Jika sudah ada, update nilai
+    if (existingConfig) {
+      await prisma.kasLingkungan.update({
+        where: { id: existingConfig.id },
+        data: {
+          debit: amount,
+          kredit: 0,
+          tanggal: new Date()
+        }
+      });
+    } else {
+      // Jika belum ada, buat baru
+      await prisma.kasLingkungan.create({
+        data: {
+          tanggal: new Date(),
+          jenisTranasksi: JenisTransaksi.UANG_MASUK,
+          tipeTransaksi: TipeTransaksiLingkungan.LAIN_LAIN,
+          keterangan: "SALDO AWAL",
+          debit: amount,
+          kredit: 0,
+          approval: {
+            create: {
+              status: 'APPROVED'
+            }
+          }
+        }
+      });
+    }
+
+    // Buat notifikasi
+    const notificationMessage = `Saldo awal kas lingkungan telah diperbarui menjadi Rp ${amount.toLocaleString('id-ID')}.`;
+    await createNotification(notificationMessage, [Role.SUPER_USER, Role.KETUA, Role.BENDAHARA, Role.WAKIL_BENDAHARA]);
+    
+    // Revalidasi path
+    revalidatePath('/lingkungan/kas');
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to save initial balance:', error);
+    return { success: false, error: 'Gagal menyimpan saldo awal' };
+  }
+}
+
+// Function to lock transaction when PDF is printed
+export async function lockTransactions(transactionIds: string[]) {
+  try {
+    // Update all transactions to APPROVED status
+    for (const id of transactionIds) {
+      const transaction = await prisma.kasLingkungan.findUnique({
+        where: { id },
+        include: { approval: true }
+      });
+
+      if (transaction) {
+        // If transaction already has approval record, update it
+        if (transaction.approval) {
+          await prisma.approval.update({
+            where: { id: transaction.approval.id },
+            data: { status: 'APPROVED' }
+          });
+        } else {
+          // If not, create a new approval record
+          await prisma.approval.create({
+            data: {
+              status: 'APPROVED',
+              kasLingkungan: { connect: { id } }
+            }
+          });
+        }
+      }
+    }
+
+    // Create notification for locking transactions
+    const notificationMessage = `${transactionIds.length} transaksi kas lingkungan telah dikunci setelah dicetak PDF.`;
+    await createNotification(notificationMessage, [Role.SUPER_USER, Role.KETUA, Role.BENDAHARA, Role.WAKIL_BENDAHARA]);
+    
+    // Revalidate path
+    revalidatePath('/lingkungan/kas');
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to lock transactions:', error);
+    return { success: false, error: 'Gagal mengunci transaksi' };
+  }
 } 

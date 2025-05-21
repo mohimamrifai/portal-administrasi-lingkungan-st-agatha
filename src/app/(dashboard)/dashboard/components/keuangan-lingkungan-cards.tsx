@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/card"
 import { KeuanganLingkunganSummary } from "../types"
 import { formatRupiah } from "../utils"
-import { Wallet, ArrowDownCircle, ArrowUpCircle, PiggyBank } from "lucide-react"
+import { Wallet, ArrowDownCircle, ArrowUpCircle, WalletCards } from "lucide-react"
 
 interface KeuanganLingkunganCardsProps {
   data: KeuanganLingkunganSummary
@@ -45,7 +45,7 @@ export function KeuanganLingkunganCards({ data }: KeuanganLingkunganCardsProps) 
       </Card>
       <Card className="bg-purple-50">
         <CardHeader className="pb-2 flex flex-row items-center gap-3">
-          <PiggyBank className="w-7 h-7 text-purple-500" />
+          <WalletCards className="w-7 h-7 text-purple-500" />
           <div>
             <CardDescription>Saldo Akhir</CardDescription>
             <CardTitle className="text-xl text-purple-600">{formatRupiah(data.saldoAkhir)}</CardTitle>

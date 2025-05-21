@@ -15,6 +15,7 @@ export interface FamilyHeadData {
   jumlahKerabatTertanggung: number;
   jumlahAnggotaKeluarga: number;
   status: StatusKehidupan;
+  statusPernikahan: StatusPernikahan;
   tanggalKeluar?: Date | null;
   tanggalMeninggal?: Date | null;
   createdAt?: Date;
@@ -56,6 +57,7 @@ export async function getAllFamilyHeads(): Promise<FamilyHeadData[]> {
       jumlahKerabatTertanggung: keluarga.jumlahKerabatTertanggung,
       jumlahAnggotaKeluarga: keluarga.jumlahAnggotaKeluarga,
       status: keluarga.status,
+      statusPernikahan: keluarga.statusPernikahan,
       tanggalKeluar: keluarga.tanggalKeluar,
       tanggalMeninggal: keluarga.tanggalMeninggal,
       createdAt: new Date(),
@@ -63,7 +65,7 @@ export async function getAllFamilyHeads(): Promise<FamilyHeadData[]> {
     }));
   } catch (error) {
     console.error("Error getting family heads:", error);
-    throw new Error("Gagal mengambil data kepala keluarga");
+    throw new Error("Gagal mengambil data keluarga umat");
   }
 }
 
@@ -88,6 +90,7 @@ export async function getFamilyHeadById(id: string): Promise<FamilyHeadData | nu
       jumlahKerabatTertanggung: keluarga.jumlahKerabatTertanggung,
       jumlahAnggotaKeluarga: keluarga.jumlahAnggotaKeluarga,
       status: keluarga.status,
+      statusPernikahan: keluarga.statusPernikahan,
       tanggalKeluar: keluarga.tanggalKeluar,
       tanggalMeninggal: keluarga.tanggalMeninggal,
       createdAt: new Date(),
@@ -132,6 +135,7 @@ export async function addFamilyHead(data: FamilyHeadFormData): Promise<FamilyHea
       jumlahKerabatTertanggung: keluarga.jumlahKerabatTertanggung,
       jumlahAnggotaKeluarga: keluarga.jumlahAnggotaKeluarga,
       status: keluarga.status,
+      statusPernikahan: keluarga.statusPernikahan,
       tanggalKeluar: keluarga.tanggalKeluar,
       tanggalMeninggal: keluarga.tanggalMeninggal,
     };
@@ -174,6 +178,7 @@ export async function updateFamilyHead(id: string, data: FamilyHeadFormData): Pr
       jumlahKerabatTertanggung: keluarga.jumlahKerabatTertanggung,
       jumlahAnggotaKeluarga: keluarga.jumlahAnggotaKeluarga,
       status: keluarga.status,
+      statusPernikahan: keluarga.statusPernikahan,
       tanggalKeluar: keluarga.tanggalKeluar,
       tanggalMeninggal: keluarga.tanggalMeninggal,
     };

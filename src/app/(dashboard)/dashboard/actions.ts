@@ -226,12 +226,15 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
         jumlahJiwa += 1;
       }
       
-      // Tambahkan semua tanggungan
-      jumlahJiwa += keluarga.tanggungan.length;
+      // Tambahkan semua tanggungan (anak dan kerabat)
+      // Hitung semua tanggungan tanpa memandang status pernikahan
+      if (keluarga.tanggungan && keluarga.tanggungan.length > 0) {
+        jumlahJiwa += keluarga.tanggungan.length;
+      }
     }
 
     // KK Bergabung - hanya pada periode yang dipilih
-    const kkBergabung = await prisma.keluargaUmat.count({
+    const kkBergabungCount = await prisma.keluargaUmat.count({
       where: {
         tanggalBergabung: {
           gte: monthStart,
@@ -240,13 +243,43 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
       },
     });
 
+    // Detail KK Bergabung
+    const detailKKBergabung = await prisma.keluargaUmat.findMany({
+      where: {
+        tanggalBergabung: {
+          gte: monthStart,
+          lte: monthEnd,
+        },
+      },
+      select: {
+        id: true,
+        namaKepalaKeluarga: true,
+        tanggalBergabung: true,
+      },
+    });
+
     // KK Pindah - hanya pada periode yang dipilih
-    const kkPindah = await prisma.keluargaUmat.count({
+    const kkPindahCount = await prisma.keluargaUmat.count({
       where: {
         tanggalKeluar: {
           gte: monthStart,
           lte: monthEnd,
         },
+      },
+    });
+
+    // Detail KK Pindah
+    const detailKKPindah = await prisma.keluargaUmat.findMany({
+      where: {
+        tanggalKeluar: {
+          gte: monthStart,
+          lte: monthEnd,
+        },
+      },
+      select: {
+        id: true,
+        namaKepalaKeluarga: true,
+        tanggalKeluar: true,
       },
     });
 
@@ -274,6 +307,54 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
     });
     
     const umatMeninggalDunia = kkMeninggal + pasanganMeninggal;
+
+    // Detail KK Meninggal
+    const detailKKMeninggal = await prisma.keluargaUmat.findMany({
+      where: {
+        status: "MENINGGAL",
+        tanggalMeninggal: {
+          gte: monthStart,
+          lte: monthEnd,
+        },
+      },
+      select: {
+        id: true,
+        namaKepalaKeluarga: true,
+        tanggalMeninggal: true,
+      },
+    });
+
+    // Detail Pasangan Meninggal
+    const detailPasanganMeninggal = await prisma.pasangan.findMany({
+      where: {
+        status: "MENINGGAL",
+        tanggalMeninggal: {
+          gte: monthStart,
+          lte: monthEnd,
+        },
+      },
+      select: {
+        id: true,
+        nama: true,
+        tanggalMeninggal: true,
+      },
+    });
+
+    // Gabungkan detail umat meninggal
+    const detailUmatMeninggal = [
+      ...detailKKMeninggal.map(kk => ({
+        id: kk.id,
+        nama: kk.namaKepalaKeluarga,
+        tanggal: kk.tanggalMeninggal!,
+        statusKeluarga: "Kepala Keluarga"
+      })),
+      ...detailPasanganMeninggal.map(p => ({
+        id: p.id,
+        nama: p.nama,
+        tanggal: p.tanggalMeninggal!,
+        statusKeluarga: "Pasangan"
+      }))
+    ];
 
     // Tingkat Partisipasi Umat
     // Dapatkan data doa lingkungan pada periode
@@ -306,10 +387,21 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
     return {
       totalKepalaKeluarga: totalKK,
       jumlahJiwa,
-      kkBergabung,
-      kkPindah,
+      kkBergabung: kkBergabungCount,
+      kkPindah: kkPindahCount,
       umatMeninggalDunia,
       tingkatPartisipasiUmat,
+      detailKKBergabung: detailKKBergabung.map(kk => ({
+        id: kk.id,
+        nama: kk.namaKepalaKeluarga,
+        tanggal: kk.tanggalBergabung!,
+      })),
+      detailKKPindah: detailKKPindah.map(kk => ({
+        id: kk.id,
+        nama: kk.namaKepalaKeluarga,
+        tanggal: kk.tanggalKeluar!,
+      })),
+      detailUmatMeninggal,
     };
   } catch (error) {
     console.error("Error getting kesekretariatan data:", error);
@@ -320,6 +412,9 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
       kkPindah: 0,
       umatMeninggalDunia: 0,
       tingkatPartisipasiUmat: 0,
+      detailKKBergabung: [],
+      detailKKPindah: [],
+      detailUmatMeninggal: [],
     };
   }
 }
@@ -341,88 +436,42 @@ export async function getPenunggakDanaMandiriData() {
       select: {
         id: true,
         namaKepalaKeluarga: true,
+        alamat: true,
+        nomorTelepon: true,
         danaMandiri: {
           where: {
-            tahun: currentYear,
-          },
+            tahun: currentYear
+          }
         }
       },
     });
     
-    // Array untuk menyimpan data penunggak
-    const penunggakList = [];
-    
-    // Fungsi untuk mendapatkan nama bulan dalam Bahasa Indonesia
-    const getBulanIndonesia = (bulan: number) => {
-      const namaBulan = [
-        "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-        "Juli", "Agustus", "September", "Oktober", "November", "Desember"
-      ];
-      return namaBulan[bulan];
-    };
-    
-    // Proses data keluarga untuk menemukan tunggakan
-    for (const keluarga of keluargaList) {
-      // Data dana mandiri yang sudah dibayar
-      const dibayar = keluarga.danaMandiri;
-      
-      // Cek bulan yang belum dibayar
-      const bulanTerbayar = dibayar.map(d => d.bulan);
-      const bulanTertunggak = [];
-      
-      // Cek apakah ada bulan yang belum dibayar (sampai bulan saat ini)
-      const currentMonth = new Date().getMonth();
-      for (let i = 0; i <= currentMonth; i++) {
-        if (!bulanTerbayar.includes(i)) {
-          bulanTertunggak.push(i);
-        }
-      }
-      
-      // Jika ada bulan yang tertunggak, tambahkan ke daftar penunggak
-      if (bulanTertunggak.length > 0) {
-        // Format periode tunggakan
-        let periodeTunggakan = "";
-        if (bulanTertunggak.length === 1) {
-          periodeTunggakan = `${getBulanIndonesia(bulanTertunggak[0])} ${currentYear}`;
-        } else {
-          // Urutkan bulan tertunggak
-          bulanTertunggak.sort((a, b) => a - b);
-          
-          // Kelompokkan bulan berurutan
-          const groups: number[][] = [];
-          let currentGroup: number[] = [bulanTertunggak[0]];
-          
-          for (let i = 1; i < bulanTertunggak.length; i++) {
-            if (bulanTertunggak[i] === bulanTertunggak[i-1] + 1) {
-              currentGroup.push(bulanTertunggak[i]);
-            } else {
-              groups.push([...currentGroup]);
-              currentGroup = [bulanTertunggak[i]];
-            }
-          }
-          groups.push(currentGroup);
-          
-          // Format periode dari kelompok bulan
-          periodeTunggakan = groups.map(group => {
-            if (group.length === 1) {
-              return getBulanIndonesia(group[0]);
-            } else {
-              return `${getBulanIndonesia(group[0])}-${getBulanIndonesia(group[group.length-1])}`;
-            }
-          }).join(", ") + ` ${currentYear}`;
-        }
-        
+    // Filter keluarga yang belum bayar untuk tahun ini
+    const penunggakList = keluargaList
+      .filter(k => k.danaMandiri.length === 0)
+      .map(k => {
         // Hitung jumlah tunggakan (asumsikan 50.000 per bulan)
-        const jumlahTunggakan = bulanTertunggak.length * 50000;
+        const currentMonth = new Date().getMonth();
+        const jumlahTunggakan = (currentMonth + 1) * 50000;
         
-        penunggakList.push({
-          id: keluarga.id,
-          nama: keluarga.namaKepalaKeluarga,
+        // Format periode tunggakan
+        const getBulanIndonesia = (bulan: number) => {
+          const namaBulan = [
+            "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+            "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+          ];
+          return namaBulan[bulan];
+        };
+        
+        const periodeTunggakan = `${getBulanIndonesia(0)}-${getBulanIndonesia(currentMonth)} ${currentYear}`;
+        
+        return {
+          id: k.id,
+          nama: k.namaKepalaKeluarga,
           periodeTunggakan,
           jumlahTunggakan,
-        });
-      }
-    }
+        };
+      });
     
     return penunggakList;
   } catch (error) {
@@ -448,6 +497,8 @@ export async function getPenunggakIkataData() {
       select: {
         id: true,
         namaKepalaKeluarga: true,
+        alamat: true,
+        nomorTelepon: true,
         iurataIkata: {
           where: {
             tahun: currentYear,
@@ -456,114 +507,36 @@ export async function getPenunggakIkataData() {
       },
     });
     
-    // Array untuk menyimpan data penunggak
-    const penunggakList = [];
-    
-    // Fungsi untuk mendapatkan nama bulan dalam Bahasa Indonesia
-    const getBulanIndonesia = (bulan: number) => {
-      const namaBulan = [
-        "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-        "Juli", "Agustus", "September", "Oktober", "November", "Desember"
-      ];
-      return namaBulan[bulan];
-    };
-    
-    // Proses data keluarga untuk menemukan tunggakan
-    for (const keluarga of keluargaList) {
-      // Data iuran yang sudah dibayar
-      const iuranList = keluarga.iurataIkata;
-      
-      // Jika tidak ada data iuran atau semua status BELUM_BAYAR, maka dianggap penunggak
-      if (iuranList.length === 0 || iuranList.every(i => i.status === "BELUM_BAYAR")) {
-        // Periode tunggakan adalah seluruh bulan hingga saat ini
+    // Filter keluarga yang belum bayar untuk tahun ini
+    const penunggakList = keluargaList
+      .filter(k => k.iurataIkata.length === 0 || k.iurataIkata.every(i => i.status === "BELUM_BAYAR"))
+      .map(k => {
+        // Hitung jumlah tunggakan (asumsikan 10.000 per bulan)
         const currentMonth = new Date().getMonth();
+        const jumlahTunggakan = (currentMonth + 1) * 10000;
+        
+        // Format periode tunggakan
+        const getBulanIndonesia = (bulan: number) => {
+          const namaBulan = [
+            "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+            "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+          ];
+          return namaBulan[bulan];
+        };
+        
         const periodeTunggakan = `${getBulanIndonesia(0)}-${getBulanIndonesia(currentMonth)} ${currentYear}`;
         
-        // Hitung jumlah tunggakan (asumsikan 25.000 per bulan)
-        const jumlahTunggakan = (currentMonth + 1) * 25000;
-        
-        penunggakList.push({
-          id: keluarga.id,
-          nama: keluarga.namaKepalaKeluarga,
+        return {
+          id: k.id,
+          nama: k.namaKepalaKeluarga,
           periodeTunggakan,
           jumlahTunggakan,
-        });
-      } 
-      // Jika ada data iuran dengan status SEBAGIAN_BULAN
-      else if (iuranList.some(i => i.status === "SEBAGIAN_BULAN")) {
-        // Ambil data iuran dengan status SEBAGIAN_BULAN
-        const iuranSebagian = iuranList.find(i => i.status === "SEBAGIAN_BULAN");
-        
-        // Jika tidak ada data bulanAwal atau bulanAkhir, skip
-        if (!iuranSebagian || iuranSebagian.bulanAwal === null || iuranSebagian.bulanAkhir === null) {
-          continue;
-        }
-        
-        // Hitung bulan yang belum dibayar
-        const bulanTerbayar = [];
-        for (let i = iuranSebagian.bulanAwal; i <= iuranSebagian.bulanAkhir; i++) {
-          bulanTerbayar.push(i);
-        }
-        
-        // Cek bulan yang belum dibayar (sampai bulan saat ini)
-        const currentMonth = new Date().getMonth();
-        const bulanTertunggak = [];
-        for (let i = 0; i <= currentMonth; i++) {
-          if (!bulanTerbayar.includes(i)) {
-            bulanTertunggak.push(i);
-          }
-        }
-        
-        // Jika ada bulan yang tertunggak, tambahkan ke daftar penunggak
-        if (bulanTertunggak.length > 0) {
-          // Format periode tunggakan
-          let periodeTunggakan = "";
-          if (bulanTertunggak.length === 1) {
-            periodeTunggakan = `${getBulanIndonesia(bulanTertunggak[0])} ${currentYear}`;
-          } else {
-            // Urutkan bulan tertunggak
-            bulanTertunggak.sort((a, b) => a - b);
-            
-            // Kelompokkan bulan berurutan
-            const groups: number[][] = [];
-            let currentGroup: number[] = [bulanTertunggak[0]];
-            
-            for (let i = 1; i < bulanTertunggak.length; i++) {
-              if (bulanTertunggak[i] === bulanTertunggak[i-1] + 1) {
-                currentGroup.push(bulanTertunggak[i]);
-              } else {
-                groups.push([...currentGroup]);
-                currentGroup = [bulanTertunggak[i]];
-              }
-            }
-            groups.push(currentGroup);
-            
-            // Format periode dari kelompok bulan
-            periodeTunggakan = groups.map(group => {
-              if (group.length === 1) {
-                return getBulanIndonesia(group[0]);
-              } else {
-                return `${getBulanIndonesia(group[0])}-${getBulanIndonesia(group[group.length-1])}`;
-              }
-            }).join(", ") + ` ${currentYear}`;
-          }
-          
-          // Hitung jumlah tunggakan (asumsikan 25.000 per bulan)
-          const jumlahTunggakan = bulanTertunggak.length * 25000;
-          
-          penunggakList.push({
-            id: keluarga.id,
-            nama: keluarga.namaKepalaKeluarga,
-            periodeTunggakan,
-            jumlahTunggakan,
-          });
-        }
-      }
-    }
+        };
+      });
     
     return penunggakList;
   } catch (error) {
-    console.error("Error getting penunggak Ikata data:", error);
+    console.error("Error getting penunggak IKATA data:", error);
     return [];
   }
 }

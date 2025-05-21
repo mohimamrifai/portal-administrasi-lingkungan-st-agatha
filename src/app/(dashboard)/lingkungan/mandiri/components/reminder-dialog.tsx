@@ -31,7 +31,7 @@ interface ReminderDialogProps {
   familyList?: {
     id: string
     name: string
-    phoneNumber?: string
+    phoneNumber?: string | null
   }[]
 }
 

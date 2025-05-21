@@ -29,11 +29,44 @@ export function NotificationList() {
     const fetchNotifications = async () => {
       try {
         const data = await getUserNotifications(10);
-        // Transformasi data jika diperlukan
-        setNotifications(data.map(item => ({
-          ...item,
-          timestamp: new Date(item.timestamp)
-        })));
+        // Transformasi data dengan penanganan error
+        setNotifications(data.map(item => {
+          try {
+            // Pastikan timestamp adalah objek Date yang valid
+            const timestamp = item.createdAt ? new Date(item.createdAt) : new Date();
+            // Validasi apakah timestamp valid
+            if (isNaN(timestamp.getTime())) {
+              console.error("Invalid timestamp for notification:", item);
+              return {
+                ...item,
+                title: "Notifikasi", // Default title
+                message: item.pesan || "Tidak ada pesan", // Menggunakan field pesan dari database
+                type: "info", // Default type
+                timestamp: new Date(), // Gunakan waktu saat ini sebagai fallback
+                isRead: item.dibaca
+              };
+            }
+            
+            return {
+              ...item,
+              title: "Notifikasi", // Default title 
+              message: item.pesan || "Tidak ada pesan", // Menggunakan field pesan dari database
+              type: "info", // Default type
+              timestamp: timestamp,
+              isRead: item.dibaca
+            };
+          } catch (error) {
+            console.error("Error processing notification:", error, item);
+            return {
+              ...item,
+              title: "Notifikasi", // Default title
+              message: "Tidak ada pesan", // Default message 
+              type: "info", // Default type
+              timestamp: new Date(), // Gunakan waktu saat ini sebagai fallback
+              isRead: item.dibaca
+            };
+          }
+        }));
       } catch (error) {
         console.error("Error fetching notifications:", error);
       } finally {
@@ -66,11 +99,42 @@ export function NotificationList() {
       console.error("Error marking notifications as read:", error);
       // Rollback jika terjadi error
       const fetchNotifications = async () => {
-        const data = await getUserNotifications(10);
-        setNotifications(data.map(item => ({
-          ...item,
-          timestamp: new Date(item.timestamp)
-        })));
+        try {
+          const data = await getUserNotifications(10);
+          setNotifications(data.map(item => {
+            try {
+              const timestamp = item.createdAt ? new Date(item.createdAt) : new Date();
+              if (isNaN(timestamp.getTime())) {
+                return {
+                  ...item,
+                  title: "Notifikasi", // Default title
+                  message: item.pesan || "Tidak ada pesan", // Menggunakan field pesan dari database
+                  type: "info", // Default type
+                  timestamp: new Date(),
+                  isRead: item.dibaca
+                };
+              }
+              
+              return {
+                ...item,
+                title: "Notifikasi", // Default title
+                message: item.pesan || "Tidak ada pesan", // Menggunakan field pesan dari database
+                type: "info", // Default type
+                timestamp: timestamp,
+                isRead: item.dibaca
+              };
+            } catch (error) {
+              console.error("Error processing notification during rollback:", error, item);
+              return {
+                ...item,
+                timestamp: new Date(),
+                isRead: item.dibaca
+              };
+            }
+          }));
+        } catch (rollbackError) {
+          console.error("Error during rollback:", rollbackError);
+        }
       };
       fetchNotifications();
     }
@@ -94,11 +158,36 @@ export function NotificationList() {
       console.error(`Error marking notification ${id} as read:`, error);
       // Rollback jika terjadi error
       const fetchNotifications = async () => {
-        const data = await getUserNotifications(10);
-        setNotifications(data.map(item => ({
-          ...item,
-          timestamp: new Date(item.timestamp)
-        })));
+        try {
+          const data = await getUserNotifications(10);
+          setNotifications(data.map(item => {
+            try {
+              const timestamp = item.createdAt ? new Date(item.createdAt) : new Date();
+              if (isNaN(timestamp.getTime())) {
+                return {
+                  ...item,
+                  timestamp: new Date(),
+                  isRead: item.dibaca
+                };
+              }
+              
+              return {
+                ...item,
+                timestamp: timestamp,
+                isRead: item.dibaca
+              };
+            } catch (error) {
+              console.error("Error processing notification during rollback:", error, item);
+              return {
+                ...item,
+                timestamp: new Date(),
+                isRead: item.dibaca
+              };
+            }
+          }));
+        } catch (rollbackError) {
+          console.error("Error during rollback:", rollbackError);
+        }
       };
       fetchNotifications();
     }
@@ -120,10 +209,20 @@ export function NotificationList() {
 
   // Format waktu notifikasi (contoh: 5 menit yang lalu)
   const formatNotificationTime = (date: Date) => {
-    return formatDistanceToNow(date, { 
-      addSuffix: true,
-      locale: id // Menggunakan locale Bahasa Indonesia
-    });
+    try {
+      // Pastikan date adalah objek Date yang valid
+      if (!(date instanceof Date) || isNaN(date.getTime())) {
+        return "Baru saja";
+      }
+      
+      return formatDistanceToNow(date, { 
+        addSuffix: true,
+        locale: id // Menggunakan locale Bahasa Indonesia
+      });
+    } catch (error) {
+      console.error("Error formatting date:", error, date);
+      return "Baru saja";
+    }
   };
 
   return (

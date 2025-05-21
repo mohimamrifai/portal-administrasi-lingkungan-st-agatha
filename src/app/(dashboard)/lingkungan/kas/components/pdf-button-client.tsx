@@ -5,6 +5,8 @@ import { PDFDownloadLink } from '@react-pdf/renderer';
 import { Button } from '@/components/ui/button';
 import PDFDocument from './pdf-document';
 import { TransactionData } from '../types';
+import { lockTransactions } from '../utils/actions';
+import { toast } from 'sonner';
 
 interface PDFButtonClientProps {
   dateRange: {
@@ -33,6 +35,27 @@ const PDFButtonClient: React.FC<PDFButtonClientProps> = ({
   // Format nama file untuk download
   const fileName = `Laporan_Kas_Lingkungan_${dateRange.from.toISOString().split('T')[0]}_${dateRange.to.toISOString().split('T')[0]}.pdf`;
 
+  // Fungsi untuk mengunci transaksi saat PDF diunduh
+  const handlePDFDownload = async () => {
+    try {
+      // Dapatkan ID transaksi yang belum dikunci/disetujui
+      const transactionIdsToLock = filteredTransactions
+        .filter(tx => !tx.isApproved)
+        .map(tx => tx.id);
+
+      if (transactionIdsToLock.length > 0) {
+        // Panggil API untuk mengunci transaksi
+        const result = await lockTransactions(transactionIdsToLock);
+        if (result.success) {
+          toast.success(`${transactionIdsToLock.length} transaksi telah dikunci`);
+        }
+      }
+    } catch (error) {
+      console.error("Error locking transactions:", error);
+      toast.error("Gagal mengunci transaksi");
+    }
+  };
+
   return (
     <PDFDownloadLink
       document={
@@ -44,6 +67,7 @@ const PDFButtonClient: React.FC<PDFButtonClientProps> = ({
       }
       fileName={fileName}
       className="inline-block"
+      onClick={handlePDFDownload}
     >
       {({ loading, error }) => (
         <Button disabled={loading}>
