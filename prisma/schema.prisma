@@ -169,6 +169,28 @@ model DanaMandiri {
   updatedAt     DateTime     @updatedAt
 }
 
+// Model untuk pengaturan dana mandiri
+model DanaMandiriSetting {
+  id           String   @id @default(uuid())
+  tahun        Int      @unique
+  jumlahIuran  Float    @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Model untuk tunggakan dana mandiri
+model DanaMandiriArrears {
+  id                String   @id @default(uuid())
+  keluargaId        String   @unique
+  namaKepalaKeluarga String
+  alamat            String?
+  nomorTelepon      String?
+  tahunTertunggak   Int[]    @default([])
+  totalTunggakan    Float    @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
 // Model untuk manajemen IKATA
 model KasIkata {
   id             String             @id @default(uuid())

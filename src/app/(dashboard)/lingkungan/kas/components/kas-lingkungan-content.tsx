@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, BanknoteIcon } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { JenisTransaksi, TipeTransaksiLingkungan } from "@prisma/client"
 import { Button } from "@/components/ui/button"
@@ -17,10 +17,12 @@ import { Button } from "@/components/ui/button"
 // Import types dan schemas baru
 import { 
   TransactionData,
-  TransactionFormValues, 
+  TransactionFormValues,
+  InitialBalanceFormValues, 
   PrintPdfFormValues,
   transactionFormSchema, 
   printPdfSchema,
+  initialBalanceFormSchema,
 } from "../types"
 
 // Import actions server
@@ -28,7 +30,8 @@ import {
   createTransaction,
   updateTransaction,
   deleteTransaction,
-  approveTransaction
+  approveTransaction,
+  saveInitialBalance
 } from "../utils/actions"
 
 // Import utilities
@@ -43,6 +46,7 @@ import { PeriodFilter } from "./period-filter"
 import { PrintPdfDialog } from "./print-pdf-dialog"
 import { CreateTransactionDialog, EditTransactionDialog } from "./transaction-form-dialog"
 import { TransactionsTable } from "./transactions-table"
+import { InitialBalanceDialog } from "./initial-balance-dialog"
 
 // Definisikan props dari server component
 interface KasLingkunganContentProps {
@@ -167,6 +171,14 @@ export default function KasLingkunganContent({
     },
   })
 
+  // Form untuk saldo awal
+  const initialBalanceForm = useForm<InitialBalanceFormValues>({
+    resolver: zodResolver(initialBalanceFormSchema),
+    defaultValues: {
+      saldoAwal: initialSummary.initialBalance,
+    },
+  })
+
   // Submit transaksi baru
   async function onCreateTransactionSubmit(values: TransactionFormValues) {
     // Validasi hak akses modifikasi
@@ -249,6 +261,32 @@ export default function KasLingkunganContent({
   function onPrintPdf(values: PrintPdfFormValues) {
     // Implementasi cetak PDF tidak berubah
     toast.success("Cetak PDF berhasil");
+  }
+
+  // Submit saldo awal
+  async function onInitialBalanceSubmit(values: InitialBalanceFormValues) {
+    // Validasi hak akses modifikasi
+    if (!canModifyData) {
+      toast.error("Anda tidak memiliki izin untuk melakukan perubahan data")
+      return
+    }
+
+    try {
+      // Panggil server action untuk menyimpan saldo awal
+      const result = await saveInitialBalance(values.saldoAwal);
+
+      if (result.success) {
+        toast.success("Saldo awal berhasil diperbarui");
+        
+        // Refresh data dari server
+        router.refresh();
+      } else {
+        toast.error(result.error || "Gagal memperbarui saldo awal");
+      }
+    } catch (error) {
+      console.error("Error saving initial balance:", error);
+      toast.error("Terjadi kesalahan saat memperbarui saldo awal");
+    }
   }
 
   // Handle functions dengan useCallback untuk mengurangi re-render
@@ -403,12 +441,20 @@ export default function KasLingkunganContent({
           )}
           
           {canModifyData && (
-            <CreateTransactionDialog
-              form={createForm}
-              onSubmit={onCreateTransactionSubmit}
-              open={createDialogOpen}
-              onOpenChange={setCreateDialogOpen}
-            />
+            <>
+              <CreateTransactionDialog
+                form={createForm}
+                onSubmit={onCreateTransactionSubmit}
+                open={createDialogOpen}
+                onOpenChange={setCreateDialogOpen}
+              />
+              
+              <InitialBalanceDialog
+                form={initialBalanceForm}
+                onSubmit={onInitialBalanceSubmit}
+                currentBalance={summary.initialBalance}
+              />
+            </>
           )}
           
           <PrintPdfDialog

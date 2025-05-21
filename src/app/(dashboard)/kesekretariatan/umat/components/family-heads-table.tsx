@@ -271,7 +271,7 @@ export function FamilyHeadsTable({
                 <TableHead className="whitespace-nowrap min-w-[180px]">Alamat</TableHead>
                 <TableHead className="whitespace-nowrap min-w-[110px]">No. Telepon</TableHead>
                 <TableHead className="whitespace-nowrap min-w-[120px]">Tanggal Bergabung</TableHead>
-                <TableHead className="whitespace-nowrap min-w-[120px]">Jumlah Anggota</TableHead>
+                <TableHead className="whitespace-nowrap min-w-[120px]">Jumlah Jiwa</TableHead>
                 <TableHead className="whitespace-nowrap min-w-[80px]">Status</TableHead>
                 <TableHead className="whitespace-nowrap min-w-[120px]">Tanggal Keluar</TableHead>
                 {canModifyData && <TableHead className="sticky right-0 bg-white shadow-[-4px_0_4px_rgba(0,0,0,0.05)] w-[70px]">Aksi</TableHead>}
@@ -316,9 +316,14 @@ export function FamilyHeadsTable({
                         : "Tanggal tidak valid"}
                     </TableCell>
                     <TableCell className="min-w-[120px]">
-                      {familyHead.jumlahAnggotaKeluarga} orang
-                      {familyHead.jumlahAnakTertanggung > 0 && ` (${familyHead.jumlahAnakTertanggung} anak)`}
-                      {familyHead.jumlahKerabatTertanggung > 0 && ` (${familyHead.jumlahKerabatTertanggung} kerabat)`}
+                      {familyHead.jumlahAnggotaKeluarga} jiwa
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {familyHead.statusPernikahan === 'MENIKAH' && "1 pasangan"}
+                        {familyHead.statusPernikahan === 'MENIKAH' && (familyHead.jumlahAnakTertanggung > 0 || familyHead.jumlahKerabatTertanggung > 0) && ', '}
+                        {familyHead.jumlahAnakTertanggung > 0 && `${familyHead.jumlahAnakTertanggung} anak`}
+                        {familyHead.jumlahAnakTertanggung > 0 && familyHead.jumlahKerabatTertanggung > 0 && ', '}
+                        {familyHead.jumlahKerabatTertanggung > 0 && `${familyHead.jumlahKerabatTertanggung} kerabat`}
+                      </div>
                     </TableCell>
                     <TableCell className="min-w-[80px]">{getStatusBadge(familyHead.status)}</TableCell>
                     <TableCell className="min-w-[120px]">

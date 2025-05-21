@@ -19,12 +19,15 @@ export interface DanaMandiriTransaction {
 
 // Interface untuk data tunggakan
 export interface DanaMandiriArrears {
+  id?: string;
   keluargaId: string;
   namaKepalaKeluarga: string;
-  alamat: string;
-  nomorTelepon: string;
+  alamat: string | null;
+  nomorTelepon: string | null;
   tahunTertunggak: number[];
   totalTunggakan: number;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 // Payment Status options

@@ -37,7 +37,7 @@ export function PenunggakDanaMandiriTable({ data }: PenunggakDanaMandiriTablePro
             ) : (
               <TableRow>
                 <TableCell colSpan={3} className="text-center py-6 text-muted-foreground">
-                  Tidak ada data penunggak
+                  Tidak ada data yang belum melunasi
                 </TableCell>
               </TableRow>
             )}
@@ -76,7 +76,7 @@ export function PenunggakIkataTable({ data }: PenunggakIkataTableProps) {
             ) : (
               <TableRow>
                 <TableCell colSpan={3} className="text-center py-6 text-muted-foreground">
-                  Tidak ada data penunggak
+                  Tidak ada data yang belum melunasi
                 </TableCell>
               </TableRow>
             )}

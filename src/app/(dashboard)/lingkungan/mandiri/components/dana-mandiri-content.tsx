@@ -210,33 +210,13 @@ export default function DanaMandiriContent() {
   }
   
   // Handle selecting all transactions
-  const handleSelectAllTransactions = (isChecked: boolean) => {
-    if (isChecked) {
-      // Pilih semua transaksi yang belum disetor ke Paroki
-      const selectableIds = transactions
-        .filter(tx => !tx.statusSetor)
-        .map(tx => tx.id);
-      
-      // Update state dengan semua ID yang bisa dipilih
-      setSelectedTransactionIds(selectableIds);
-    } else {
-      // Kosongkan pilihan
-      setSelectedTransactionIds([]);
-    }
+  const handleSelectAllTransactions = (transactionIds: string[]) => {
+    setSelectedTransactionIds(transactionIds);
   }
   
   // Handle selecting all families for reminders
-  const handleSelectAllFamilies = (isChecked: boolean) => {
-    if (isChecked) {
-      // Pilih semua kepala keluarga yang memiliki tunggakan
-      const selectableIds = arrears.map(a => a.keluargaId);
-      
-      // Update state dengan semua ID kepala keluarga
-      setSelectedFamilyIds(selectableIds);
-    } else {
-      // Kosongkan pilihan
-      setSelectedFamilyIds([]);
-    }
+  const handleSelectAllFamilies = (familyIds: string[]) => {
+    setSelectedFamilyIds(familyIds);
   }
   
   // Handle adding new transaction
@@ -402,6 +382,8 @@ export default function DanaMandiriContent() {
       
       if (result.success) {
         toast.success(`Iuran Dana Mandiri tahun ${values.year} berhasil ditetapkan sebesar ${formatCurrency(values.amount)}`)
+        // Refresh data untuk menampilkan perubahan tunggakan
+        loadData()
       } else {
         toast.error(result.error || "Gagal mengatur iuran")
       }

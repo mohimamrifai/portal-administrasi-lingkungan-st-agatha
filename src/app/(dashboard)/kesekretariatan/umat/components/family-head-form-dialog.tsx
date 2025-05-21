@@ -36,7 +36,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { StatusKehidupan } from "@prisma/client";
+import { StatusKehidupan, StatusPernikahan } from "@prisma/client";
 
 interface FamilyHeadFormDialogProps {
   open: boolean;
@@ -62,6 +62,7 @@ export function FamilyHeadFormDialog({
     jumlahKerabatTertanggung: 0,
     jumlahAnggotaKeluarga: 1,
     status: StatusKehidupan.HIDUP,
+    statusPernikahan: StatusPernikahan.TIDAK_MENIKAH,
     tanggalKeluar: null,
     tanggalMeninggal: null,
   };
@@ -85,6 +86,7 @@ export function FamilyHeadFormDialog({
           jumlahKerabatTertanggung: familyHead.jumlahKerabatTertanggung,
           jumlahAnggotaKeluarga: familyHead.jumlahAnggotaKeluarga,
           status: familyHead.status,
+          statusPernikahan: familyHead.statusPernikahan,
           tanggalKeluar: familyHead.tanggalKeluar || null,
           tanggalMeninggal: familyHead.tanggalMeninggal || null,
         });
@@ -106,6 +108,28 @@ export function FamilyHeadFormDialog({
       form.setValue("tanggalMeninggal", null);
     }
   }, [statusValue, form]);
+
+  // Mengawasi perubahan status pernikahan untuk update jumlah anggota keluarga
+  const statusPernikahanValue = form.watch("statusPernikahan");
+  const jumlahAnakValue = form.watch("jumlahAnakTertanggung");
+  const jumlahKerabatValue = form.watch("jumlahKerabatTertanggung");
+  
+  // Update jumlah anggota keluarga secara otomatis saat status pernikahan berubah
+  useEffect(() => {
+    // Kepala keluarga selalu dihitung sebagai 1
+    let totalAnggota = 1;
+    
+    // Tambah 1 jika menikah (ada pasangan)
+    if (statusPernikahanValue === StatusPernikahan.MENIKAH) {
+      totalAnggota += 1;
+    }
+    
+    // Tambahkan jumlah anak dan kerabat
+    totalAnggota += jumlahAnakValue + jumlahKerabatValue;
+    
+    // Set nilai ke form
+    form.setValue("jumlahAnggotaKeluarga", totalAnggota);
+  }, [statusPernikahanValue, jumlahAnakValue, jumlahKerabatValue, form]);
 
   const handleSubmit = async (values: FamilyHeadFormValues) => {
     try {
@@ -263,17 +287,22 @@ export function FamilyHeadFormDialog({
                 name="jumlahAnggotaKeluarga"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Jumlah Anggota Keluarga</FormLabel>
+                    <FormLabel>Jumlah Jiwa (Total)</FormLabel>
                     <FormControl>
                       <Input 
                         type="number" 
                         min={1}
                         placeholder="1" 
+                        readOnly
+                        className="bg-gray-50"
                         {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)} 
                         value={field.value || 1}
                       />
                     </FormControl>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Total seluruh anggota keluarga termasuk KK, pasangan, anak dan kerabat.
+                      <br />Nilainya otomatis dihitung berdasarkan status pernikahan, jumlah anak, dan jumlah kerabat.
+                    </p>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -315,6 +344,31 @@ export function FamilyHeadFormDialog({
                           {status.label}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="statusPernikahan"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status Pernikahan</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih status pernikahan" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value={StatusPernikahan.MENIKAH}>Menikah</SelectItem>
+                      <SelectItem value={StatusPernikahan.TIDAK_MENIKAH}>Tidak Menikah</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

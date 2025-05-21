@@ -44,7 +44,7 @@ interface MonitoringTableProps {
   arrears: DanaMandiriArrears[]
   selectedIds: string[]
   onSelect: (id: string, isChecked: boolean) => void
-  onSelectAll: (isChecked: boolean) => void
+  onSelectAll: (ids: string[]) => void
   isLoading?: boolean
 }
 
@@ -95,9 +95,9 @@ export function MonitoringTable({
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       const ids = currentArrears.map(arrear => arrear.keluargaId)
-      onSelectAll(true);
+      onSelectAll(ids);
     } else {
-      onSelectAll(false);
+      onSelectAll([]);
     }
   }
   

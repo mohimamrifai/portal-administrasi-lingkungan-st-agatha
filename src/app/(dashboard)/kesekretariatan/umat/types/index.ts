@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { StatusKehidupan } from "@prisma/client";
+import { StatusKehidupan, StatusPernikahan } from "@prisma/client";
 import { FamilyHeadData } from "../actions";
 
 // Re-export FamilyHeadData untuk kompatibilitas
@@ -37,6 +37,9 @@ export const familyHeadFormSchema = z.object({
   }),
   status: z.nativeEnum(StatusKehidupan, {
     required_error: "Status wajib dipilih",
+  }),
+  statusPernikahan: z.nativeEnum(StatusPernikahan, {
+    required_error: "Status pernikahan wajib dipilih",
   }),
   tanggalKeluar: z.date().optional().nullable(),
   tanggalMeninggal: z.date().optional().nullable(),

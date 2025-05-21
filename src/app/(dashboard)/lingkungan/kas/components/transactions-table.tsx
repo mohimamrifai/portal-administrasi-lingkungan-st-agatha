@@ -389,7 +389,7 @@ export function TransactionsTable({
                             <LockIcon className="h-5 w-5 text-muted-foreground inline-block" />
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>Telah Disetujui</p>
+                            <p>Terkunci</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
@@ -410,10 +410,10 @@ export function TransactionsTable({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Clock className="h-5 w-5 text-amber-500" />
+                            <UnlockIcon className="h-5 w-5 text-green-500" />
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>Menunggu Persetujuan</p>
+                            <p>Tidak Terkunci</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
@@ -471,7 +471,7 @@ export function TransactionsTable({
                         )}
                         
                         {/* Approval Options */}
-                        {(canApprove || isSuperUser) && transaction.isPending && (
+                        {!isSuperUser && canApprove && transaction.isPending && (
                           <>
                             <DropdownMenuItem
                               onClick={() => onApprove(transaction.id)}

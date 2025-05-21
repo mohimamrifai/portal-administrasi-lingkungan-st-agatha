@@ -86,7 +86,7 @@ interface TransactionsTableProps {
   onDelete: (id: string) => void
   selectedIds: string[]
   onSelect: (id: string, isChecked: boolean) => void
-  onSelectAll: (isChecked: boolean) => void
+  onSelectAll: (ids: string[]) => void
   isLoading?: boolean
   canModifyData?: boolean
   onViewDetail?: (transaction: DanaMandiriTransaction) => void
@@ -168,16 +168,16 @@ export function TransactionsTable({
   // Handle select all for current page only
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      // Dapatkan semua ID transaksi yang bisa dipilih (tidak disetor)
+      // Filter transaksi yang belum disetor ke Paroki
       const selectableIds = currentTransactions
         .filter(tx => !tx.statusSetor)
         .map(tx => tx.id);
       
       // Update selection dengan ID yang bisa dipilih
-      onSelectAll(checked);
+      onSelectAll(selectableIds);
     } else {
       // Kosongkan semua pilihan saat uncheck
-      onSelectAll(checked);
+      onSelectAll([]);
     }
   }
   

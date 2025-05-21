@@ -38,13 +38,22 @@ export async function getTransactionSummary() {
   try {
     const transactions = await getKasLingkungan();
     
-    // Ambil saldo awal dari database atau pengaturan
-    // Untuk implementasi lengkap, bisa mengambil dari konfigurasi atau transaksi pertama
-    // Untuk sementara default ke 0
-    const initialBalance = 0;
+    // Cek apakah ada transaksi saldo awal
+    const initialBalanceTransaction = transactions.find(tx => 
+      tx.tipeTransaksi === 'LAIN_LAIN' && 
+      tx.keterangan === 'SALDO AWAL'
+    );
     
-    const totalIncome = transactions.reduce((sum, tx) => sum + tx.debit, 0);
-    const totalExpense = transactions.reduce((sum, tx) => sum + tx.kredit, 0);
+    // Gunakan saldo awal dari database jika ada, atau default ke 0
+    const initialBalance = initialBalanceTransaction ? initialBalanceTransaction.debit : 0;
+    
+    // Hitung total pendapatan dan pengeluaran (tanpa menyertakan saldo awal)
+    const filteredTransactions = transactions.filter(tx => 
+      !(tx.tipeTransaksi === 'LAIN_LAIN' && tx.keterangan === 'SALDO AWAL')
+    );
+    
+    const totalIncome = filteredTransactions.reduce((sum, tx) => sum + tx.debit, 0);
+    const totalExpense = filteredTransactions.reduce((sum, tx) => sum + tx.kredit, 0);
     const finalBalance = initialBalance + totalIncome - totalExpense;
     
     return {

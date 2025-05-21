@@ -33,9 +33,15 @@ export const printPdfSchema = z.object({
   }),
 });
 
+// Schema untuk form saldo awal
+export const initialBalanceFormSchema = z.object({
+  saldoAwal: z.coerce.number().min(0, "Saldo awal tidak boleh negatif"),
+});
+
 // Tipe untuk form transaksi
 export type TransactionFormValues = z.infer<typeof transactionFormSchema>;
 export type PrintPdfFormValues = z.infer<typeof printPdfSchema>;
+export type InitialBalanceFormValues = z.infer<typeof initialBalanceFormSchema>;
 
 // UI options untuk jenisTransaksi
 export const transactionTypeOptions = [

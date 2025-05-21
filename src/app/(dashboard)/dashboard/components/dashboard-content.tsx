@@ -48,14 +48,16 @@ export default function DashboardContent({
     'SUPER_USER', 
     'KETUA', 
     'WAKIL_KETUA',
-    'BENDAHARA'
+    'BENDAHARA',
+    'UMAT'
   ].includes(userRole);
   
   const canViewKeuanganIkata = [
     'SUPER_USER', 
     'KETUA', 
     'WAKIL_KETUA',
-    'WAKIL_BENDAHARA'
+    'WAKIL_BENDAHARA',
+    'UMAT'
   ].includes(userRole);
   
   const canViewKesekretariatan = [
@@ -104,7 +106,7 @@ export default function DashboardContent({
       {/* Daftar Penunggak */}
       {canViewPenunggak && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Daftar Kepala Keluarga Penunggak</h2>
+          <h2 className="text-lg font-semibold">Kepala Keluarga Yang Belum Melunasi</h2>
           
           <Tabs defaultValue="dana-mandiri" className="w-full">
             <div className="mb-4">
