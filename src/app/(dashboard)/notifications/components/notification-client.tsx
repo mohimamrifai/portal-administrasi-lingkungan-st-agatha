@@ -14,32 +14,53 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
 export function NotificationClient({ id }: { id: string }) {
-
     const router = useRouter();
     const [notification, setNotification] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchNotification = async () => {
             try {
                 setLoading(true);
+                setError(null);
+
+                // Validasi ID terlebih dahulu
+                if (!id || typeof id !== 'string') {
+                    throw new Error("ID notifikasi tidak valid");
+                }
+
                 const data = await getNotificationById(id);
 
-                if (data) {
-                    setNotification({
-                        ...data,
-                        timestamp: new Date(data.timestamp)
-                    });
+                if (!data) {
+                    throw new Error("Notifikasi tidak ditemukan");
+                }
 
-                    // Jika notifikasi belum dibaca, tandai sebagai dibaca
-                    if (!data.isRead) {
-                        await markNotificationAsRead(id);
-                    }
+                // Map data notifikasi sesuai dengan model di database
+                setNotification({
+                    id: data.id,
+                    title: `Notifikasi #${data.id.substring(0, 8)}`, // Generate title dari ID
+                    message: data.pesan,
+                    type: data.type || "info", // Default ke "info" jika tidak ada
+                    isRead: data.dibaca,
+                    timestamp: new Date(data.createdAt),
+                    senderId: data.senderId || "Sistem", 
+                    relatedItemType: data.relatedItemType || null,
+                    relatedItemId: data.relatedItemId || null
+                });
+
+                // Jika notifikasi belum dibaca, tandai sebagai dibaca
+                if (!data.dibaca) {
+                    await markNotificationAsRead(id);
                 }
             } catch (error) {
                 console.error("Error fetching notification:", error);
-                toast.error("Gagal mengambil data notifikasi");
+                const errorMessage = error instanceof Error 
+                    ? error.message 
+                    : "Gagal mengambil data notifikasi";
+                setError(errorMessage);
+                toast.error(errorMessage);
             } finally {
                 setLoading(false);
             }
@@ -51,6 +72,12 @@ export function NotificationClient({ id }: { id: string }) {
     const handleDelete = async () => {
         try {
             setIsDeleting(true);
+            
+            // Validasi ID terlebih dahulu
+            if (!id || typeof id !== 'string') {
+                throw new Error("ID notifikasi tidak valid");
+            }
+            
             const result = await deleteNotification(id);
 
             if (result.success) {
@@ -61,7 +88,10 @@ export function NotificationClient({ id }: { id: string }) {
             }
         } catch (error) {
             console.error("Error deleting notification:", error);
-            toast.error("Terjadi kesalahan saat menghapus notifikasi");
+            const errorMessage = error instanceof Error 
+                ? error.message 
+                : "Terjadi kesalahan saat menghapus notifikasi";
+            toast.error(errorMessage);
         } finally {
             setIsDeleting(false);
         }
@@ -102,6 +132,18 @@ export function NotificationClient({ id }: { id: string }) {
                         <Skeleton className="h-4 w-full mb-2" />
                         <Skeleton className="h-4 w-full mb-2" />
                         <Skeleton className="h-4 w-3/4" />
+                    </CardContent>
+                </Card>
+            ) : error ? (
+                <Card>
+                    <CardContent className="py-10 flex flex-col items-center">
+                        <p className="text-lg font-medium mb-2">Error: {error}</p>
+                        <p className="text-muted-foreground text-center mb-4">
+                            Terjadi kesalahan saat mengambil data notifikasi
+                        </p>
+                        <Button asChild>
+                            <Link href="/notifications">Kembali ke Daftar Notifikasi</Link>
+                        </Button>
                     </CardContent>
                 </Card>
             ) : notification ? (

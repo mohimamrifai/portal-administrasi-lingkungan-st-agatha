@@ -46,4 +46,8 @@ export interface TransactionFormData {
   statusPembayaran?: StatusPembayaran;
   periodeBayar?: string[];
   anggotaId?: string;
+}
+
+export interface SaldoAwalFormData {
+  saldoAwal: number;
 } 

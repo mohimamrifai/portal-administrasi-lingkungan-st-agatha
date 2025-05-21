@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { JenisTransaksi, TipeTransaksiIkata } from "@prisma/client";
+import { revalidatePath } from "next/cache";
 
 // Fungsi untuk mendapatkan data transaksi Kas IKATA
 export async function getKasIkataTransactions(bulan?: number, tahun?: number) {
@@ -42,20 +43,66 @@ export async function getKasIkataSummary(bulan?: number, tahun?: number) {
       ? new Date(tahun, bulan, 0, 23, 59, 59)
       : undefined;
 
-    // Query untuk saldo awal (semua transaksi sebelum periode yang dipilih)
-    const saldoAwalQuery = dateStart 
-      ? await prisma.kasIkata.aggregate({
-          _sum: {
-            debit: true,
-            kredit: true,
-          },
+    // Cek saldo awal
+    let saldoAwal = 0;
+    
+    // Mencoba mendapatkan saldo awal dari transaksi khusus "SALDO AWAL"
+    const saldoAwalTransaction = await prisma.kasIkata.findFirst({
+      where: {
+        tipeTransaksi: TipeTransaksiIkata.LAIN_LAIN,
+        keterangan: "SALDO AWAL"
+      },
+      orderBy: {
+        updatedAt: 'desc'
+      }
+    });
+    
+    if (saldoAwalTransaction) {
+      // Jika ditemukan, gunakan nilai debit sebagai saldo awal
+      saldoAwal = saldoAwalTransaction.debit;
+      console.log("Saldo awal dari transaksi:", saldoAwal);
+    } else {
+      // Jika tidak ditemukan, coba cari di tabel saldoAwalIkata (kompatibilitas dengan kode lama)
+      if (bulan !== undefined && tahun !== undefined) {
+        const saldoAwalSetting = await prisma.saldoAwalIkata.findFirst({
           where: {
-            tanggal: {
-              lt: dateStart,
-            },
-          },
-        })
-      : { _sum: { debit: 0, kredit: 0 } };
+            tahun: tahun,
+            bulan: bulan
+          }
+        });
+        
+        if (saldoAwalSetting) {
+          // Jika ada setting saldo awal, gunakan nilai dari setting
+          saldoAwal = saldoAwalSetting.saldoAwal;
+          console.log("Saldo awal dari tabel saldoAwalIkata:", saldoAwal);
+        } else {
+          // Jika tidak ada setting, hitung saldo awal dari transaksi sebelumnya
+          const saldoAwalQuery = dateStart 
+            ? await prisma.kasIkata.aggregate({
+                _sum: {
+                  debit: true,
+                  kredit: true,
+                },
+                where: {
+                  tanggal: {
+                    lt: dateStart,
+                  },
+                  keterangan: {
+                    not: "SALDO AWAL" // Jangan hitung transaksi saldo awal
+                  }
+                },
+              })
+            : { _sum: { debit: 0, kredit: 0 } };
+          
+          saldoAwal = (saldoAwalQuery._sum.debit || 0) - (saldoAwalQuery._sum.kredit || 0);
+          console.log("Saldo awal dari perhitungan transaksi:", saldoAwal);
+        }
+      } else {
+        // Jika bulan dan tahun tidak ditentukan, gunakan semua transaksi
+        saldoAwal = 0; // Saldo awal 0 jika menampilkan semua data
+        console.log("Saldo awal default (0) karena tidak ada bulan/tahun yang ditentukan");
+      }
+    }
 
     // Query untuk transaksi pada bulan yang dipilih
     const transactionQuery = {
@@ -65,8 +112,15 @@ export async function getKasIkataSummary(bulan?: number, tahun?: number) {
               gte: dateStart,
               lte: dateEnd,
             },
+            keterangan: {
+              not: "SALDO AWAL" // Jangan hitung transaksi saldo awal
+            }
           }
-        : {},
+        : {
+            keterangan: {
+              not: "SALDO AWAL" // Jangan hitung transaksi saldo awal
+            }
+          },
     };
 
     // Mengambil total pemasukan (debit) untuk periode
@@ -91,14 +145,12 @@ export async function getKasIkataSummary(bulan?: number, tahun?: number) {
       },
     });
 
-    // Menghitung saldo awal
-    const saldoAwal = 
-      (saldoAwalQuery._sum.debit || 0) - (saldoAwalQuery._sum.kredit || 0);
-
     // Menghitung saldo akhir
     const pemasukanValue = pemasukan._sum.debit || 0;
     const pengeluaranValue = pengeluaran._sum.kredit || 0;
     const saldoAkhir = saldoAwal + pemasukanValue - pengeluaranValue;
+
+    console.log("Summary:", { saldoAwal, pemasukan: pemasukanValue, pengeluaran: pengeluaranValue, saldoAkhir });
 
     return {
       saldoAwal,
@@ -272,5 +324,98 @@ export async function lockKasIkataTransactions(transactionIds: string[]) {
   } catch (error) {
     console.error("Error locking transactions:", error);
     throw new Error("Gagal mengunci transaksi");
+  }
+}
+
+// Fungsi untuk mengambil saldo awal untuk periode tertentu
+export async function getSaldoAwalIkata(bulan: number, tahun: number) {
+  try {
+    const saldoAwal = await prisma.saldoAwalIkata.findFirst({
+      where: {
+        tahun,
+        bulan
+      }
+    });
+    
+    return saldoAwal;
+  } catch (error) {
+    console.error("Error fetching saldo awal IKATA:", error);
+    throw new Error("Gagal mengambil data saldo awal IKATA");
+  }
+}
+
+// Fungsi untuk menyimpan saldo awal IKATA
+export async function setSaldoAwalIkata(saldoAwal: number) {
+  try {
+    console.log("Setting saldo awal IKATA to:", saldoAwal);
+    
+    // Cari konfigurasi saldo awal jika sudah ada
+    const existingConfig = await prisma.kasIkata.findFirst({
+      where: {
+        tipeTransaksi: TipeTransaksiIkata.LAIN_LAIN,
+        keterangan: "SALDO AWAL"
+      }
+    });
+
+    let result;
+    
+    // Jika sudah ada, update nilai
+    if (existingConfig) {
+      console.log("Found existing saldo awal record, updating:", existingConfig.id);
+      result = await prisma.kasIkata.update({
+        where: { id: existingConfig.id },
+        data: {
+          debit: saldoAwal,
+          kredit: 0,
+          tanggal: new Date(),
+          updatedAt: new Date()
+        }
+      });
+      console.log("Update result:", result);
+    } else {
+      // Jika belum ada, buat baru
+      console.log("No existing saldo awal record, creating new");
+      result = await prisma.kasIkata.create({
+        data: {
+          tanggal: new Date(),
+          jenisTranasksi: JenisTransaksi.UANG_MASUK,
+          tipeTransaksi: TipeTransaksiIkata.LAIN_LAIN,
+          keterangan: "SALDO AWAL",
+          debit: saldoAwal,
+          kredit: 0,
+          locked: true
+        }
+      });
+      console.log("Create result:", result);
+    }
+    
+    // Hapus data dari tabel saldoAwalIkata jika ada (untuk bersihkan data lama)
+    try {
+      await prisma.saldoAwalIkata.deleteMany({});
+      console.log("Cleaned up old saldoAwalIkata records");
+    } catch (cleanupError) {
+      console.log("Note: Could not clean up saldoAwalIkata table, but this is not critical");
+    }
+    
+    // Revalidasi path agar data diperbarui
+    console.log("Revalidating paths");
+    revalidatePath('/ikata/kas');
+    revalidatePath('/dashboard');
+    
+    return { 
+      success: true, 
+      message: "Saldo awal berhasil disimpan",
+      data: {
+        saldoAwal,
+        id: result.id
+      }
+    };
+  } catch (error) {
+    console.error("Error setting saldo awal IKATA:", error);
+    return { 
+      success: false, 
+      error: "Gagal menyimpan saldo awal IKATA",
+      message: "Terjadi kesalahan saat menyimpan saldo awal"
+    };
   }
 } 

@@ -43,20 +43,6 @@ import {
   CommandItem,
 } from "@/components/ui/command"
 
-// Mock data untuk anggota IKATA
-const mockAnggotaIKATA = [
-  { id: '1', nama: 'Keluarga John Doe', status: 'aktif' },
-  { id: '2', nama: 'Keluarga Jane Smith', status: 'aktif' },
-  { id: '3', nama: 'Keluarga Bob Johnson', status: 'aktif' },
-  { id: '4', nama: 'Keluarga Alice Williams', status: 'aktif' },
-  { id: '5', nama: 'Keluarga David Miller', status: 'aktif' },
-  { id: '6', nama: 'Keluarga Susan Brown', status: 'aktif' },
-  { id: '7', nama: 'Keluarga Michael Davis', status: 'aktif' },
-  { id: '8', nama: 'Keluarga Sarah Wilson', status: 'aktif' },
-  { id: '9', nama: 'Keluarga Thomas Moore', status: 'aktif' },
-  { id: '10', nama: 'Keluarga Jennifer Taylor', status: 'aktif' },
-];
-
 // Periode bulan untuk pembayaran
 const periodeBulanOptions = [
   { value: '2024-01', label: 'Januari 2024' },

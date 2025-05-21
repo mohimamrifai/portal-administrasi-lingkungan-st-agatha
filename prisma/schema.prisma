@@ -205,6 +205,21 @@ model KasIkata {
   locked         Boolean            @default(false)
 }
 
+// Model untuk saldo awal IKATA
+model SaldoAwalIkata {
+  id          String   @id @default(uuid())
+  tahun       Int
+  bulan       Int
+  saldoAwal   Float    @default(0)
+  keterangan  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?
+  updatedBy   String?
+
+  @@unique([tahun, bulan])
+}
+
 enum TipeTransaksiIkata {
   IURAN_ANGGOTA
   TRANSFER_DANA_DARI_LINGKUNGAN

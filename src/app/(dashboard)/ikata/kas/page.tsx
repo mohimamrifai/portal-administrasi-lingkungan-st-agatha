@@ -3,6 +3,10 @@ import { KasIKATAContent } from './components/kas-ikata-content';
 import { IKATATransaction } from './types';
 import { format } from 'date-fns';
 
+// Pastikan halaman selalu mengambil data terbaru
+export const revalidate = 0;
+export const dynamic = 'force-dynamic';
+
 export default async function KasIKATAPage() {
   // Mendapatkan bulan dan tahun saat ini
   const currentDate = new Date();

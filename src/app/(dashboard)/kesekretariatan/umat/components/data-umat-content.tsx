@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation"
 import { AlertCircle, PlusIcon } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { exportFamilyHeadTemplate } from "../utils/export-template"
-import { addFamilyHead, getAllFamilyHeads, markFamilyAsDeceased, markFamilyAsMoved, updateFamilyHead } from "../actions"
+import { addFamilyHead, getAllFamilyHeads, markFamilyAsDeceased, markFamilyAsMoved, markFamilyMemberAsDeceased, updateFamilyHead } from "../actions"
 import { StatusKehidupan } from "@prisma/client"
 
 interface DataUmatContentProps {
@@ -131,7 +131,7 @@ export default function DataUmatContent({ initialFamilyHeads = [] }: DataUmatCon
         }
     }
 
-    const handleDeleteFamilyHead = async (id: string, reason: "moved" | "deceased", memberName?: string) => {
+    const handleDeleteFamilyHead = async (id: string, reason: "moved" | "deceased" | "member_deceased", memberName?: string) => {
         if (!canModifyData) {
             toast.error("Anda tidak memiliki izin untuk menghapus data")
             return
@@ -144,6 +144,9 @@ export default function DataUmatContent({ initialFamilyHeads = [] }: DataUmatCon
             } else if (reason === "deceased") {
                 await markFamilyAsDeceased(id);
                 toast.success("Status keluarga berhasil diubah menjadi Meninggal");
+            } else if (reason === "member_deceased" && memberName) {
+                await markFamilyMemberAsDeceased(id, memberName);
+                toast.success(`Status ${memberName} berhasil diubah menjadi Meninggal`);
             }
             
             // Refresh data
