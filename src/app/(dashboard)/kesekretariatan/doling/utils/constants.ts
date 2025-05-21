@@ -1,3 +1,5 @@
+import { StatusApproval } from "@prisma/client";
+
 // Constants untuk opsi filter
 export const tahunOptions = [
   { value: "all", label: "Semua Tahun" },
@@ -33,12 +35,6 @@ export const statusDetilOptions = [
   { value: "all", label: "Semua Status" },
   { value: "selesai", label: "Selesai" },
   { value: "dibatalkan", label: "Dibatalkan" },
-];
-
-export const approvalOptions = [
-  { value: "all", label: "Semua" },
-  { value: "approved", label: "Sudah Diapprove" },
-  { value: "notApproved", label: "Belum Diapprove" },
 ];
 
 export const jenisIbadatOptions = [
@@ -79,4 +75,23 @@ export const subIbadatOptions: Record<string, Array<{ value: string; label: stri
     { value: "seminar", label: "Seminar/Workshop" },
     { value: "lainnya", label: "Lainnya" },
   ],
+};
+
+export const statusOptions = [
+  { value: "terjadwal", label: "Terjadwal", color: "bg-blue-100 text-blue-800 border-blue-200" },
+  { value: "selesai", label: "Selesai", color: "bg-green-100 text-green-800 border-green-200" },
+  { value: "dibatalkan", label: "Dibatalkan", color: "bg-red-100 text-red-800 border-red-200" },
+  { value: "menunggu", label: "Menunggu Approval", color: "bg-blue-100 text-blue-800 border-blue-200" },
+];
+
+export const approvalOptions = [
+  { value: StatusApproval.PENDING, label: "Menunggu Persetujuan", color: "bg-blue-100 text-blue-800 border-blue-200" },
+  { value: StatusApproval.APPROVED, label: "Disetujui", color: "bg-green-100 text-green-800 border-green-200" },
+  { value: StatusApproval.REJECTED, label: "Ditolak", color: "bg-red-100 text-red-800 border-red-200" },
+];
+
+export const approvalStatusColor = {
+  [StatusApproval.PENDING]: "text-amber-700 bg-amber-100 border-amber-200",
+  [StatusApproval.APPROVED]: "text-green-700 bg-green-100 border-green-200",
+  [StatusApproval.REJECTED]: "text-red-700 bg-red-100 border-red-200"
 }; 

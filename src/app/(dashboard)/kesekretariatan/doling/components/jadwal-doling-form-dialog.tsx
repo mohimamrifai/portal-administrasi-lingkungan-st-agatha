@@ -26,9 +26,10 @@ import { Check, ChevronsUpDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { JenisIbadat, SubIbadat } from "@prisma/client"
 import { KeluargaForSelect } from "../actions"
+import { Checkbox } from "@/components/ui/checkbox"
 
 // Fungsi untuk mendapatkan opsi sub ibadat yang sesuai berdasarkan jenis ibadat
-const getSubIbadatOptions = (jenisIbadat: JenisIbadat) => {
+const getSubIbadatOptions = (jenisIbadat: JenisIbadat): SubIbadat[] => {
   switch (jenisIbadat) {
     case JenisIbadat.DOA_LINGKUNGAN:
       return [
@@ -75,6 +76,7 @@ interface JadwalDolingFormDialogProps {
     tuanRumahId: string;
     jenisIbadat: JenisIbadat;
     subIbadat?: SubIbadat | null;
+    customSubIbadat?: string | null;
     temaIbadat?: string | null;
   }) => void;
 }
@@ -94,7 +96,61 @@ export function JadwalDolingFormDialog({
   const [subIbadat, setSubIbadat] = useState<SubIbadat | null>(jadwal?.subIbadat || null);
   const [temaIbadat, setTemaIbadat] = useState<string | null>(jadwal?.temaIbadat || null);
   const [openCombobox, setOpenCombobox] = useState(false);
+  const [manualSubIbadat, setManualSubIbadat] = useState<boolean>(false);
+  const [customSubIbadat, setCustomSubIbadat] = useState<string>("");
+  const [tanggalValue, setTanggalValue] = useState<string>(
+    jadwal ? format(new Date(jadwal.tanggal), 'yyyy-MM-dd\'T\'HH:mm') : ""
+  );
 
+  // Update state when jadwal prop changes
+  useEffect(() => {
+    if (jadwal) {
+      setSelectedFamilyHead(jadwal.tuanRumahId);
+      setAlamat(jadwal.alamat);
+      setTuanRumah(jadwal.tuanRumah);
+      setJenisIbadat(jadwal.jenisIbadat);
+      
+      const standardSubIbadats = getSubIbadatOptions(jadwal.jenisIbadat);
+      
+      // Periksa apakah subIbadat adalah standard atau custom
+      if (jadwal.subIbadat && standardSubIbadats.includes(jadwal.subIbadat)) {
+        // Standard subIbadat
+        setSubIbadat(jadwal.subIbadat);
+        setManualSubIbadat(false);
+        setCustomSubIbadat("");
+      } else if (jadwal.customSubIbadat) {
+        // Gunakan customSubIbadat jika ada
+        setSubIbadat(null);
+        setManualSubIbadat(true);
+        setCustomSubIbadat(jadwal.customSubIbadat);
+      } else if (jadwal.subIbadat) {
+        // Fallback untuk data lama
+        setSubIbadat(null);
+        setManualSubIbadat(true);
+        setCustomSubIbadat(subIbadatMap[jadwal.subIbadat] || "");
+      } else {
+        // Tidak ada subIbadat
+        setSubIbadat(null);
+        setManualSubIbadat(false);
+        setCustomSubIbadat("");
+      }
+      
+      setTemaIbadat(jadwal.temaIbadat);
+      setTanggalValue(format(new Date(jadwal.tanggal), 'yyyy-MM-dd\'T\'HH:mm'));
+    } else {
+      // Reset form untuk tambah baru
+      setSelectedFamilyHead("");
+      setAlamat("");
+      setTuanRumah("");
+      setJenisIbadat(JenisIbadat.DOA_LINGKUNGAN);
+      setSubIbadat(null);
+      setTemaIbadat(null);
+      setTanggalValue("");
+      setManualSubIbadat(false);
+      setCustomSubIbadat("");
+    }
+  }, [jadwal, open]);
+  
   // Update alamat when family head is selected
   useEffect(() => {
     if (selectedFamilyHead && !manualInput) {
@@ -108,19 +164,35 @@ export function JadwalDolingFormDialog({
 
   // Mengatur ulang sub ibadat saat jenis ibadat berubah
   useEffect(() => {
-    setSubIbadat(null);
-  }, [jenisIbadat]);
+    if (!manualSubIbadat) {
+      setSubIbadat(null);
+    }
+  }, [jenisIbadat, manualSubIbadat]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     
-    onSubmit({
+    // Siapkan nilai untuk dikirim
+    const formData = {
       tanggal: new Date(e.currentTarget.tanggal.value),
       tuanRumahId: selectedFamilyHead,
       jenisIbadat,
-      subIbadat,
+      subIbadat: manualSubIbadat ? null : subIbadat,
+      customSubIbadat: manualSubIbadat ? customSubIbadat : null,
       temaIbadat
-    })
+    };
+    
+    console.log("Form data yang akan dikirim:", {
+      tanggal: formData.tanggal,
+      tuanRumahId: formData.tuanRumahId,
+      jenisIbadat: formData.jenisIbadat,
+      subIbadat: formData.subIbadat,
+      customSubIbadat: formData.customSubIbadat,
+      temaIbadat: formData.temaIbadat,
+      manualSubIbadat
+    });
+    
+    onSubmit(formData);
   }
 
   return (
@@ -138,7 +210,8 @@ export function JadwalDolingFormDialog({
               id="tanggal"
               name="tanggal"
               type="datetime-local"
-              defaultValue={jadwal ? format(new Date(jadwal.tanggal), 'yyyy-MM-dd\'T\'HH:mm') : undefined}
+              value={tanggalValue}
+              onChange={(e) => setTanggalValue(e.target.value)}
               required
             />
           </div>
@@ -163,23 +236,48 @@ export function JadwalDolingFormDialog({
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="subIbadat">Sub Ibadat (Opsional)</Label>
-            <Select 
-              value={subIbadat ? subIbadat : "NONE"} 
-              onValueChange={(value) => setSubIbadat(value === "NONE" ? null : value as SubIbadat)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Pilih Sub Ibadat" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="NONE">Tidak Ada</SelectItem>
-                {getSubIbadatOptions(jenisIbadat).map((subIbadat) => (
-                  <SelectItem key={subIbadat} value={subIbadat}>
-                    {subIbadatMap[subIbadat]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center space-x-2 mb-2">
+              <Checkbox
+                id="manualSubIbadat"
+                checked={manualSubIbadat}
+                onCheckedChange={(checked) => setManualSubIbadat(checked === true)}
+              />
+              <Label htmlFor="manualSubIbadat" className="text-sm cursor-pointer">
+                Input Manual untuk Sub Ibadat
+              </Label>
+            </div>
+            
+            {manualSubIbadat ? (
+              <div className="space-y-2">
+                <Label htmlFor="customSubIbadat">Sub Ibadat (Manual)</Label>
+                <Input
+                  id="customSubIbadat"
+                  value={customSubIbadat}
+                  onChange={(e) => setCustomSubIbadat(e.target.value)}
+                  placeholder="Masukkan sub ibadat"
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="subIbadat">Sub Ibadat (Opsional)</Label>
+                <Select 
+                  value={subIbadat ? subIbadat : "NONE"} 
+                  onValueChange={(value) => setSubIbadat(value === "NONE" ? null : value as SubIbadat)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih Sub Ibadat" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">Tidak Ada</SelectItem>
+                    {getSubIbadatOptions(jenisIbadat).map((subIbadat) => (
+                      <SelectItem key={subIbadat} value={subIbadat}>
+                        {subIbadatMap[subIbadat]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           
           <div className="space-y-2">
@@ -188,6 +286,7 @@ export function JadwalDolingFormDialog({
               id="temaIbadat"
               value={temaIbadat || ""}
               onChange={(e) => setTemaIbadat(e.target.value)}
+              placeholder="Masukkan tema ibadat jika ada"
             />
           </div>
           
@@ -232,7 +331,7 @@ export function JadwalDolingFormDialog({
                               selectedFamilyHead === head.id ? "opacity-100" : "opacity-0"
                             )}
                           />
-                          {head.nama} {head.sudahTerpilih && <span className="ml-2 text-xs text-yellow-600">(Baru dipilih)</span>}
+                          {head.nama}
                         </CommandItem>
                       ))}
                     </CommandGroup>

@@ -73,7 +73,6 @@ export function DoaLingkunganContent({
     const [loading, setLoading] = useState(!initialDoling.length);
 
     // Filter state
-    const [showSudahTerpilih, setShowSudahTerpilih] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedTahun, setSelectedTahun] = useState(new Date().getFullYear().toString());
     const [selectedBulan, setSelectedBulan] = useState((new Date().getMonth() + 1).toString());
@@ -138,11 +137,6 @@ export function DoaLingkunganContent({
         }
     }, [fetchData, initialDoling.length, initialRiwayat.length, initialRekapitulasi.length, initialKeluarga.length]);
 
-    // Filter kepala keluarga yang sudah/belum terpilih
-    const filteredKepalaKeluarga = kepalaKeluargaState.filter(item =>
-        showSudahTerpilih ? true : !item.sudahTerpilih
-    );
-
     // Filter jadwal berdasarkan pencarian dan bulan/tahun
     const filteredJadwal = jadwalState.filter(jadwal => {
         const jadwalDate = new Date(jadwal.tanggal);
@@ -194,10 +188,16 @@ export function DoaLingkunganContent({
         }
     };
 
-    const handleResetKepalaKeluarga = () => {
-        // Reset tidak dibutuhkan karena data sudah dikelola oleh server
-        toast.success("Reset berhasil. Semua kepala keluarga dapat dipilih kembali.");
-        fetchData(); // Refresh data
+    const handleResetKepalaKeluarga = async () => {
+        try {
+            // Ambil data keluarga dari server
+            const keluargaData = await getKeluargaForSelection();
+            setKepalaKeluargaState(keluargaData);
+            toast.success("Reset berhasil. Semua kepala keluarga dapat dipilih kembali.");
+        } catch (error) {
+            console.error("Error resetting kepala keluarga:", error);
+            toast.error("Gagal melakukan reset kepala keluarga");
+        }
     };
 
     const handleSubmitJadwal = async (values: {
@@ -205,9 +205,12 @@ export function DoaLingkunganContent({
         tuanRumahId: string;
         jenisIbadat: JenisIbadat;
         subIbadat?: SubIbadat | null;
+        customSubIbadat?: string | null;
         temaIbadat?: string | null;
     }) => {
         try {
+            console.log("DoaLingkunganContent menerima nilai form:", values);
+            
             if (editingJadwal) {
                 // Edit existing - tidak ada fungsi update jadwal, akan menggunakan deleteDoling dan addDoling
                 await deleteDoling(editingJadwal.id);
@@ -216,6 +219,7 @@ export function DoaLingkunganContent({
                     tuanRumahId: values.tuanRumahId,
                     jenisIbadat: values.jenisIbadat,
                     subIbadat: values.subIbadat || undefined,
+                    customSubIbadat: values.customSubIbadat || undefined,
                     temaIbadat: values.temaIbadat || undefined
                 });
                 toast.success("Jadwal berhasil diperbarui");
@@ -226,6 +230,7 @@ export function DoaLingkunganContent({
                     tuanRumahId: values.tuanRumahId,
                     jenisIbadat: values.jenisIbadat,
                     subIbadat: values.subIbadat || undefined,
+                    customSubIbadat: values.customSubIbadat || undefined,
                     temaIbadat: values.temaIbadat || undefined
                 });
                 toast.success("Jadwal baru berhasil ditambahkan");
@@ -258,6 +263,17 @@ export function DoaLingkunganContent({
         } catch (error) {
             console.error("Error deleting detail:", error);
             toast.error("Gagal menghapus detail");
+        }
+    };
+
+    const handleApproveDetil = async (id: string) => {
+        try {
+            await updateApprovalStatus(id, StatusApproval.APPROVED);
+            toast.success("Status doling berhasil disetujui");
+            fetchData(); // Refresh data
+        } catch (error) {
+            console.error("Error approving detail:", error);
+            toast.error("Gagal menyetujui status doling");
         }
     };
 
@@ -329,7 +345,7 @@ export function DoaLingkunganContent({
                     />
                 );
             case "detil-doling":
-                return <DetilActionButtons onAddDetil={handleAddDetil} />;
+                return null;
             case "absensi-doling":
                 console.log("Should render absensi action button with role:", userRole);
                 return <AbsensiActionButtons onAddAbsensi={handleAddAbsensi} userRole={userRole || undefined} />;
@@ -361,11 +377,9 @@ export function DoaLingkunganContent({
                         searchTerm={searchTerm}
                         selectedTahun={selectedTahun}
                         selectedBulan={selectedBulan}
-                        showSudahTerpilih={showSudahTerpilih}
                         onSearchTermChange={setSearchTerm}
                         onTahunChange={setSelectedTahun}
                         onBulanChange={setSelectedBulan}
-                        onShowSudahTerpilihChange={setShowSudahTerpilih}
                     />
 
                     {renderActionButtons()}
@@ -383,6 +397,7 @@ export function DoaLingkunganContent({
                         detil={detilState}
                         onEdit={handleEditDetil}
                         onDelete={handleDeleteDetil}
+                        onApprove={handleApproveDetil}
                     />
                 </TabsContent>
 
@@ -414,7 +429,7 @@ export function DoaLingkunganContent({
                 onOpenChange={setJadwalFormOpen}
                 jadwal={editingJadwal}
                 onSubmit={handleSubmitJadwal}
-                kepalaKeluarga={filteredKepalaKeluarga}
+                kepalaKeluarga={kepalaKeluargaState}
             />
             <DetilDolingFormDialog
                 open={detilFormOpen}

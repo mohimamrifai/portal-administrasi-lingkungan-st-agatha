@@ -14,7 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { FilterIcon } from "lucide-react";
 import { tahunOptions, bulanOptions } from "../utils/constants";
@@ -23,22 +22,18 @@ interface FilterSectionProps {
   searchTerm: string;
   selectedTahun: string;
   selectedBulan: string;
-  showSudahTerpilih: boolean;
   onSearchTermChange: (value: string) => void;
   onTahunChange: (value: string) => void;
   onBulanChange: (value: string) => void;
-  onShowSudahTerpilihChange: (checked: boolean) => void;
 }
 
 export function FilterSection({
   searchTerm,
   selectedTahun,
   selectedBulan,
-  showSudahTerpilih,
   onSearchTermChange,
   onTahunChange,
   onBulanChange,
-  onShowSudahTerpilihChange,
 }: FilterSectionProps) {
   return (
     <Card className="gap-0">
@@ -90,18 +85,6 @@ export function FilterSection({
               </SelectContent>
             </Select>
           </div>
-        </div>
-
-        <div className="mt-4 flex items-center">
-          <Checkbox
-            id="showTerpilih"
-            checked={showSudahTerpilih}
-            onCheckedChange={(checked) => onShowSudahTerpilihChange(checked === true)}
-            className="mr-2"
-          />
-          <Label htmlFor="showTerpilih" className="text-sm text-muted-foreground">
-            Tampilkan kepala keluarga yang sudah terpilih
-          </Label>
         </div>
       </CardContent>
     </Card>

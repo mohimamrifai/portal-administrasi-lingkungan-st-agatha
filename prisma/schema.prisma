@@ -260,6 +260,7 @@ model DoaLingkungan {
   tanggal         DateTime
   jenisIbadat     JenisIbadat
   subIbadat       SubIbadat?
+  customSubIbadat String?         // Field baru untuk sub ibadat yang diinput manual
   temaIbadat      String?
   tuanRumah       KeluargaUmat    @relation("TuanRumah", fields: [tuanRumahId], references: [id])
   tuanRumahId     String
