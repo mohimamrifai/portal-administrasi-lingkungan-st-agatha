@@ -57,9 +57,10 @@ interface JadwalDolingTableProps {
   jadwal: JadwalDoling[];
   onEdit: (jadwal: JadwalDoling) => void;
   onDelete: (id: string) => void;
+  onSelectDoling?: (id: string) => void;
 }
 
-export function JadwalDolingTable({ jadwal, onEdit, onDelete }: JadwalDolingTableProps) {
+export function JadwalDolingTable({ jadwal, onEdit, onDelete, onSelectDoling }: JadwalDolingTableProps) {
   // state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -138,6 +139,13 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete }: JadwalDolingTabl
     };
     
     return subIbadatMap[subIbadat] || subIbadat;
+  };
+
+  // Tambahkan fungsi untuk menangani klik pada baris tabel
+  const handleRowClick = (jadwal: JadwalDoling) => {
+    if (onSelectDoling) {
+      onSelectDoling(jadwal.id);
+    }
   };
 
   return (
@@ -288,7 +296,11 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete }: JadwalDolingTabl
               </TableRow>
             ) : (
               jadwal.map((item) => (
-                <TableRow key={item.id}>
+                <TableRow 
+                  key={item.id} 
+                  className={onSelectDoling ? "cursor-pointer hover:bg-slate-50" : ""}
+                  onClick={() => onSelectDoling && handleRowClick(item)}
+                >
                   <TableCell className="font-medium">
                     {item.tanggal instanceof Date ? (
                       format(item.tanggal, "dd MMM yyyy", { locale: id })
@@ -314,7 +326,10 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete }: JadwalDolingTabl
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleShowDetail(item)}
+                        onClick={(e) => {
+                          e.stopPropagation(); // Hindari trigger onClick pada TableRow
+                          handleShowDetail(item);
+                        }}
                       >
                         <CalendarIcon className="h-4 w-4" />
                         <span className="sr-only">View</span>
@@ -322,28 +337,43 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete }: JadwalDolingTabl
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => onEdit(item)}
+                        onClick={(e) => {
+                          e.stopPropagation(); // Hindari trigger onClick pada TableRow
+                          onEdit(item);
+                        }}
                       >
                         <PencilIcon className="h-4 w-4" />
                         <span className="sr-only">Edit</span>
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation(); // Hindari trigger onClick pada TableRow
+                              onDelete(item.id);
+                            }}
+                          >
                             <TrashIcon className="h-4 w-4" />
-                            <span className="sr-only">Delete</span>
+                            <span className="sr-only">Hapus</span>
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Hapus Jadwal</AlertDialogTitle>
+                            <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
                             <AlertDialogDescription>
                               Apakah Anda yakin ingin menghapus jadwal ini? Tindakan ini tidak dapat dibatalkan.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Batal</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => onDelete(item.id)}>
+                            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Batal</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={(e) => {
+                                e.stopPropagation(); // Hindari trigger onClick pada TableRow
+                                onDelete(item.id);
+                              }}
+                            >
                               Hapus
                             </AlertDialogAction>
                           </AlertDialogFooter>
@@ -408,7 +438,8 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete }: JadwalDolingTabl
         </div>
         
         {/* Info Pages */}
-        <div className="flex items-center justify-center text-xs text-muted-foreground w-full">
+        <div className="flex items-center justify-between text-xs text-muted-foreground w-full">
+          <div></div> {/* Spacer untuk layout */}
           <div className="flex items-center gap-1.5">
             <span className="whitespace-nowrap">
               {jadwal.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, jadwal.length)} dari {jadwal.length} jadwal
@@ -434,6 +465,7 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete }: JadwalDolingTabl
             </Select>
             <span className="whitespace-nowrap">per halaman</span>
           </div>
+          <div></div> {/* Spacer untuk layout */}
         </div>
       </div>
     </div>

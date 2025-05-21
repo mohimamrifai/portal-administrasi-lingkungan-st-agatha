@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { EditIcon, SearchIcon, X, ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon, PlusIcon } from "lucide-react";
+import { EditIcon, SearchIcon, X, ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon } from "lucide-react";
 import { AbsensiDoling } from "../types";
 import { Input } from "@/components/ui/input";
 import {
@@ -35,7 +35,6 @@ interface AbsensiDolingTableProps {
 export function AbsensiDolingTable({ absensi, onEdit, onAdd, jadwalDoling = [] }: AbsensiDolingTableProps) {
   // Get user role for authorized actions
   const { userRole } = useAuth();
-  const canAddAbsensi = userRole ? ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'SEKRETARIS', 'WAKIL_SEKRETARIS'].includes(userRole) : false;
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -43,11 +42,22 @@ export function AbsensiDolingTable({ absensi, onEdit, onAdd, jadwalDoling = [] }
   const [searchTerm, setSearchTerm] = useState("");
   
   // Get kehadiran badge
-  const getKehadiranBadge = (kehadiran: boolean) => {
-    if (kehadiran) {
-      return <Badge variant="success">Hadir</Badge>;
-    } else {
+  const getKehadiranBadge = (absensi: AbsensiDoling) => {
+    const { hadir, statusKehadiran } = absensi;
+    
+    if (!hadir) {
       return <Badge variant="destructive">Tidak Hadir</Badge>;
+    }
+    
+    switch (statusKehadiran) {
+      case "SUAMI_SAJA":
+        return <Badge variant="default" className="bg-blue-500">Suami Saja</Badge>;
+      case "ISTRI_SAJA":
+        return <Badge variant="default" className="bg-pink-500">Istri Saja</Badge>;
+      case "SUAMI_ISTRI_HADIR":
+        return <Badge variant="success">Suami & Istri Hadir</Badge>;
+      default:
+        return <Badge variant="success">Hadir</Badge>;
     }
   };
 
@@ -94,7 +104,7 @@ export function AbsensiDolingTable({ absensi, onEdit, onAdd, jadwalDoling = [] }
   return (
     <div className="space-y-4">     
       {/* Search Filter */}
-      <div className="relative w-full md:w-64">
+      <div className="relative w-full md:w-64 mt-2">
         <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
           placeholder="Cari nama keluarga..."
@@ -130,7 +140,7 @@ export function AbsensiDolingTable({ absensi, onEdit, onAdd, jadwalDoling = [] }
                 <TableHead>Tanggal</TableHead>
                 <TableHead>Jadwal Doling</TableHead>
                 <TableHead>Nama Keluarga</TableHead>
-                <TableHead>Kehadiran</TableHead>
+                <TableHead>Status Kehadiran</TableHead>
                 <TableHead className="sticky right-0 bg-white shadow-[-8px_0_10px_-6px_rgba(0,0,0,0.1)] z-10">Aksi</TableHead>
               </TableRow>
             </TableHeader>
@@ -148,9 +158,10 @@ export function AbsensiDolingTable({ absensi, onEdit, onAdd, jadwalDoling = [] }
                       </TableCell>
                       <TableCell>{jadwalInfo.tuanRumah}</TableCell>
                       <TableCell>{item.namaKeluarga}</TableCell>
-                      <TableCell>{getKehadiranBadge(item.hadir)}</TableCell>
+                      <TableCell>{getKehadiranBadge(item)}</TableCell>
                       <TableCell className="sticky right-0 bg-white shadow-[-8px_0_10px_-6px_rgba(0,0,0,0.1)] z-10">
                         <Button variant="ghost" size="sm" onClick={() => onEdit(item)}>
+                          <EditIcon className="h-4 w-4 mr-2" />
                           Edit
                         </Button>
                       </TableCell>
@@ -220,7 +231,8 @@ export function AbsensiDolingTable({ absensi, onEdit, onAdd, jadwalDoling = [] }
           </div>
           
           {/* Info Pages */}
-          <div className="flex items-center justify-center text-xs text-muted-foreground w-full">
+          <div className="flex items-center justify-between text-xs text-muted-foreground w-full">
+            <div></div> {/* Spacer untuk layout */}
             <div className="flex items-center gap-1.5">
               <span className="whitespace-nowrap">
                 {filteredData.length === 0 ? 0 : startIndex + 1}-{endIndex} dari {totalItems} data
@@ -243,9 +255,10 @@ export function AbsensiDolingTable({ absensi, onEdit, onAdd, jadwalDoling = [] }
               </Select>
               <span className="whitespace-nowrap">per halaman</span>
             </div>
+            <div></div> {/* Spacer untuk layout */}
           </div>
         </div>
       )}
     </div>
   );
-} 
+}

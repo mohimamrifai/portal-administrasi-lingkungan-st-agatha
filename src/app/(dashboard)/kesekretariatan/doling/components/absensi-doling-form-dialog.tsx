@@ -8,7 +8,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -17,21 +16,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { AbsensiDoling, DetilDoling, JadwalDoling } from "../types"
 import { toast } from "sonner"
 import { useState, useEffect } from "react"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
+import { Combobox, ComboboxOption } from "@/components/ui/combobox"
+import { KeluargaForSelect } from "../actions"
 
 interface AbsensiDolingFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   absensi?: AbsensiDoling
-  onSubmit: (values: { doaLingkunganId: string, absensiData: { keluargaId: string, hadir: boolean }[] }) => void
+  onSubmit: (values: { doaLingkunganId: string, absensiData: { keluargaId: string, hadir: boolean, statusKehadiran: string }[] }) => void
   detilDoling?: DetilDoling[]
   jadwalDoling?: JadwalDoling[]
+  keluargaList?: KeluargaForSelect[]
 }
+
+export type StatusKehadiran = "TIDAK_HADIR" | "SUAMI_SAJA" | "ISTRI_SAJA" | "SUAMI_ISTRI_HADIR";
 
 export function AbsensiDolingFormDialog({
   open,
@@ -40,15 +44,46 @@ export function AbsensiDolingFormDialog({
   onSubmit,
   detilDoling = [],
   jadwalDoling = [],
+  keluargaList = [],
 }: AbsensiDolingFormDialogProps) {
   const [selectedDolingId, setSelectedDolingId] = useState<string>(absensi?.doaLingkunganId || "");
   const [keluargaId, setKeluargaId] = useState<string>(absensi?.keluargaId || "");
-  const [hadir, setHadir] = useState<boolean>(absensi?.hadir || false);
+  const [statusKehadiran, setStatusKehadiran] = useState<StatusKehadiran>(absensi?.statusKehadiran as StatusKehadiran || "TIDAK_HADIR");
+  
+  // Konversi keluargaList ke ComboboxOption[]
+  const keluargaOptions: ComboboxOption[] = keluargaList.map(keluarga => ({
+    label: `${keluarga.nama} - ${keluarga.alamat}`,
+    value: keluarga.id
+  }));
   
   // Filter jadwal yang sudah selesai atau terjadwal
   const availableJadwal = jadwalDoling.filter(jadwal => 
     jadwal.status === 'selesai' || jadwal.status === 'terjadwal' || jadwal.status === 'menunggu'
   );
+
+  // Reset form ketika dialog dibuka
+  useEffect(() => {
+    if (open) {
+      // Jika form dalam mode edit, gunakan data dari absensi
+      if (absensi) {
+        setSelectedDolingId(absensi.doaLingkunganId);
+        setKeluargaId(absensi.keluargaId);
+        setStatusKehadiran(absensi.statusKehadiran as StatusKehadiran || "TIDAK_HADIR");
+      } else {
+        // Jika form dalam mode tambah, reset keluargaId dan statusKehadiran
+        setKeluargaId("");
+        setStatusKehadiran("TIDAK_HADIR");
+        
+        // Ambil jadwal terbaru jika tidak ada dolingId yang dipilih
+        if (!selectedDolingId && jadwalDoling.length > 0) {
+          // Dapatkan jadwal terbaru atau aktif
+          const activeJadwal = jadwalDoling.find(j => j.status === 'terjadwal' || j.status === 'menunggu') 
+            || jadwalDoling[0];
+          setSelectedDolingId(activeJadwal.id);
+        }
+      }
+    }
+  }, [open, absensi, jadwalDoling, selectedDolingId]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -59,16 +94,19 @@ export function AbsensiDolingFormDialog({
     }
     
     if (!keluargaId) {
-      toast.error("Silakan isi ID keluarga terlebih dahulu.");
+      toast.error("Silakan pilih keluarga terlebih dahulu.");
       return;
     }
+    
+    const hadir = statusKehadiran !== "TIDAK_HADIR";
     
     onSubmit({
       doaLingkunganId: selectedDolingId,
       absensiData: [
         {
           keluargaId: keluargaId,
-          hadir: hadir
+          hadir: hadir,
+          statusKehadiran: statusKehadiran
         }
       ]
     });
@@ -81,6 +119,9 @@ export function AbsensiDolingFormDialog({
           <DialogTitle>
             {absensi ? 'Edit Absensi' : 'Tambah Absensi'}
           </DialogTitle>
+          <DialogDescription>
+            Silakan isi data kehadiran keluarga pada doa lingkungan.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Jadwal Doling */}
@@ -114,29 +155,37 @@ export function AbsensiDolingFormDialog({
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="keluargaId">ID Keluarga</Label>
-            <Input
-              id="keluargaId"
-              name="keluargaId"
+            <Label htmlFor="keluargaId">Nama Kepala Keluarga</Label>
+            <Combobox
+              options={keluargaOptions}
               value={keluargaId}
-              onChange={(e) => setKeluargaId(e.target.value)}
-              required
+              onChange={setKeluargaId}
+              placeholder="Pilih keluarga..."
+              emptyMessage="Tidak ada keluarga ditemukan"
+              disabled={Boolean(absensi)} // Disable jika edit mode
             />
           </div>
           
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="hadir">Kehadiran</Label>
-              <Switch
-                id="hadir"
-                name="hadir"
-                checked={hadir}
-                onCheckedChange={setHadir}
-              />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {hadir ? "Hadir" : "Tidak Hadir"}
-            </p>
+            <Label>Status Kehadiran</Label>
+            <RadioGroup value={statusKehadiran} onValueChange={(value) => setStatusKehadiran(value as StatusKehadiran)}>
+              <div className="flex items-center space-x-2 py-2">
+                <RadioGroupItem value="TIDAK_HADIR" id="tidak-hadir" />
+                <Label htmlFor="tidak-hadir" className="cursor-pointer">Tidak Hadir</Label>
+              </div>
+              <div className="flex items-center space-x-2 py-2">
+                <RadioGroupItem value="SUAMI_SAJA" id="suami-saja" />
+                <Label htmlFor="suami-saja" className="cursor-pointer">Suami Saja</Label>
+              </div>
+              <div className="flex items-center space-x-2 py-2">
+                <RadioGroupItem value="ISTRI_SAJA" id="istri-saja" />
+                <Label htmlFor="istri-saja" className="cursor-pointer">Istri Saja</Label>
+              </div>
+              <div className="flex items-center space-x-2 py-2">
+                <RadioGroupItem value="SUAMI_ISTRI_HADIR" id="keduanya-hadir" />
+                <Label htmlFor="keduanya-hadir" className="cursor-pointer">Suami dan Istri Hadir</Label>
+              </div>
+            </RadioGroup>
           </div>
           
           <div className="flex justify-end gap-2">
@@ -144,7 +193,7 @@ export function AbsensiDolingFormDialog({
               Batal
             </Button>
             <Button type="submit">
-              {absensi ? 'Simpan Perubahan' : 'Tambah Absensi'}
+              {absensi ? 'Simpan Perubahan' : 'Simpan'}
             </Button>
           </div>
         </form>

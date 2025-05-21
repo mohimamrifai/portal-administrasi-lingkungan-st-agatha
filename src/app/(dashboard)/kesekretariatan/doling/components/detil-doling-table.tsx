@@ -60,13 +60,15 @@ interface DetilDolingTableProps {
   onEdit: (detil: DetilDoling) => void
   onDelete: (id: string) => void
   onApprove?: (id: string) => void
+  onSelectDoling?: (id: string) => void
 }
 
 export function DetilDolingTable({ 
   detil, 
   onEdit, 
   onDelete,
-  onApprove
+  onApprove,
+  onSelectDoling
 }: DetilDolingTableProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
@@ -198,6 +200,13 @@ export function DetilDolingTable({
     );
   };
 
+  // Fungsi untuk menangani klik pada baris tabel
+  const handleRowClick = (detil: DetilDoling) => {
+    if (onSelectDoling) {
+      onSelectDoling(detil.id);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -286,8 +295,12 @@ export function DetilDolingTable({
           </TableHeader>
           <TableBody>
             {currentData.length > 0 ? (
-              currentData.map((item) => (
-                <TableRow key={item.id}>
+              currentData.map((item, index) => (
+                <TableRow 
+                  key={item.id}
+                  className={onSelectDoling ? "cursor-pointer hover:bg-slate-50" : ""}
+                  onClick={() => onSelectDoling && handleRowClick(item)}
+                >
                   <TableCell className="whitespace-nowrap">
                     {format(item.tanggal, "dd MMM yyyy", { locale: id })}
                   </TableCell>
@@ -315,49 +328,67 @@ export function DetilDolingTable({
                   <TableCell className="sticky right-0 bg-white shadow-sm">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Buka menu</span>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={(e) => e.stopPropagation()} // Hindari trigger onClick pada TableRow
+                        >
                           <MoreVertical className="h-4 w-4" />
+                          <span className="sr-only">Menu</span>
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onEdit(item)}>
-                          <PencilIcon className="mr-2 h-4 w-4" />
+                        <DropdownMenuItem 
+                          onClick={(e) => {
+                            e.stopPropagation(); // Hindari trigger onClick pada TableRow
+                            onEdit(item);
+                          }}
+                        >
+                          <PencilIcon className="h-4 w-4 mr-2" />
                           <span>Edit</span>
                         </DropdownMenuItem>
+                        {!item.approved && onApprove && (
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation(); // Hindari trigger onClick pada TableRow
+                              handleApproveClick(item.id);
+                            }}
+                          >
+                            <CheckIcon className="h-4 w-4 mr-2" />
+                            <span>Setujui</span>
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuSeparator />
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                              <Trash2Icon className="mr-2 h-4 w-4" />
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation(); // Hindari trigger onClick pada TableRow
+                              }}
+                            >
+                              <Trash2Icon className="h-4 w-4 mr-2" />
                               <span>Hapus</span>
                             </DropdownMenuItem>
                           </AlertDialogTrigger>
-                          <AlertDialogContent>
+                          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                             <AlertDialogHeader>
                               <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Apakah Anda yakin ingin menghapus detail doling ini? 
-                                Tindakan ini tidak dapat dibatalkan.
+                                Apakah Anda yakin ingin menghapus data detail doa lingkungan ini? Tindakan ini tidak dapat dibatalkan.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Batal</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => onDelete(item.id)}>
+                              <AlertDialogAction
+                                onClick={() => onDelete(item.id)}
+                              >
                                 Hapus
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
-                        {!item.approved && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleApproveClick(item.id)}>
-                              <CheckIcon className="mr-2 h-4 w-4" />
-                              <span>Setujui</span>
-                            </DropdownMenuItem>
-                          </>
-                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -424,7 +455,8 @@ export function DetilDolingTable({
         </div>
         
         {/* Info Pages */}
-        <div className="flex items-center justify-center text-xs text-muted-foreground w-full">
+        <div className="flex items-center justify-between text-xs text-muted-foreground w-full">
+          <div></div> {/* Spacer untuk layout */}
           <div className="flex items-center gap-1.5">
             <span className="whitespace-nowrap">
               {filteredData.length === 0 ? 0 : startIndex + 1}-{endIndex} dari {totalItems} data
@@ -447,6 +479,7 @@ export function DetilDolingTable({
             </Select>
             <span className="whitespace-nowrap">per halaman</span>
           </div>
+          <div></div> {/* Spacer untuk layout */}
         </div>
       </div>
     </div>
