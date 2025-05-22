@@ -54,6 +54,17 @@ export function AgendaTable({
   const [selectedAgenda, setSelectedAgenda] = useState<Agenda | undefined>(undefined);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   
+  // Definisikan daftar peran yang diizinkan untuk melakukan aksi administratif
+  const AUTHORIZED_ROLES = [
+    'SUPER_USER', 
+    'KETUA', 
+    'WAKIL_KETUA',
+    'BENDAHARA', 
+    'WAKIL_BENDAHARA',
+    'SEKRETARIS',
+    'WAKIL_SEKRETARIS'
+  ];
+  
   // Helper untuk mendapatkan ID dari createdBy (yang bisa string atau object)
   const getCreatedById = (createdBy: string | { id: string; name: string }): string => {
     return typeof createdBy === 'string' ? createdBy : createdBy.id;
@@ -134,18 +145,18 @@ export function AgendaTable({
   };
 
   const canProcess = (agenda: Agenda, role: string | undefined) => {
-    // Pengurus (selain role umat) dapat memproses agenda yang statusnya open
-    return role !== 'umat' && agenda.status === 'open';
+    // Periksa apakah role ada dalam daftar yang diizinkan untuk memproses agenda
+    return AUTHORIZED_ROLES.includes(role || '') && agenda.status === 'open';
   };
 
   const canUpdateStatus = (agenda: Agenda, role: string | undefined) => {
-    // Pengurus (selain role umat) dapat mengupdate status agenda yang sedang diproses
-    return role !== 'umat' && ['processing_lingkungan', 'processing_stasi', 'processing_paroki'].includes(agenda.status);
+    // Periksa apakah role ada dalam daftar yang diizinkan untuk mengupdate status agenda
+    return AUTHORIZED_ROLES.includes(role || '') && ['processing_lingkungan', 'processing_stasi', 'processing_paroki'].includes(agenda.status);
   };
 
   const canFinalResult = (agenda: Agenda, role: string | undefined) => {
-    // Pengurus (selain role umat) dapat memberikan hasil akhir dari agenda yang diteruskan ke paroki
-    return role !== 'umat' && agenda.status === 'forwarded_to_paroki';
+    // Periksa apakah role ada dalam daftar yang diizinkan untuk memberikan hasil akhir
+    return AUTHORIZED_ROLES.includes(role || '') && agenda.status === 'forwarded_to_paroki';
   };
 
   const isCreator = (agenda: Agenda) => {
@@ -162,9 +173,10 @@ export function AgendaTable({
 
   const canDelete = (agenda: Agenda, role: string | undefined) => {
     // SuperUser dan pembuat agenda yang open dapat menghapus
-    if (role === 'SuperUser') return true;
-    if (role === 'umat' && isCreator(agenda) && agenda.status === 'open') return true;
-    return role !== 'umat' && agenda.status === 'open';
+    if (role === 'SUPER_USER') return true;
+    if (role === 'UMAT' && isCreator(agenda) && agenda.status === 'open') return true;
+    // Peran dengan wewenang dapat menghapus agenda yang masih open
+    return AUTHORIZED_ROLES.includes(role || '') && agenda.status === 'open';
   };
 
   const canEdit = (agenda: Agenda) => {
@@ -175,8 +187,8 @@ export function AgendaTable({
   };
 
   const canReject = (agenda: Agenda, role: string | undefined) => {
-    // Hanya pengurus (selain role umat) yang dapat menolak agenda
-    return role !== 'umat' && agenda.status === 'open';
+    // Periksa apakah role ada dalam daftar yang diizinkan untuk menolak agenda
+    return AUTHORIZED_ROLES.includes(role || '') && agenda.status === 'open';
   };
 
   // Menambahkan fungsi untuk download lampiran
