@@ -32,21 +32,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
-import { cn } from "@/lib/utils"
-import { toast } from "sonner"
+
 
 import { DanaMandiriHistory, IkataHistory } from "../types"
 import { formatRupiah, getDanaMandiriStatusColor, getIkataStatusColor, formatStatusIkata, getMonthName, getMonthRange } from "../utils"
@@ -55,6 +41,7 @@ interface PaymentHistoryTableProps {
   data: DanaMandiriHistory[] | IkataHistory[];
   type: "Dana Mandiri" | "IKATA";
   showUserColumn: boolean;
+  showActions: boolean;
   onStatusChange: ((payment: DanaMandiriHistory, status: boolean) => void) | 
                  ((payment: IkataHistory, status: "LUNAS" | "SEBAGIAN_BULAN" | "BELUM_BAYAR") => void);
   onDelete: ((payment: DanaMandiriHistory) => void) | 
@@ -65,6 +52,7 @@ export function PaymentHistoryTable({
   data, 
   type,
   showUserColumn, 
+  showActions,
   onStatusChange, 
   onDelete
 }: PaymentHistoryTableProps) {
@@ -173,13 +161,13 @@ export function PaymentHistoryTable({
                 <TableHead>Jumlah</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Tanggal Setor</TableHead>
-                <TableHead className="text-right sticky right-0 bg-background">Aksi</TableHead>
+                {showActions && <TableHead className="text-right sticky right-0 bg-background">Aksi</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {danaMandiriData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={showUserColumn ? 8 : 7} className="h-24 text-center">
+                  <TableCell colSpan={showUserColumn ? (showActions ? 8 : 7) : (showActions ? 7 : 6)} className="h-24 text-center">
                     Tidak ada data pembayaran
                   </TableCell>
                 </TableRow>
@@ -206,43 +194,45 @@ export function PaymentHistoryTable({
                         : "-"
                       }
                     </TableCell>
-                    <TableCell className="text-right sticky right-0 bg-background">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Buka menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => handleStatusChange(payment)}
-                            className="flex items-center"
-                          >
-                            {payment.statusSetor ? (
-                              <>
-                                <X className="mr-2 h-4 w-4" />
-                                <span>Tandai Belum Disetor</span>
-                              </>
-                            ) : (
-                              <>
-                                <Check className="mr-2 h-4 w-4" />
-                                <span>Tandai Sudah Disetor</span>
-                              </>
-                            )}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleDelete(payment)}
-                            className="flex items-center text-destructive"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            <span>Hapus</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+                    {showActions && (
+                      <TableCell className="text-right sticky right-0 bg-background">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Buka menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => handleStatusChange(payment)}
+                              className="flex items-center"
+                            >
+                              {payment.statusSetor ? (
+                                <>
+                                  <X className="mr-2 h-4 w-4" />
+                                  <span>Tandai Belum Disetor</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Check className="mr-2 h-4 w-4" />
+                                  <span>Tandai Sudah Disetor</span>
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(payment)}
+                              className="flex items-center text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              <span>Hapus</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
@@ -321,13 +311,13 @@ export function PaymentHistoryTable({
                 <TableHead>Bulan</TableHead>
                 <TableHead>Jumlah</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right sticky right-0 bg-background">Aksi</TableHead>
+                {showActions && <TableHead className="text-right sticky right-0 bg-background">Aksi</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {ikataData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={showUserColumn ? 7 : 6} className="h-24 text-center">
+                  <TableCell colSpan={showUserColumn ? (showActions ? 7 : 6) : (showActions ? 6 : 5)} className="h-24 text-center">
                     Tidak ada data pembayaran
                   </TableCell>
                 </TableRow>
@@ -346,52 +336,54 @@ export function PaymentHistoryTable({
                         {formatStatusIkata(payment.status)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right sticky right-0 bg-background">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Buka menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => handleStatusLunas(payment)}
-                            className="flex items-center"
-                            disabled={payment.status === "LUNAS"}
-                          >
-                            <Check className="mr-2 h-4 w-4" />
-                            <span>Tandai Lunas</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleStatusSebagian(payment)}
-                            className="flex items-center"
-                            disabled={payment.status === "SEBAGIAN_BULAN"}
-                          >
-                            <ReceiptIcon className="mr-2 h-4 w-4" />
-                            <span>Tandai Sebagian Bulan</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleStatusBelumBayar(payment)}
-                            className="flex items-center"
-                            disabled={payment.status === "BELUM_BAYAR"}
-                          >
-                            <X className="mr-2 h-4 w-4" />
-                            <span>Tandai Belum Bayar</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => handleDelete(payment)}
-                            className="flex items-center text-destructive"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            <span>Hapus</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+                    {showActions && (
+                      <TableCell className="text-right sticky right-0 bg-background">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Buka menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => handleStatusLunas(payment)}
+                              className="flex items-center"
+                              disabled={payment.status === "LUNAS"}
+                            >
+                              <Check className="mr-2 h-4 w-4" />
+                              <span>Tandai Lunas</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleStatusSebagian(payment)}
+                              className="flex items-center"
+                              disabled={payment.status === "SEBAGIAN_BULAN"}
+                            >
+                              <ReceiptIcon className="mr-2 h-4 w-4" />
+                              <span>Tandai Sebagian Bulan</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleStatusBelumBayar(payment)}
+                              className="flex items-center"
+                              disabled={payment.status === "BELUM_BAYAR"}
+                            >
+                              <X className="mr-2 h-4 w-4" />
+                              <span>Tandai Belum Bayar</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(payment)}
+                              className="flex items-center text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              <span>Hapus</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
