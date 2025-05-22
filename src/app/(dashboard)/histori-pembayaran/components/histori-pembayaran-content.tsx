@@ -39,6 +39,7 @@ export default function HistoriPembayaranContent() {
   // State
   const [userRole, setUserRole] = useState<string | null>(null)
   const [keluargaId, setKeluargaId] = useState<string | null>(null)
+  const [namaKepalaKeluarga, setNamaKepalaKeluarga] = useState<string | null>(null)
   const [danaMandiriData, setDanaMandiriData] = useState<DanaMandiriHistory[]>([])
   const [ikataData, setIkataData] = useState<IkataHistory[]>([])
   const [selectedYear, setSelectedYear] = useState<number | undefined>(undefined)
@@ -49,8 +50,16 @@ export default function HistoriPembayaranContent() {
   const [danaMandiriTotal, setDanaMandiriTotal] = useState({ total: 0, count: 0 })
   const [ikataTotal, setIkataTotal] = useState({ total: 0, count: 0 })
   
-  // Mengecek apakah pengguna adalah SuperUser
+  // Mengecek apakah pengguna adalah SuperUser atau memiliki hak admin
   const isSuperUser = userRole === "SUPER_USER"
+  const hasAdminAccess = ["SUPER_USER", "KETUA", "WAKIL_KETUA", "BENDAHARA", "WAKIL_BENDAHARA"].includes(userRole || "")
+  
+  // Pastikan pengguna dengan role UMAT hanya bisa melihat datanya sendiri
+  useEffect(() => {
+    if (userRole === "UMAT" && namaKepalaKeluarga && searchTerm !== namaKepalaKeluarga) {
+      setSearchTerm(namaKepalaKeluarga);
+    }
+  }, [userRole, namaKepalaKeluarga, searchTerm]);
   
   // Fetch data saat komponen di-mount
   useEffect(() => {
@@ -62,11 +71,12 @@ export default function HistoriPembayaranContent() {
         const role = await getCurrentUserRole()
         setUserRole(role || null)
         
-        // Jika bukan SuperUser, dapatkan keluargaId pengguna
+        // Jika bukan SuperUser atau admin, dapatkan keluargaId pengguna
         let keluargaData = null
-        if (role !== "SUPER_USER") {
+        if (role && !["SUPER_USER", "KETUA", "WAKIL_KETUA", "BENDAHARA", "WAKIL_BENDAHARA"].includes(role)) {
           keluargaData = await getCurrentUserKeluarga()
           setKeluargaId(keluargaData.id)
+          setNamaKepalaKeluarga(keluargaData.namaKepalaKeluarga)
           
           // Dapatkan data pembayaran untuk keluarga ini
           const danaMandiri = await getDanaMandiriByKeluargaId(keluargaData.id)
@@ -74,26 +84,40 @@ export default function HistoriPembayaranContent() {
           
           setDanaMandiriData(danaMandiri)
           setIkataData(ikata)
+          
+          // Set total khusus untuk data umat yang sedang login
+          const danaMandiriTotalData = {
+            total: danaMandiri.filter(item => item.statusSetor).reduce((sum, item) => sum + item.jumlahDibayar, 0),
+            count: danaMandiri.filter(item => item.statusSetor).length
+          }
+          
+          const ikataTotalData = {
+            total: ikata.filter(item => item.status === "LUNAS").reduce((sum, item) => sum + item.jumlahDibayar, 0),
+            count: ikata.filter(item => item.status === "LUNAS").length
+          }
+          
+          setDanaMandiriTotal(danaMandiriTotalData)
+          setIkataTotal(ikataTotalData)
         } else {
-          // Dapatkan semua data pembayaran untuk SuperUser
+          // Dapatkan semua data pembayaran untuk SuperUser dan admin
           const danaMandiri = await getAllDanaMandiri()
           const ikata = await getAllIkata()
           
           setDanaMandiriData(danaMandiri)
           setIkataData(ikata)
-        }
-        
-        // Set tahun default ke tahun terbaru yang ada di data
-        const years = getCombinedYears(danaMandiriData, ikataData)
-        if (years.length > 0) {
-          // Tidak perlu set selectedYear agar menampilkan semua data
           
-          // Dapatkan total untuk data tanpa filter tahun
-          const danaMandiriTotalData = await getTotalDanaMandiriByYear(0) // 0 artinya semua tahun
-          const ikataTotalData = await getTotalIkataByYear(0) // 0 artinya semua tahun
-          
-          setDanaMandiriTotal(danaMandiriTotalData)
-          setIkataTotal(ikataTotalData)
+          // Set tahun default ke tahun terbaru yang ada di data
+          const years = getCombinedYears(danaMandiriData, ikataData)
+          if (years.length > 0) {
+            // Tidak perlu set selectedYear agar menampilkan semua data
+            
+            // Dapatkan total untuk data tanpa filter tahun
+            const danaMandiriTotalData = await getTotalDanaMandiriByYear(0) // 0 artinya semua tahun
+            const ikataTotalData = await getTotalIkataByYear(0) // 0 artinya semua tahun
+            
+            setDanaMandiriTotal(danaMandiriTotalData)
+            setIkataTotal(ikataTotalData)
+          }
         }
       } catch (error) {
         console.error("Error fetching data:", error)
@@ -110,27 +134,46 @@ export default function HistoriPembayaranContent() {
   useEffect(() => {
     const updateTotals = async () => {
       try {
-        // Jika selectedYear adalah undefined, maka kita mendapatkan total semua tahun
-        const yearToQuery = selectedYear ?? 0;
-        const danaMandiriTotalData = await getTotalDanaMandiriByYear(yearToQuery);
-        const ikataTotalData = await getTotalIkataByYear(yearToQuery);
-        
-        setDanaMandiriTotal(danaMandiriTotalData);
-        setIkataTotal(ikataTotalData);
+        if (hasAdminAccess) {
+          // Jika selectedYear adalah undefined, maka kita mendapatkan total semua tahun
+          const yearToQuery = selectedYear ?? 0;
+          const danaMandiriTotalData = await getTotalDanaMandiriByYear(yearToQuery);
+          const ikataTotalData = await getTotalIkataByYear(yearToQuery);
+          
+          setDanaMandiriTotal(danaMandiriTotalData);
+          setIkataTotal(ikataTotalData);
+        } else if (keluargaId) {
+          // Untuk role umat, filter data berdasarkan tahun yang dipilih
+          const filteredDanaMandiri = filterDanaMandiriByYear(danaMandiriData, selectedYear);
+          const filteredIkata = filterIkataByYear(ikataData, selectedYear);
+          
+          const danaMandiriTotalData = {
+            total: filteredDanaMandiri.filter(item => item.statusSetor).reduce((sum, item) => sum + item.jumlahDibayar, 0),
+            count: filteredDanaMandiri.filter(item => item.statusSetor).length
+          }
+          
+          const ikataTotalData = {
+            total: filteredIkata.filter(item => item.status === "LUNAS").reduce((sum, item) => sum + item.jumlahDibayar, 0),
+            count: filteredIkata.filter(item => item.status === "LUNAS").length
+          }
+          
+          setDanaMandiriTotal(danaMandiriTotalData);
+          setIkataTotal(ikataTotalData);
+        }
       } catch (error) {
         console.error("Error updating totals:", error);
       }
     };
     
     updateTotals();
-  }, [selectedYear]);
+  }, [selectedYear, keluargaId, hasAdminAccess, danaMandiriData, ikataData]);
   
   // Data untuk tabel, difilter berdasarkan tahun dan search term
   const getFilteredDanaMandiriData = () => {
     let data = filterDanaMandiriByYear(danaMandiriData, selectedYear)
     
-    // Untuk SuperUser, tambahkan filter berdasarkan search term
-    if (isSuperUser && searchTerm.trim() !== "") {
+    // Filter berdasarkan nama kepala keluarga jika pencarian dilakukan
+    if (searchTerm.trim() !== "") {
       const lowercaseSearchTerm = searchTerm.toLowerCase()
       data = data.filter(payment => 
         payment.namaKepalaKeluarga.toLowerCase().includes(lowercaseSearchTerm)
@@ -146,8 +189,8 @@ export default function HistoriPembayaranContent() {
     // Filter untuk tidak menampilkan status BELUM_BAYAR
     data = data.filter(payment => payment.status !== "BELUM_BAYAR")
     
-    // Untuk SuperUser, tambahkan filter berdasarkan search term
-    if (isSuperUser && searchTerm.trim() !== "") {
+    // Filter berdasarkan nama kepala keluarga jika pencarian dilakukan
+    if (searchTerm.trim() !== "") {
       const lowercaseSearchTerm = searchTerm.toLowerCase()
       data = data.filter(payment => 
         payment.namaKepalaKeluarga.toLowerCase().includes(lowercaseSearchTerm)
@@ -169,7 +212,7 @@ export default function HistoriPembayaranContent() {
     setSelectedYear(year)
   }
   
-  // Handler untuk mencari berdasarkan nama (hanya untuk SuperUser)
+  // Handler untuk mencari berdasarkan nama
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value)
   }
@@ -198,10 +241,29 @@ export default function HistoriPembayaranContent() {
         
         toast.success(`Status berhasil diubah menjadi ${statusSetor ? "Sudah Disetor" : "Belum Disetor"}`)
         
-        // Update total jika tahun yang diubah sama dengan tahun yang sedang dipilih
-        const yearToQuery = selectedYear ?? 0;
-        const danaMandiriTotalData = await getTotalDanaMandiriByYear(yearToQuery);
-        setDanaMandiriTotal(danaMandiriTotalData);
+        // Update total khusus untuk umat yang login jika mempunyai keluargaId
+        if (keluargaId && !hasAdminAccess) {
+          const filteredDanaMandiri = filterDanaMandiriByYear(
+            danaMandiriData.map(item => 
+              item.id === payment.id 
+                ? { ...item, statusSetor, tanggalSetor: statusSetor ? new Date() : null } 
+                : item
+            ), 
+            selectedYear
+          );
+
+          const danaMandiriTotalData = {
+            total: filteredDanaMandiri.filter(item => item.statusSetor).reduce((sum, item) => sum + item.jumlahDibayar, 0),
+            count: filteredDanaMandiri.filter(item => item.statusSetor).length
+          };
+          
+          setDanaMandiriTotal(danaMandiriTotalData);
+        } else {
+          // Update total admin/superuser seperti biasa
+          const yearToQuery = selectedYear ?? 0;
+          const danaMandiriTotalData = await getTotalDanaMandiriByYear(yearToQuery);
+          setDanaMandiriTotal(danaMandiriTotalData);
+        }
       }
     } catch (error) {
       console.error("Error updating payment status:", error)
@@ -242,10 +304,26 @@ export default function HistoriPembayaranContent() {
         
         toast.success(`Status berhasil diubah menjadi ${statusText[status]}`)
         
-        // Update total jika tahun yang diubah sama dengan tahun yang sedang dipilih
-        const yearToQuery = selectedYear ?? 0;
-        const ikataTotalData = await getTotalIkataByYear(yearToQuery);
-        setIkataTotal(ikataTotalData);
+        // Update total khusus untuk umat yang login jika mempunyai keluargaId
+        if (keluargaId && !hasAdminAccess) {
+          const updatedIkataData = ikataData.map(item => 
+            item.id === payment.id ? { ...item, ...updates } : item
+          );
+          
+          const filteredIkata = filterIkataByYear(updatedIkataData, selectedYear);
+          
+          const ikataTotalData = {
+            total: filteredIkata.filter(item => item.status === "LUNAS").reduce((sum, item) => sum + item.jumlahDibayar, 0),
+            count: filteredIkata.filter(item => item.status === "LUNAS").length
+          };
+          
+          setIkataTotal(ikataTotalData);
+        } else {
+          // Update total untuk admin/superuser seperti biasa
+          const yearToQuery = selectedYear ?? 0;
+          const ikataTotalData = await getTotalIkataByYear(yearToQuery);
+          setIkataTotal(ikataTotalData);
+        }
       }
     } catch (error) {
       console.error("Error updating payment status:", error)
@@ -264,10 +342,24 @@ export default function HistoriPembayaranContent() {
         
         toast.success("Pembayaran berhasil dihapus")
         
-        // Perbarui total
-        const yearToQuery = selectedYear ?? 0;
-        const danaMandiriTotalData = await getTotalDanaMandiriByYear(yearToQuery);
-        setDanaMandiriTotal(danaMandiriTotalData);
+        // Perbarui total berdasarkan role dan keluargaId
+        if (keluargaId && !hasAdminAccess) {
+          const filteredDanaMandiri = filterDanaMandiriByYear(
+            danaMandiriData.filter(item => item.id !== payment.id),
+            selectedYear
+          );
+          
+          const danaMandiriTotalData = {
+            total: filteredDanaMandiri.filter(item => item.statusSetor).reduce((sum, item) => sum + item.jumlahDibayar, 0),
+            count: filteredDanaMandiri.filter(item => item.statusSetor).length
+          };
+          
+          setDanaMandiriTotal(danaMandiriTotalData);
+        } else {
+          const yearToQuery = selectedYear ?? 0;
+          const danaMandiriTotalData = await getTotalDanaMandiriByYear(yearToQuery);
+          setDanaMandiriTotal(danaMandiriTotalData);
+        }
       }
     } catch (error) {
       console.error("Error deleting payment:", error)
@@ -286,10 +378,24 @@ export default function HistoriPembayaranContent() {
         
         toast.success("Pembayaran berhasil dihapus")
         
-        // Perbarui total
-        const yearToQuery = selectedYear ?? 0;
-        const ikataTotalData = await getTotalIkataByYear(yearToQuery);
-        setIkataTotal(ikataTotalData);
+        // Perbarui total berdasarkan role dan keluargaId
+        if (keluargaId && !hasAdminAccess) {
+          const filteredIkata = filterIkataByYear(
+            ikataData.filter(item => item.id !== payment.id),
+            selectedYear
+          );
+          
+          const ikataTotalData = {
+            total: filteredIkata.filter(item => item.status === "LUNAS").reduce((sum, item) => sum + item.jumlahDibayar, 0),
+            count: filteredIkata.filter(item => item.status === "LUNAS").length
+          };
+          
+          setIkataTotal(ikataTotalData);
+        } else {
+          const yearToQuery = selectedYear ?? 0;
+          const ikataTotalData = await getTotalIkataByYear(yearToQuery);
+          setIkataTotal(ikataTotalData);
+        }
       }
     } catch (error) {
       console.error("Error deleting payment:", error)
@@ -309,27 +415,45 @@ export default function HistoriPembayaranContent() {
     try {
       setIsLoading(true)
       
-      if (isSuperUser) {
+      if (hasAdminAccess) {
         const danaMandiri = await getAllDanaMandiri()
         const ikata = await getAllIkata()
         
         setDanaMandiriData(danaMandiri)
         setIkataData(ikata)
+        
+        // Perbarui total
+        const yearToQuery = selectedYear ?? 0;
+        const danaMandiriTotalData = await getTotalDanaMandiriByYear(yearToQuery);
+        const ikataTotalData = await getTotalIkataByYear(yearToQuery);
+        
+        setDanaMandiriTotal(danaMandiriTotalData)
+        setIkataTotal(ikataTotalData)
       } else if (keluargaId) {
         const danaMandiri = await getDanaMandiriByKeluargaId(keluargaId)
         const ikata = await getIkataByKeluargaId(keluargaId)
         
         setDanaMandiriData(danaMandiri)
         setIkataData(ikata)
+        
+        // Filter data berdasarkan tahun yang dipilih
+        const filteredDanaMandiri = filterDanaMandiriByYear(danaMandiri, selectedYear);
+        const filteredIkata = filterIkataByYear(ikata, selectedYear);
+        
+        // Perbarui total untuk data umat yang login
+        const danaMandiriTotalData = {
+          total: filteredDanaMandiri.filter(item => item.statusSetor).reduce((sum, item) => sum + item.jumlahDibayar, 0),
+          count: filteredDanaMandiri.filter(item => item.statusSetor).length
+        }
+        
+        const ikataTotalData = {
+          total: filteredIkata.filter(item => item.status === "LUNAS").reduce((sum, item) => sum + item.jumlahDibayar, 0),
+          count: filteredIkata.filter(item => item.status === "LUNAS").length
+        }
+        
+        setDanaMandiriTotal(danaMandiriTotalData)
+        setIkataTotal(ikataTotalData)
       }
-      
-      // Perbarui total
-      const yearToQuery = selectedYear ?? 0;
-      const danaMandiriTotalData = await getTotalDanaMandiriByYear(yearToQuery);
-      const ikataTotalData = await getTotalIkataByYear(yearToQuery);
-      
-      setDanaMandiriTotal(danaMandiriTotalData)
-      setIkataTotal(ikataTotalData)
     } catch (error) {
       console.error("Error refreshing data:", error)
       toast.error("Gagal memperbarui data")
@@ -373,49 +497,52 @@ export default function HistoriPembayaranContent() {
                 onChange={handleYearChange}
               />
               
-              {/* Search input (hanya untuk SuperUser) */}
-              {isSuperUser && (
-                <div className="relative w-full md:w-64">
-                  <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Cari nama umat..."
-                    className="pl-8"
-                    value={searchTerm}
-                    onChange={handleSearch}
-                  />
-                  {searchTerm && (
-                    <Button
-                      variant="ghost"
-                      className="absolute right-0 top-0 h-9 w-9 p-0"
-                      onClick={() => setSearchTerm("")}
-                    >
-                      <X className="h-4 w-4" />
-                      <span className="sr-only">Clear search</span>
-                    </Button>
-                  )}
-                </div>
-              )}
+              {/* Search input (selalu tampil, readonly jika role UMAT) */}
+              <div className="relative w-full md:w-64">
+                <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Cari nama umat..."
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  readOnly={userRole === "UMAT"}
+                />
+                {searchTerm && hasAdminAccess && (
+                  <Button
+                    variant="ghost"
+                    className="absolute right-0 top-0 h-9 w-9 p-0"
+                    onClick={() => setSearchTerm("")}
+                  >
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Clear search</span>
+                  </Button>
+                )}
+              </div>
             </div>
             
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => handleShowAddPayment("Dana Mandiri")}
-                className="flex items-center gap-1"
-              >
-                <PlusCircleIcon className="h-4 w-4" />
-                Tambah
-              </Button>
-            </div>
+            {/* Tombol Tambah hanya ditampilkan untuk admin/super user */}
+            {hasAdminAccess && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handleShowAddPayment("Dana Mandiri")}
+                  className="flex items-center gap-1"
+                >
+                  <PlusCircleIcon className="h-4 w-4" />
+                  Tambah
+                </Button>
+              </div>
+            )}
           </div>
           
           <div className="rounded-md border">
             <PaymentHistoryTable 
               data={filteredDanaMandiriData} 
               type="Dana Mandiri"
-              showUserColumn={isSuperUser}
+              showUserColumn={hasAdminAccess}
               onStatusChange={handleDanaMandiriStatusChange}
               onDelete={handleDeleteDanaMandiri}
+              showActions={hasAdminAccess}
             />
           </div>
         </TabsContent>
@@ -429,49 +556,52 @@ export default function HistoriPembayaranContent() {
                 onChange={handleYearChange}
               />
               
-              {/* Search input (hanya untuk SuperUser) */}
-              {isSuperUser && (
-                <div className="relative w-full md:w-64">
-                  <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Cari nama umat..."
-                    className="pl-8"
-                    value={searchTerm}
-                    onChange={handleSearch}
-                  />
-                  {searchTerm && (
-                    <Button
-                      variant="ghost"
-                      className="absolute right-0 top-0 h-9 w-9 p-0"
-                      onClick={() => setSearchTerm("")}
-                    >
-                      <X className="h-4 w-4" />
-                      <span className="sr-only">Clear search</span>
-                    </Button>
-                  )}
-                </div>
-              )}
+              {/* Search input (selalu tampil, readonly jika role UMAT) */}
+              <div className="relative w-full md:w-64">
+                <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Cari nama umat..."
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  readOnly={userRole === "UMAT"}
+                />
+                {searchTerm && hasAdminAccess && (
+                  <Button
+                    variant="ghost"
+                    className="absolute right-0 top-0 h-9 w-9 p-0"
+                    onClick={() => setSearchTerm("")}
+                  >
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Clear search</span>
+                  </Button>
+                )}
+              </div>
             </div>
             
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => handleShowAddPayment("IKATA")}
-                className="flex items-center gap-1"
-              >
-                <PlusCircleIcon className="h-4 w-4" />
-                Tambah
-              </Button>
-            </div>
+            {/* Tombol Tambah hanya ditampilkan untuk admin/super user */}
+            {hasAdminAccess && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handleShowAddPayment("IKATA")}
+                  className="flex items-center gap-1"
+                >
+                  <PlusCircleIcon className="h-4 w-4" />
+                  Tambah
+                </Button>
+              </div>
+            )}
           </div>
           
           <div className="rounded-md border">
             <PaymentHistoryTable 
               data={filteredIkataData}
               type="IKATA"
-              showUserColumn={isSuperUser}
+              showUserColumn={hasAdminAccess}
               onStatusChange={handleIkataStatusChange}
               onDelete={handleDeleteIkata}
+              showActions={hasAdminAccess}
             />
           </div>
         </TabsContent>
@@ -484,7 +614,7 @@ export default function HistoriPembayaranContent() {
         paymentType={paymentTypeToAdd}
         onSuccess={handlePaymentAdded}
         isSuperUser={isSuperUser}
-        defaultKeluargaId={!isSuperUser ? keluargaId || undefined : undefined}
+        defaultKeluargaId={!hasAdminAccess ? keluargaId || undefined : undefined}
       />
     </div>
   )
