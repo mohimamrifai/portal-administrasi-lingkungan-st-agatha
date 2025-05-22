@@ -207,10 +207,6 @@ export default function PublikasiContent() {
                     setDateRange={setDateRange} 
                   />
                 </div>
-                
-                <div className="flex flex-col md:flex-row gap-2 md:justify-end w-full">
-                  <BuatLaporanDialog />
-                </div>
               </div>
 
               {/* Active Filters Summary */}

@@ -15,7 +15,7 @@ const routeAccessMap: { [key: string]: string[] } = {
   '/kesekretariatan/doling': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'SEKRETARIS', 'WAKIL_SEKRETARIS'],
   '/kesekretariatan/kaleidoskop': ['SUPER_USER', 'SEKRETARIS', 'WAKIL_SEKRETARIS'],
   '/kesekretariatan/agenda': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'SEKRETARIS', 'WAKIL_SEKRETARIS', 'BENDAHARA', 'WAKIL_BENDAHARA', 'UMAT'],
-  '/publikasi': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'SEKRETARIS', 'WAKIL_SEKRETARIS', 'BENDAHARA', 'WAKIL_BENDAHARA'],
+  '/publikasi': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'SEKRETARIS', 'WAKIL_SEKRETARIS', 'BENDAHARA', 'WAKIL_BENDAHARA', 'UMAT'],
   '/approval': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'BENDAHARA'],
   '/histori-pembayaran': ['SUPER_USER', 'UMAT'],
   '/pengaturan': ['SUPER_USER', 'KETUA', 'WAKIL_KETUA', 'SEKRETARIS', 'WAKIL_SEKRETARIS', 'BENDAHARA', 'WAKIL_BENDAHARA', 'UMAT'],
