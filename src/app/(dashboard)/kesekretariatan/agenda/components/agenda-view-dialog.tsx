@@ -133,7 +133,7 @@ export function AgendaViewDialog({
           {/* Deskripsi */}
           <div>
             <h3 className="text-sm font-medium text-muted-foreground mb-1">Deskripsi</h3>
-            <p className="whitespace-pre-wrap">{agenda.description}</p>
+            <p className="whitespace-pre-wrap">{agenda.description === '' ? "Tidak ada deskripsi" : agenda.description}</p>
           </div>
           
           {/* Lampiran jika ada */}
