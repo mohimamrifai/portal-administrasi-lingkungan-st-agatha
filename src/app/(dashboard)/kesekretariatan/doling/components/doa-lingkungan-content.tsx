@@ -104,11 +104,12 @@ export function DoaLingkunganContent({
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
+            const currentYear = selectedTahun === "all" ? new Date().getFullYear() : parseInt(selectedTahun);
             const [dolingData, keluargaData, riwayatData, rekapitulasi] = await Promise.all([
                 getAllDoling(),
                 getKeluargaForSelection(),
                 getRiwayatKehadiran(),
-                getRekapitulasiBulanan(new Date().getFullYear())
+                getRekapitulasiBulanan(currentYear)
             ]);
             
             // Urutkan jadwal berdasarkan tanggal terbaru dulu
@@ -144,7 +145,7 @@ export function DoaLingkunganContent({
         } finally {
             setLoading(false);
         }
-    }, [selectedDolingId]);
+    }, [selectedDolingId, selectedTahun]);
 
     // Initial data fetching
     useEffect(() => {

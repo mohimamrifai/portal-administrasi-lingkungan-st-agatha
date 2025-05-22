@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { RiwayatDoling, RekapitulasiKegiatan, DetilDoling, AbsensiDoling } from "../types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { SearchIcon, X, DownloadIcon, CalendarIcon, TrendingUpIcon } from "lucide-react";
+import { SearchIcon, X, DownloadIcon, CalendarIcon, TrendingUpIcon, AlertCircle } from "lucide-react";
 import { 
   Select, 
   SelectContent, 
@@ -49,6 +49,27 @@ export function RiwayatDolingContent({
   const [sortOrder, setSortOrder] = useState("asc"); // asc, desc
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [windowWidth, setWindowWidth] = useState(0);
+  // Untuk menyimpan data periode secara dinamis
+  const [periodeOptions, setPeriodeOptions] = useState<{value: string, label: string}[]>([
+    { value: "all", label: "Semua Periode" }
+  ]);
+  
+  // Fallback chart data untuk kasus di mana tidak ada data
+  const fallbackChartData = Array(6).fill(0).map((_, index) => {
+    const bulanNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", 
+                       "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+    const currentMonth = new Date().getMonth();
+    const bulanIndex = (currentMonth - 5 + index + 12) % 12;
+    
+    return {
+      bulan: bulanNames[bulanIndex],
+      tahun: new Date().getFullYear().toString(),
+      jumlahKegiatan: 0,
+      rataRataHadir: 0,
+      persentase: 0,
+      color: "#e5e7eb" // warna abu-abu muda untuk data kosong
+    };
+  });
 
   // Deteksi ukuran layar untuk responsivitas
   useEffect(() => {
@@ -64,21 +85,27 @@ export function RiwayatDolingContent({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Opsi periode tersedia
-  const periodeOptions = [
-    { value: "all", label: "Semua Periode" },
-    { value: "2024", label: "Tahun 2024" },
-    { value: "2023", label: "Tahun 2023" },
-    { value: "2022", label: "Tahun 2022" },
-  ];
-
-  // Opsi bulan tersedia
-  const bulanOptions = [
-    { value: "all", label: "Semua Bulan" },
-    { value: "April 2024", label: "April 2024" },
-    { value: "Maret 2024", label: "Maret 2024" },
-    { value: "Februari 2024", label: "Februari 2024" },
-  ];
+  // Mendapatkan tahun-tahun untuk dropdown periode
+  useEffect(() => {
+    const generatePeriodeOptions = () => {
+      const options = [{ value: "all", label: "Semua Periode" }];
+      
+      // Tahun saat ini
+      const currentYear = new Date().getFullYear();
+      
+      // Tambahkan 3 tahun ke belakang dan 3 tahun ke depan
+      for (let year = currentYear - 3; year <= currentYear + 3; year++) {
+        options.push({
+          value: year.toString(),
+          label: `Tahun ${year}`
+        });
+      }
+      
+      setPeriodeOptions(options);
+    };
+    
+    generatePeriodeOptions();
+  }, []);
   
   // Filter riwayat berdasarkan pencarian
   const filteredRiwayat = riwayat.filter(item => 
@@ -105,7 +132,11 @@ export function RiwayatDolingContent({
   // Filter rekapitulasi berdasarkan periode
   const filteredRekapitulasi = rekapitulasi.filter(item => {
     if (selectedPeriode === "all") return true;
-    return item.bulan.includes(selectedPeriode);
+    
+    // Format bulan yang diharapkan: "Januari 2024"
+    // Kita perlu mengekstrak tahun dari item.bulan (jika formatnya berbeda)
+    const tahunInBulan = item.bulan.split(' ')[1]; // Asumsi format "Bulan Tahun"
+    return tahunInBulan === selectedPeriode || item.bulan.includes(selectedPeriode);
   });
   
   // Fungsi untuk mendapatkan warna badge berdasarkan persentase
@@ -125,15 +156,64 @@ export function RiwayatDolingContent({
   };
   
   // Data untuk chart dengan konversi ke format yang sesuai untuk Recharts
-  const chartData = rekapitulasi.map(item => ({
-    bulan: item.bulan.split(" ")[0],
-    tahun: item.bulan.split(" ")[1],
-    jumlahKegiatan: item.jumlahKegiatan,
-    rataRataHadir: item.rataRataHadir,
-    persentase: Math.round((item.rataRataHadir / 40) * 100), // Asumsi 40 adalah nilai maksimum
-    color: getBarColor(item.rataRataHadir)
-  }));
+  // Gunakan 6 bulan terakhir untuk trend chart
+  const getChartData = () => {
+    // Jika tidak ada data, gunakan fallback
+    if (rekapitulasi.length === 0) {
+      return fallbackChartData;
+    }
+    
+    // Ambil data dengan jumlah kegiatan > 0
+    const dataWithActivity = rekapitulasi.filter(item => item.jumlahKegiatan > 0);
+    
+    // Jika tidak ada data dengan kegiatan, gunakan fallback
+    if (dataWithActivity.length === 0) {
+      return fallbackChartData;
+    }
+    
+    // Urutkan data berdasarkan bulan dan tahun
+    const sortedData = [...dataWithActivity].sort((a, b) => {
+      const bulanNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", 
+                         "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+      
+      const monthA = a.bulan.split(' ')[0];
+      const yearA = parseInt(a.bulan.split(' ')[1] || new Date().getFullYear().toString());
+      const monthB = b.bulan.split(' ')[0];
+      const yearB = parseInt(b.bulan.split(' ')[1] || new Date().getFullYear().toString());
+      
+      const monthIndexA = bulanNames.indexOf(monthA);
+      const monthIndexB = bulanNames.indexOf(monthB);
+      
+      // Bandingkan tahun terlebih dahulu
+      if (yearA !== yearB) return yearA - yearB;
+      
+      // Jika tahun sama, bandingkan bulan
+      return monthIndexA - monthIndexB;
+    });
+    
+    // Ambil data terakhir (maksimal 6 bulan)
+    const lastMonths = sortedData.slice(-6);
+    
+    return lastMonths.map(item => {
+      const bulan = item.bulan.split(' ')[0];
+      const tahun = item.bulan.split(' ')[1] || new Date().getFullYear().toString();
+      
+      return {
+        bulan,
+        tahun,
+        jumlahKegiatan: item.jumlahKegiatan,
+        rataRataHadir: item.rataRataHadir,
+        persentase: Math.round((item.rataRataHadir / 40) * 100), // Asumsi 40 adalah nilai maksimum
+        color: getBarColor(item.rataRataHadir)
+      };
+    });
+  };
   
+  const chartData = getChartData();
+  
+  // Cek apakah chart memiliki data valid - perbaiki definisi disini
+  const hasChartData = chartData.length > 0 && chartData.some(item => item.jumlahKegiatan > 0);
+
   // Custom tooltip untuk chart
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -182,7 +262,17 @@ export function RiwayatDolingContent({
           <CardDescription>Persentase kehadiran anggota dalam 6 bulan terakhir</CardDescription>
         </CardHeader>
         <CardContent className="p-2 sm:p-6">
-          <div className="w-full">
+          <div className="w-full h-[300px] relative">
+            {!hasChartData && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-gray-50/50 rounded-md">
+                <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground text-center">
+                  Tidak ada data kehadiran untuk ditampilkan.
+                  <br />
+                  Tambahkan data absensi untuk melihat trend kehadiran.
+                </p>
+              </div>
+            )}
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={chartData}
@@ -250,6 +340,12 @@ export function RiwayatDolingContent({
                     position="top" 
                     formatter={(value: number) => `${value}%`}
                     style={{ fontSize: windowWidth < 640 ? 8 : 9, fill: '#6b7280' }}
+                  />
+                  <LabelList 
+                    dataKey="jumlahKegiatan" 
+                    position="insideBottom" 
+                    formatter={(value: number) => `${value}x`}
+                    style={{ fontSize: windowWidth < 640 ? 8 : 9, fill: '#ffffff', fontWeight: 'bold' }}
                   />
                 </Bar>
               </BarChart>
@@ -348,13 +444,13 @@ export function RiwayatDolingContent({
       {/* Rekapitulasi Kegiatan */}
       <Card className="overflow-hidden gap-0">
         <CardHeader className="pb-0 px-3 pt-3 md:p-6">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col md:flex-row justify-between md:items-center gap-2">
             <CardTitle>Rekapitulasi Kegiatan</CardTitle>
             <Select
               value={selectedPeriode}
               onValueChange={setSelectedPeriode}
             >
-              <SelectTrigger className="w-[120px] sm:w-[150px]">
+              <SelectTrigger className="w-[150px] sm:w-[150px]">
                 <SelectValue placeholder="Pilih Periode" />
               </SelectTrigger>
               <SelectContent>

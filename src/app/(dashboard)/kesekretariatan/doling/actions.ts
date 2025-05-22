@@ -731,7 +731,7 @@ export async function getRiwayatKehadiran(): Promise<{
       return {
         nama: k.namaKepalaKeluarga,
         totalHadir,
-        persentase,
+        persentase: Math.round(persentase), // Bulatkan persentase ke bilangan bulat
       };
     }).sort((a, b) => b.persentase - a.persentase);
   } catch (error) {
@@ -749,6 +749,7 @@ export async function getRekapitulasiBulanan(tahun: number): Promise<{
   rataRataHadir: number;
 }[]> {
   try {
+    console.log(`Mengambil rekapitulasi untuk tahun: ${tahun}`);
     const namaBulan = [
       "Januari", "Februari", "Maret", "April", "Mei", "Juni",
       "Juli", "Agustus", "September", "Oktober", "November", "Desember"
@@ -776,15 +777,22 @@ export async function getRekapitulasiBulanan(tahun: number): Promise<{
       
       const jumlahKegiatan = dolingData.length;
       const totalHadir = dolingData.reduce((sum, d) => sum + d.jumlahKKHadir, 0);
-      const rataRataHadir = jumlahKegiatan > 0 ? totalHadir / jumlahKegiatan : 0;
+      // Bulatkan rataRataHadir ke 2 angka di belakang koma untuk presisi lebih baik
+      const rataRataHadir = jumlahKegiatan > 0 ? Math.round((totalHadir / jumlahKegiatan) * 100) / 100 : 0;
       
       hasil.push({
-        bulan: namaBulan[bulan],
+        bulan: `${namaBulan[bulan]} ${tahun}`, // Tambahkan tahun ke nama bulan
         jumlahKegiatan,
         rataRataHadir,
       });
+      
+      // Log data yang dihasilkan untuk debugging
+      if (jumlahKegiatan > 0) {
+        console.log(`Data bulan ${namaBulan[bulan]} ${tahun}: kegiatan=${jumlahKegiatan}, rata-rata=${rataRataHadir}`);
+      }
     }
     
+    console.log(`Total bulan dengan kegiatan: ${hasil.filter(h => h.jumlahKegiatan > 0).length}`);
     return hasil;
   } catch (error) {
     console.error("Error getting monthly recap:", error);
