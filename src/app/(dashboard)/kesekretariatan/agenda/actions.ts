@@ -499,4 +499,182 @@ export async function sendReminderNotifications(): Promise<ActionResponse> {
       message: "Gagal mengirim notifikasi pengingat"
     };
   }
+}
+
+// Fungsi untuk mengubah status agenda
+export async function updateAgendaStatus(
+  id: string, 
+  status: 'processing_lingkungan' | 'processing_stasi' | 'processing_paroki' | 'forwarded_to_paroki' | 'completed' | 'rejected',
+  reason?: string
+): Promise<ActionResponse> {
+  noStore();
+  
+  try {
+    // Dapatkan data user dari session
+    const session = await getServerSession(authOptions);
+    
+    if (!session) {
+      return {
+        success: false,
+        message: "Tidak ada sesi yang ditemukan. Silakan login kembali."
+      };
+    }
+    
+    if (!session.user) {
+      return {
+        success: false,
+        message: "Tidak ada data pengguna dalam sesi. Silakan login kembali."
+      };
+    }
+    
+    // Cek apakah user memiliki role yang diizinkan untuk mengubah status
+    const allowedRoles = [
+      'SUPER_USER', 
+      'KETUA', 
+      'WAKIL_KETUA', 
+      'BENDAHARA', 
+      'WAKIL_BENDAHARA', 
+      'SEKRETARIS', 
+      'WAKIL_SEKRETARIS'
+    ];
+    
+    if (!session.user.role || !allowedRoles.includes(session.user.role)) {
+      return {
+        success: false,
+        message: "Anda tidak memiliki izin untuk mengubah status agenda."
+      };
+    }
+    
+    // Ambil data agenda saat ini untuk pengecekan
+    const currentAgenda = await prisma.pengajuan.findUnique({
+      where: { id },
+      include: {
+        pengaju: {
+          select: {
+            id: true,
+            username: true,
+          }
+        }
+      }
+    });
+    
+    if (!currentAgenda) {
+      return {
+        success: false,
+        message: "Agenda tidak ditemukan"
+      };
+    }
+
+    // Konversi status ke StatusPengajuan, TindakLanjut, UpdateStatus, dan HasilAkhir
+    let statusPengajuan: StatusPengajuan = StatusPengajuan.OPEN;
+    let tindakLanjut: TindakLanjut | null = null;
+    let updateStatusValue: UpdateStatus | null = null;
+    let hasilAkhir: HasilAkhir | null = null;
+    
+    // Pemetaan status
+    if (status.startsWith('processing_')) {
+      statusPengajuan = StatusPengajuan.OPEN;
+      
+      if (status === 'processing_lingkungan') {
+        tindakLanjut = TindakLanjut.DIPROSES_DI_LINGKUNGAN;
+      } else if (status === 'processing_stasi') {
+        tindakLanjut = TindakLanjut.DIPROSES_DI_STASI;
+      } else if (status === 'processing_paroki') {
+        tindakLanjut = TindakLanjut.DIPROSES_DI_PAROKI;
+      }
+    } else if (status === 'forwarded_to_paroki') {
+      statusPengajuan = StatusPengajuan.OPEN;
+      updateStatusValue = UpdateStatus.DITERUSKAN_KE_PAROKI;
+    } else if (status === 'completed') {
+      statusPengajuan = StatusPengajuan.CLOSED;
+      hasilAkhir = HasilAkhir.SELESAI;
+      updateStatusValue = UpdateStatus.SELESAI;
+    } else if (status === 'rejected') {
+      statusPengajuan = StatusPengajuan.CLOSED;
+      hasilAkhir = HasilAkhir.DITOLAK;
+      updateStatusValue = UpdateStatus.DITOLAK;
+      tindakLanjut = TindakLanjut.DITOLAK;
+    }
+    
+    // Update agenda di database
+    const updatedAgenda = await prisma.pengajuan.update({
+      where: { id },
+      data: {
+        status: statusPengajuan,
+        tindakLanjut: tindakLanjut,
+        updateStatus: updateStatusValue,
+        hasilAkhir: hasilAkhir,
+        alasanPenolakan: reason || currentAgenda.alasanPenolakan,
+        updatedAt: new Date()
+      }
+    });
+    
+    // Dapatkan data user untuk mengirim notifikasi
+    let senderId: string | undefined;
+    
+    if (session?.user?.id) {
+      senderId = session.user.id;
+      
+      // Kirim notifikasi ke pembuat agenda jika editor bukan pembuat
+      if (senderId !== currentAgenda.pengajuId) {
+        // Tentukan pesan notifikasi berdasarkan status
+        let notificationTitle = "";
+        let notificationMessage = "";
+        let notificationType: "info" | "success" | "warning" | "error" = "info";
+        
+        if (status.startsWith('processing_')) {
+          const targetName = status === 'processing_lingkungan' 
+            ? 'Lingkungan' 
+            : status === 'processing_stasi' 
+              ? 'Stasi' 
+              : 'Paroki';
+          
+          notificationTitle = "Agenda Diproses";
+          notificationMessage = `Agenda "${currentAgenda.perihal}" sedang diproses di ${targetName}`;
+        } else if (status === 'forwarded_to_paroki') {
+          notificationTitle = "Agenda Diteruskan";
+          notificationMessage = `Agenda "${currentAgenda.perihal}" telah diteruskan ke Paroki`;
+        } else if (status === 'completed') {
+          notificationTitle = "Agenda Selesai";
+          notificationMessage = `Agenda "${currentAgenda.perihal}" telah diselesaikan`;
+          notificationType = "success";
+        } else if (status === 'rejected') {
+          notificationTitle = "Agenda Ditolak";
+          notificationMessage = `Agenda "${currentAgenda.perihal}" telah ditolak`;
+          if (reason) {
+            notificationMessage += ` dengan alasan: ${reason}`;
+          }
+          notificationType = "error";
+        }
+        
+        // Kirim notifikasi
+        await createNotification({
+          title: notificationTitle,
+          message: notificationMessage,
+          type: notificationType,
+          recipientId: currentAgenda.pengajuId,
+          senderId: senderId,
+          relatedItemId: parseInt(id),
+          relatedItemType: "Agenda"
+        } as NotificationData);
+      }
+    }
+    
+    // Revalidasi path agar data diperbarui
+    revalidatePath('/kesekretariatan/agenda');
+    
+    return {
+      success: true,
+      message: "Status agenda berhasil diperbarui",
+      data: updatedAgenda
+    };
+  } catch (error) {
+    console.error("Error updating agenda status:", error);
+    
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return {
+      success: false,
+      message: `Gagal memperbarui status agenda: ${errorMessage}`
+    };
+  }
 } 
