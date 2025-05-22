@@ -361,4 +361,58 @@ export async function getFilteredApprovals(monthYear: string, status: string) {
       error: "Gagal mengambil data approval terfilter",
     }
   }
+}
+
+// Fungsi untuk reset status approval kembali ke PENDING
+export async function resetApproval(approvalId: string) {
+  try {
+    const updatedApproval = await prisma.approval.update({
+      where: { id: approvalId },
+      data: {
+        status: StatusApproval.PENDING,
+      },
+    });
+
+    revalidatePath("/approval");
+    return {
+      success: true,
+      data: updatedApproval,
+    };
+  } catch (error) {
+    console.error("Gagal mereset status approval:", error);
+    return {
+      success: false,
+      error: "Gagal mereset status approval",
+    };
+  }
+}
+
+// Fungsi untuk mendapatkan daftar keluarga umat (untuk dropdown nama penyumbang)
+export async function getKeluargaUmatList() {
+  try {
+    const keluarga = await prisma.keluargaUmat.findMany({
+      select: {
+        id: true,
+        namaKepalaKeluarga: true
+      },
+      orderBy: {
+        namaKepalaKeluarga: 'asc'
+      },
+      where: {
+        status: 'HIDUP',
+        tanggalKeluar: null,
+      }
+    });
+    
+    return {
+      success: true,
+      data: keluarga,
+    };
+  } catch (error) {
+    console.error("Error fetching keluarga umat list:", error);
+    return {
+      success: false,
+      error: "Gagal mengambil data keluarga umat",
+    };
+  }
 } 

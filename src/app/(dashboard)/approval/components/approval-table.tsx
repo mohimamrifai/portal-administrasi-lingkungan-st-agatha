@@ -45,19 +45,24 @@ import {
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { EditDialog } from "./edit-dialog"
 
 interface ApprovalTableProps {
   items: ExtendedApproval[]
   onApprove: (item: ExtendedApproval) => void
   onReject: (item: ExtendedApproval) => void
+  onReset: (item: ExtendedApproval) => void
+  userRole: string
+  keluargaList: { id: string; namaKepalaKeluarga: string }[]
 }
 
-export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps) {
+export function ApprovalTable({ items, onApprove, onReject, onReset, userRole, keluargaList }: ApprovalTableProps) {
   const [selectedItem, setSelectedItem] = useState<ExtendedApproval | null>(null);
   const [messageDialogOpen, setMessageDialogOpen] = useState(false);
   const [confirmationDialogOpen, setConfirmationDialogOpen] = useState(false);
   const [actionType, setActionType] = useState<'reset' | 'approve' | 'reject' | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [isEditLoading, setIsEditLoading] = useState(false);
   const [editValues, setEditValues] = useState({
     kolekteI: 0,
     kolekteII: 0,
@@ -135,9 +140,7 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
     if (!selectedItem || !actionType) return;
     
     if (actionType === 'reset') {
-      // Reset ke status pending
-      // Implementasi akan ditambahkan sesuai kebutuhan
-      console.log('Reset status', selectedItem);
+      onReset(selectedItem);
     } else if (actionType === 'approve') {
       onApprove(selectedItem);
     } else if (actionType === 'reject') {
@@ -152,22 +155,19 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
     if (!item.doaLingkungan) return;
     
     setSelectedItem(item);
-    setEditValues({
-      kolekteI: item.doaLingkungan.kolekteI,
-      kolekteII: item.doaLingkungan.kolekteII,
-      ucapanSyukur: item.doaLingkungan.ucapanSyukur,
-      keterangan: item.doaLingkungan.tuanRumah.namaKepalaKeluarga || ""
-    });
     setEditDialogOpen(true);
   };
 
   // Fungsi untuk menyimpan hasil edit
-  const handleSaveEdit = () => {
+  const handleSaveEdit = (values: any) => {
     if (!selectedItem || !selectedItem.doaLingkungan) return;
     
+    setIsEditLoading(true);
+    
     // Update server-side dan refresh data (implementasi di komponen parent)
-    console.log('Save edit data', selectedItem.id, editValues);
+    console.log('Save edit data', selectedItem.id, values);
     setEditDialogOpen(false);
+    setIsEditLoading(false);
   };
 
   // Fungsi untuk mendapatkan tanggal
@@ -282,10 +282,6 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
                                 <CheckIcon className="mr-2 h-4 w-4 text-green-600" />
                                 <span>Setujui</span>
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleChangeStatus(item, 'reject')}>
-                                <XIcon className="mr-2 h-4 w-4 text-red-600" />
-                                <span>Tolak/Edit</span>
-                              </DropdownMenuItem>
                               <DropdownMenuSeparator />
                             </>
                           )}
@@ -295,7 +291,8 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
                               <span>Edit Nominal</span>
                             </DropdownMenuItem>
                           )}
-                          {(item.status === StatusApproval.APPROVED || item.status === StatusApproval.REJECTED) && (
+                          {(item.status === StatusApproval.APPROVED || item.status === StatusApproval.REJECTED) && 
+                           userRole === 'SUPER_USER' && (
                             <DropdownMenuItem onClick={() => handleResetStatus(item)}>
                               <RotateCcwIcon className="mr-2 h-4 w-4 text-amber-600" />
                               <span>Reset Status</span>
@@ -491,62 +488,14 @@ export function ApprovalTable({ items, onApprove, onReject }: ApprovalTableProps
       </Dialog>
 
       {/* Edit Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Edit Data Doa Lingkungan</DialogTitle>
-            <DialogDescription>
-              Perbarui nilai kolekte dan ucapan syukur
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label htmlFor="kolekte1" className="text-sm font-medium">Kolekte I</label>
-                <Input
-                  id="kolekte1"
-                  type="number"
-                  value={editValues.kolekteI}
-                  onChange={(e) => setEditValues({ ...editValues, kolekteI: Number(e.target.value) })}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="kolekte2" className="text-sm font-medium">Kolekte II</label>
-                <Input
-                  id="kolekte2"
-                  type="number"
-                  value={editValues.kolekteII}
-                  onChange={(e) => setEditValues({ ...editValues, kolekteII: Number(e.target.value) })}
-                  className="col-span-3"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="ucapanSyukur" className="text-sm font-medium">Ucapan Syukur</label>
-              <Input
-                id="ucapanSyukur"
-                type="number"
-                value={editValues.ucapanSyukur}
-                onChange={(e) => setEditValues({ ...editValues, ucapanSyukur: Number(e.target.value) })}
-              />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="keterangan" className="text-sm font-medium">Keterangan</label>
-              <Input
-                id="keterangan"
-                value={editValues.keterangan}
-                onChange={(e) => setEditValues({ ...editValues, keterangan: e.target.value })}
-                disabled
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Batal</Button>
-            <Button onClick={handleSaveEdit}>Simpan Perubahan</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EditDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        selectedItem={selectedItem}
+        onSave={handleSaveEdit}
+        isLoading={isEditLoading}
+        keluargaList={keluargaList}
+      />
     </div>
   );
 } 
