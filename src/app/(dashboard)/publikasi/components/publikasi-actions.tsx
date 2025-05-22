@@ -77,6 +77,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Checkbox } from "@/components/ui/checkbox"
+import { useAuth } from "@/contexts/auth-context"
 
 interface PublikasiActionsProps {
   publikasi: PublikasiWithRelations
@@ -84,6 +85,7 @@ interface PublikasiActionsProps {
 }
 
 export function PublikasiActions({ publikasi, onRefresh }: PublikasiActionsProps) {
+  const { userRole } = useAuth()
   const [viewDetailOpen, setViewDetailOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [notificationDialogOpen, setNotificationDialogOpen] = useState(false)
@@ -291,6 +293,13 @@ export function PublikasiActions({ publikasi, onRefresh }: PublikasiActionsProps
     }
   }
 
+  // Cek apakah pengguna memiliki akses untuk mengelola publikasi
+  const canManagePublikasi = [
+    'SUPER_USER', 
+    'SEKRETARIS', 
+    'WAKIL_SEKRETARIS'
+  ].includes(userRole || '')
+
   return (
     <>
       <DropdownMenu>
@@ -313,71 +322,77 @@ export function PublikasiActions({ publikasi, onRefresh }: PublikasiActionsProps
             <EyeIcon className="h-4 w-4 mr-2" />
             Lihat Detail
           </DropdownMenuItem>
-          <DropdownMenuItem 
-            onClick={handleEditOpen} 
-            className={`cursor-pointer ${publikasi.locked ? "text-gray-400 pointer-events-none" : ""}`}
-            disabled={publikasi.locked}
-          >
-            <Pencil className="h-4 w-4 mr-2" />
-            Edit
-            {publikasi.locked && (
-              <span className="ml-auto text-xs text-gray-400">Terkunci</span>
-            )}
-          </DropdownMenuItem>
-          {publikasi.lampiran && publikasi.lampiran.length > 0 && (
-            <DropdownMenuItem onClick={handleDownload} className="cursor-pointer">
-              <Download className="h-4 w-4 mr-2" />
-              Unduh Lampiran
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onClick={handleNotificationConfirm} className="cursor-pointer">
-            <Bell className="h-4 w-4 mr-2" />
-            Kirim Notifikasi
-          </DropdownMenuItem>
-          <div className="flex items-center px-2 py-1.5 text-sm">
-            <DropdownMenuItem 
-              onClick={handleLockToggle} 
-              className="cursor-pointer flex-1"
-              disabled={isLocking}
-            >
-              {publikasi.locked ? (
-                <><UnlockIcon className="h-4 w-4 mr-2" />Buka Kunci</>
-              ) : (
-                <><LockIcon className="h-4 w-4 mr-2" />Kunci</>
+          
+          {canManagePublikasi && (
+            <>
+              <DropdownMenuItem 
+                onClick={handleEditOpen} 
+                className={`cursor-pointer ${publikasi.locked ? "text-gray-400 pointer-events-none" : ""}`}
+                disabled={publikasi.locked}
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit
+                {publikasi.locked && (
+                  <span className="ml-auto text-xs text-gray-400">Terkunci</span>
+                )}
+              </DropdownMenuItem>
+              
+              {publikasi.lampiran && publikasi.lampiran.length > 0 && (
+                <DropdownMenuItem onClick={handleDownload} className="cursor-pointer">
+                  <Download className="h-4 w-4 mr-2" />
+                  Unduh Lampiran
+                </DropdownMenuItem>
               )}
-              {isLocking && <span className="ml-2 animate-spin">...</span>}
-            </DropdownMenuItem>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 p-0 ml-1">
-                    <InfoIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top" align="end" className="max-w-[200px]">
-                  <p className="text-xs">
-                    Publikasi terkunci tidak dapat diedit atau dihapus. Status ini mencegah perubahan pada konten yang sudah final.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-          <DropdownMenuItem onClick={handleCreateReportDialog} className="cursor-pointer">
-            <FileText className="h-4 w-4 mr-2" />
-            Buat Laporan
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem 
-            onClick={handleDeleteConfirm} 
-            className={`cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 ${publikasi.locked ? "text-gray-400 pointer-events-none" : ""}`}
-            disabled={publikasi.locked}
-          >
-            <Trash className="h-4 w-4 mr-2" />
-            Hapus
-            {publikasi.locked && (
-              <span className="ml-auto text-xs text-gray-400">Terkunci</span>
-            )}
-          </DropdownMenuItem>
+              
+              <DropdownMenuItem onClick={handleNotificationConfirm} className="cursor-pointer">
+                <Bell className="h-4 w-4 mr-2" />
+                Kirim Notifikasi
+              </DropdownMenuItem>
+              
+              <div className="flex items-center px-2 py-1.5 text-sm">
+                <DropdownMenuItem 
+                  onClick={handleLockToggle} 
+                  className="cursor-pointer flex-1"
+                  disabled={isLocking}
+                >
+                  {publikasi.locked ? (
+                    <><UnlockIcon className="h-4 w-4 mr-2" />Buka Kunci</>
+                  ) : (
+                    <><LockIcon className="h-4 w-4 mr-2" />Kunci</>
+                  )}
+                  {isLocking && <span className="ml-2 animate-spin">...</span>}
+                </DropdownMenuItem>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 p-0 ml-1">
+                        <InfoIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" align="end" className="max-w-[200px]">
+                      <p className="text-xs">
+                        Publikasi terkunci tidak dapat diedit atau dihapus. Status ini mencegah perubahan pada konten yang sudah final.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              
+              <DropdownMenuSeparator />
+              
+              <DropdownMenuItem 
+                onClick={handleDeleteConfirm} 
+                className={`cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 ${publikasi.locked ? "text-gray-400 pointer-events-none" : ""}`}
+                disabled={publikasi.locked}
+              >
+                <Trash className="h-4 w-4 mr-2" />
+                Hapus
+                {publikasi.locked && (
+                  <span className="ml-auto text-xs text-gray-400">Terkunci</span>
+                )}
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -492,9 +507,16 @@ export function PublikasiActions({ publikasi, onRefresh }: PublikasiActionsProps
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setViewDetailOpen(false)}>
               Tutup
+            </Button>
+            <Button 
+              onClick={handleCreateReportDialog}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Buat Laporan
             </Button>
           </DialogFooter>
         </DialogContent>

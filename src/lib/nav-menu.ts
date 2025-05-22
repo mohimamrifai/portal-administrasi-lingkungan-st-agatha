@@ -206,6 +206,7 @@ export const navMain: Record<string, MenuItem[]> = {
                 { label: 'Agenda', path: '/kesekretariatan/agenda' },
             ],
         },
+        { label: 'Publikasi', path: '/publikasi', icon: FileText },
         { label: 'Histori Pembayaran', path: '/histori-pembayaran', icon: History },
         {
             label: 'Pengaturan',
