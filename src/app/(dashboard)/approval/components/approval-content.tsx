@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
+import { useSession } from "next-auth/react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ApprovalFilter } from "./approval-filter"
@@ -13,15 +14,19 @@ import { ApprovalHistory } from "./approval-history"
 import LoadingSkeleton from "./loading-skeleton"
 import { StatusApproval } from "@prisma/client"
 import { ExtendedApproval, ApprovalStats as ApprovalStatsType } from "../types"
-import { getApprovals, approveApproval, rejectApproval, getFilteredApprovals, getApprovalStats } from "../utils/actions"
+import { getApprovals, approveApproval, rejectApproval, getFilteredApprovals, getApprovalStats, resetApproval, getKeluargaUmatList } from "../utils/actions"
 
 export default function ApprovalContent() {
+  const { data: session } = useSession()
+  const userRole = session?.user?.role || "UMAT"
+  
   const [activeTab, setActiveTab] = useState("daftar")
   const [selectedMonth, setSelectedMonth] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [approvalData, setApprovalData] = useState<ExtendedApproval[]>([])
   const [filteredData, setFilteredData] = useState<ExtendedApproval[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [keluargaList, setKeluargaList] = useState<{ id: string; namaKepalaKeluarga: string }[]>([])
   const [stats, setStats] = useState<ApprovalStatsType>({
     total: 0,
     pending: 0,
@@ -37,6 +42,8 @@ export default function ApprovalContent() {
   const [selectedItem, setSelectedItem] = useState<ExtendedApproval | null>(null)
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+
+  console.log(approvalData);
 
   // Fetch data
   useEffect(() => {
@@ -55,6 +62,12 @@ export default function ApprovalContent() {
         const statsResponse = await getApprovalStats()
         if (statsResponse.success && statsResponse.data) {
           setStats(statsResponse.data)
+        }
+
+        // Ambil daftar keluarga umat
+        const keluargaResponse = await getKeluargaUmatList()
+        if (keluargaResponse.success && keluargaResponse.data) {
+          setKeluargaList(keluargaResponse.data)
         }
       } catch (error) {
         console.error("Error fetching approval data:", error)
@@ -199,6 +212,38 @@ export default function ApprovalContent() {
     }
   }
 
+  // Menangani reset status
+  const handleResetStatus = async (item: ExtendedApproval) => {
+    setIsProcessing(true)
+    
+    try {
+      const response = await resetApproval(item.id)
+      
+      if (response.success) {
+        // Reload data untuk mendapatkan perubahan terbaru
+        const approvalsResponse = await getApprovals()
+        if (approvalsResponse.success && approvalsResponse.data) {
+          setApprovalData(approvalsResponse.data as ExtendedApproval[])
+        }
+        
+        // Reload statistik
+        const statsResponse = await getApprovalStats()
+        if (statsResponse.success && statsResponse.data) {
+          setStats(statsResponse.data)
+        }
+        
+        toast.success(`Status berhasil direset ke Menunggu.`)
+      } else {
+        toast.error("Gagal mereset status. Silakan coba lagi.")
+      }
+    } catch (error) {
+      console.error("Error saat mereset status:", error)
+      toast.error("Terjadi kesalahan. Silakan coba lagi.")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   if (isLoading) {
     return <LoadingSkeleton />
   }
@@ -243,6 +288,9 @@ export default function ApprovalContent() {
                 items={filteredData}
                 onApprove={handleOpenApproveDialog}
                 onReject={handleOpenRejectDialog}
+                onReset={handleResetStatus}
+                userRole={userRole}
+                keluargaList={keluargaList}
               />
             </CardContent>
           </Card>
