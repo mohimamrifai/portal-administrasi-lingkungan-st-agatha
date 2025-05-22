@@ -69,19 +69,6 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
     ).length / itemsPerPage
   );
 
-  // Fungsi untuk konversi antara tipe
-  const convertStringToNumber = (value: string): number => {
-    const num = parseInt(value, 10);
-    return isNaN(num) ? 0 : num;
-  };
-
-  // Pada bagian getUserIdAsNumber, ubah tipe return
-  const getUserIdAsNumber = (userIdValue: string | null): number | undefined => {
-    if (!userIdValue) return undefined;
-    const parsedId = parseInt(userIdValue, 10);
-    return isNaN(parsedId) ? undefined : parsedId;
-  };
-
   // Setup notifikasi saat komponen di-mount
   useEffect(() => {
     setupNotifications();

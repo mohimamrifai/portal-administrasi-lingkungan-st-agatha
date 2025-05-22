@@ -138,7 +138,7 @@ export function AgendaDetailDialog({
           
           <div>
             <h3 className="text-sm font-medium text-muted-foreground mb-1">Deskripsi</h3>
-            <p className="text-base whitespace-pre-wrap">{agenda.description}</p>
+            <p className="text-base whitespace-pre-wrap">{agenda.description === '' ? "Tidak ada deskripsi" : agenda.description}</p>
           </div>
           
           {agenda.completedAt && (

@@ -7,13 +7,18 @@ import { Pengajuan, TujuanPengajuan } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 export default async function AgendaPage() {
-  // Mengambil data agenda menggunakan server action dengan include user data
+  // Mengambil data agenda menggunakan server action dengan include user data dan keluarga
   const agendaData = await prisma.pengajuan.findMany({
     include: {
       pengaju: {
         select: {
           id: true,
           username: true,
+          keluarga: {
+            select: {
+              namaKepalaKeluarga: true
+            }
+          }
         }
       }
     },
@@ -37,6 +42,9 @@ export default async function AgendaPage() {
     // Validasi status
     const statusValue = agenda.status === 'OPEN' ? 'open' : 'completed' as AgendaStatus;
     
+    // Ambil nama kepala keluarga jika ada, jika tidak gunakan username
+    const displayName = agenda.pengaju.keluarga?.namaKepalaKeluarga || agenda.pengaju.username;
+    
     return {
       id: agenda.id,
       title: agenda.perihal,
@@ -47,7 +55,7 @@ export default async function AgendaPage() {
       status: statusValue,
       createdBy: {
         id: agenda.pengaju.id,
-        name: agenda.pengaju.username
+        name: displayName
       },
       createdAt: new Date(agenda.createdAt),
       updatedAt: new Date(agenda.updatedAt),
