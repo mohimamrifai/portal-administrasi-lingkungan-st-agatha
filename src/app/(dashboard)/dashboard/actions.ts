@@ -127,44 +127,14 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
       ? new Date(tahun, bulan + 1, 0)
       : yearEnd;
 
+    // Impor fungsi utilitas untuk perhitungan keluarga
+    const { hitungJumlahKepalaKeluarga, hitungTotalJiwa } = await import('./utils/family-utils');
+
     // Total Kepala Keluarga (aktif)
-    const totalKK = await prisma.keluargaUmat.count({
-      where: {
-        tanggalKeluar: null,
-        status: "HIDUP",
-      }
-    });
+    const totalKK = await hitungJumlahKepalaKeluarga();
 
     // Total Jiwa (KK + Pasangan + Tanggungan)
-    // 1. Total Kepala Keluarga
-    const keluargaUmat = await prisma.keluargaUmat.findMany({
-      where: {
-        tanggalKeluar: null,
-        status: "HIDUP",
-      },
-      include: {
-        pasangan: true,
-        tanggungan: true,
-      }
-    });
-    
-    // 2. Hitung jumlah anggota keluarga dari database
-    let jumlahJiwa = 0;
-    for (const keluarga of keluargaUmat) {
-      // Tambahkan Kepala Keluarga
-      jumlahJiwa += 1;
-      
-      // Tambahkan pasangan jika hidup
-      if (keluarga.pasangan && keluarga.pasangan.status === "HIDUP") {
-        jumlahJiwa += 1;
-      }
-      
-      // Tambahkan semua tanggungan (anak dan kerabat)
-      // Hitung semua tanggungan tanpa memandang status pernikahan
-      if (keluarga.tanggungan && keluarga.tanggungan.length > 0) {
-        jumlahJiwa += keluarga.tanggungan.length;
-      }
-    }
+    const jumlahJiwa = await hitungTotalJiwa();
 
     // KK Bergabung - hanya pada periode yang dipilih
     const kkBergabungCount = await prisma.keluargaUmat.count({

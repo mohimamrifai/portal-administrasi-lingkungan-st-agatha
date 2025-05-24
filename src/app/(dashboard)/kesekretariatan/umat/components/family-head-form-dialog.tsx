@@ -113,23 +113,26 @@ export function FamilyHeadFormDialog({
   const statusPernikahanValue = form.watch("statusPernikahan");
   const jumlahAnakValue = form.watch("jumlahAnakTertanggung");
   const jumlahKerabatValue = form.watch("jumlahKerabatTertanggung");
+  const statusKehidupanValue = form.watch("status");
   
   // Update jumlah anggota keluarga secara otomatis saat status pernikahan berubah
   useEffect(() => {
-    // Kepala keluarga selalu dihitung sebagai 1
-    let totalAnggota = 1;
+    // Kepala keluarga selalu dihitung sebagai 1 jika hidup
+    let totalAnggota = statusKehidupanValue === StatusKehidupan.HIDUP ? 1 : 0;
     
-    // Tambah 1 jika menikah (ada pasangan)
-    if (statusPernikahanValue === StatusPernikahan.MENIKAH) {
+    // Tambah 1 jika menikah (ada pasangan) dan kepala keluarga masih hidup
+    if (statusPernikahanValue === StatusPernikahan.MENIKAH && statusKehidupanValue === StatusKehidupan.HIDUP) {
       totalAnggota += 1;
     }
     
-    // Tambahkan jumlah anak dan kerabat
-    totalAnggota += jumlahAnakValue + jumlahKerabatValue;
+    // Tambahkan jumlah anak dan kerabat jika kepala keluarga masih hidup
+    if (statusKehidupanValue === StatusKehidupan.HIDUP) {
+      totalAnggota += jumlahAnakValue + jumlahKerabatValue;
+    }
     
     // Set nilai ke form
     form.setValue("jumlahAnggotaKeluarga", totalAnggota);
-  }, [statusPernikahanValue, jumlahAnakValue, jumlahKerabatValue, form]);
+  }, [statusPernikahanValue, jumlahAnakValue, jumlahKerabatValue, statusKehidupanValue, form]);
 
   const handleSubmit = async (values: FamilyHeadFormValues) => {
     try {

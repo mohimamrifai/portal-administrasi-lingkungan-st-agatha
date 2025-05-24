@@ -22,33 +22,33 @@ interface KesekretariatanCardsProps {
 export function KesekretariatanCards({ data }: KesekretariatanCardsProps) {
   return (
     <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-      <Card className="bg-blue-50">
+      <Card className="bg-blue-100">
         <CardHeader className="pb-2 flex flex-row items-center gap-3">
-          <Users className="w-7 h-7 text-blue-500" />
+          <Users className="w-7 h-7 text-blue-700" />
           <div>
-            <CardDescription>Total Kepala Keluarga</CardDescription>
-            <CardTitle className="text-xl text-blue-600">{data.totalKepalaKeluarga}</CardTitle>
+            <CardDescription className="text-blue-900">Total Kepala Keluarga</CardDescription>
+            <CardTitle className="text-xl text-blue-800">{data.totalKepalaKeluarga}</CardTitle>
           </div>
         </CardHeader>
       </Card>
-      <Card className="bg-indigo-50">
+      <Card className="bg-indigo-100">
         <CardHeader className="pb-2 flex flex-row items-center gap-3">
-          <User className="w-7 h-7 text-indigo-500" />
+          <User className="w-7 h-7 text-indigo-700" />
           <div>
-            <CardDescription>Jumlah Jiwa</CardDescription>
-            <CardTitle className="text-xl text-indigo-600">{data.jumlahJiwa}</CardTitle>
+            <CardDescription className="text-indigo-900">Jumlah Jiwa</CardDescription>
+            <CardTitle className="text-xl text-indigo-800">{data.jumlahJiwa}</CardTitle>
           </div>
         </CardHeader>
       </Card>
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Card className="bg-green-50 cursor-help">
+            <Card className="bg-green-100 cursor-help">
               <CardHeader className="pb-2 flex flex-row items-center gap-3">
-                <UserPlus className="w-7 h-7 text-green-500" />
+                <UserPlus className="w-7 h-7 text-green-700" />
                 <div>
-                  <CardDescription>KK Bergabung</CardDescription>
-                  <CardTitle className="text-xl text-green-600">{data.kkBergabung}</CardTitle>
+                  <CardDescription className="text-green-900">KK Bergabung</CardDescription>
+                  <CardTitle className="text-xl text-green-800">{data.kkBergabung}</CardTitle>
                 </div>
               </CardHeader>
             </Card>
@@ -73,12 +73,12 @@ export function KesekretariatanCards({ data }: KesekretariatanCardsProps) {
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Card className="bg-yellow-50 cursor-help">
+            <Card className="bg-amber-100 cursor-help">
               <CardHeader className="pb-2 flex flex-row items-center gap-3">
-                <UserMinus className="w-7 h-7 text-yellow-500" />
+                <UserMinus className="w-7 h-7 text-amber-700" />
                 <div>
-                  <CardDescription>KK Pindah</CardDescription>
-                  <CardTitle className="text-xl text-yellow-600">{data.kkPindah}</CardTitle>
+                  <CardDescription className="text-amber-900">KK Pindah</CardDescription>
+                  <CardTitle className="text-xl text-amber-800">{data.kkPindah}</CardTitle>
                 </div>
               </CardHeader>
             </Card>
@@ -103,12 +103,12 @@ export function KesekretariatanCards({ data }: KesekretariatanCardsProps) {
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Card className="bg-red-50 cursor-help">
+            <Card className="bg-red-100 cursor-help">
               <CardHeader className="pb-2 flex flex-row items-center gap-3">
-                <HeartPulse className="w-7 h-7 text-red-500" />
+                <HeartPulse className="w-7 h-7 text-red-700" />
                 <div>
-                  <CardDescription>Umat Meninggal Dunia</CardDescription>
-                  <CardTitle className="text-xl text-red-600">{data.umatMeninggalDunia}</CardTitle>
+                  <CardDescription className="text-red-900">Umat Meninggal Dunia</CardDescription>
+                  <CardTitle className="text-xl text-red-800">{data.umatMeninggalDunia}</CardTitle>
                 </div>
               </CardHeader>
             </Card>
@@ -132,12 +132,12 @@ export function KesekretariatanCards({ data }: KesekretariatanCardsProps) {
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <Card className="bg-purple-50">
+      <Card className="bg-purple-100">
         <CardHeader className="pb-2 flex flex-row items-center gap-3">
-          <Percent className="w-7 h-7 text-purple-500" />
+          <Percent className="w-7 h-7 text-purple-700" />
           <div>
-            <CardDescription>Tingkat Partisipasi Umat</CardDescription>
-            <CardTitle className="text-xl text-purple-600">{formatPercentage(data.tingkatPartisipasiUmat)}</CardTitle>
+            <CardDescription className="text-purple-900">Tingkat Partisipasi Umat</CardDescription>
+            <CardTitle className="text-xl text-purple-800">{formatPercentage(data.tingkatPartisipasiUmat)}</CardTitle>
           </div>
         </CardHeader>
       </Card>
