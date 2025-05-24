@@ -27,7 +27,8 @@ export function getMonthName(monthNumber: number): string {
     "Juli", "Agustus", "September", "Oktober", "November", "Desember"
   ];
   
-  return months[monthNumber];
+  // Sesuaikan indeks bulan karena array dimulai dari 0
+  return months[monthNumber - 1];
 }
 
 // Format bulan dan tahun

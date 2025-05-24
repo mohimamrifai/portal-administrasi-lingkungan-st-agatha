@@ -14,7 +14,7 @@ export function getMonthFromQuery(month?: string): number | undefined {
   if (!month || month === "all") return undefined;
   
   const parsedMonth = parseInt(month);
-  if (isNaN(parsedMonth) || parsedMonth < 0 || parsedMonth > 11) {
+  if (isNaN(parsedMonth) || parsedMonth < 1 || parsedMonth > 12) {
     return undefined;
   }
   

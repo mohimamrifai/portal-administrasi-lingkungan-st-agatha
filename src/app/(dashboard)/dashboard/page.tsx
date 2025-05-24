@@ -8,7 +8,8 @@ import {
   getKeuanganIkataData,
   getKesekretariatanData,
   getPenunggakDanaMandiriData,
-  getPenunggakIkataData 
+  getPenunggakIkataData,
+  debugIkataTransactions
 } from "./actions"
 import { getMonthFromQuery, getYearFromQuery } from "./utils"
 
@@ -32,9 +33,16 @@ export default async function DashboardPage({
   const month = getMonthFromQuery(params.month);
   const year = getYearFromQuery(params.year);
   
+  console.log("[Dashboard] Params:", { month, year, rawMonth: params.month, rawYear: params.year });
+  console.log("[Dashboard] CATATAN: Data IKATA menggunakan bulan dan tahun saat ini, bukan dari filter");
+  
   // Ambil data session untuk mendapatkan role user
   const session = await getServerSession(authOptions);
   const userRole = session?.user?.role || "UMAT";
+
+  // Debug transaksi ikata
+  const debugData = await debugIkataTransactions(month, year);
+  console.log("[Dashboard] Debug data totals:", debugData?.totals);
 
   // Ambil data untuk dashboard dengan server actions
   const [
@@ -50,6 +58,8 @@ export default async function DashboardPage({
     getPenunggakDanaMandiriData(),
     getPenunggakIkataData()
   ]);
+
+  console.log("[Dashboard] Keuangan IKATA data:", keuanganIkataData);
 
   return (
     <div className="p-2">

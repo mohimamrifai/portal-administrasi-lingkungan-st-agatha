@@ -29,7 +29,7 @@ export function KeuanganLingkunganCards({ data }: KeuanganLingkunganCardsProps) 
         <CardHeader className="pb-2 flex flex-row items-center gap-3">
           <ArrowDownCircle className="w-7 h-7 text-green-500" />
           <div>
-            <CardDescription>Total Pemasukan</CardDescription>
+            <CardDescription>Pemasukan</CardDescription>
             <CardTitle className="text-xl text-green-600">{formatRupiah(data.totalPemasukan)}</CardTitle>
           </div>
         </CardHeader>
@@ -38,7 +38,7 @@ export function KeuanganLingkunganCards({ data }: KeuanganLingkunganCardsProps) 
         <CardHeader className="pb-2 flex flex-row items-center gap-3">
           <ArrowUpCircle className="w-7 h-7 text-red-500" />
           <div>
-            <CardDescription>Total Pengeluaran</CardDescription>
+            <CardDescription>Pengeluaran</CardDescription>
             <CardTitle className="text-xl text-red-600">{formatRupiah(data.totalPengeluaran)}</CardTitle>
           </div>
         </CardHeader>
