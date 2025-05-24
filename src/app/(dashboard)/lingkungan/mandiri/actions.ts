@@ -457,7 +457,7 @@ export async function setDanaMandiriDues(formData: FormData) {
     }
 
     // Simpan pengaturan di database
-    const setting = await prisma.danaMandiriSetting.upsert({
+    await prisma.danaMandiriSetting.upsert({
       where: {
         tahun: year
       },
@@ -470,7 +470,7 @@ export async function setDanaMandiriDues(formData: FormData) {
       }
     })
     
-    // Dapatkan semua keluarga yang belum bayar untuk tahun ini
+    // Dapatkan semua keluarga
     const keluarga = await prisma.keluargaUmat.findMany({
       select: {
         id: true,
@@ -488,53 +488,50 @@ export async function setDanaMandiriDues(formData: FormData) {
     // Filter keluarga yang belum bayar untuk tahun ini
     const belumBayar = keluarga.filter(k => k.danaMandiri.length === 0)
     
-    // Mendapatkan daftar tunggakan saat ini
-    const arrearsResult = await getDanaMandiriArrears();
-    const currentArrears = (arrearsResult.success && arrearsResult.data ? arrearsResult.data : []) as DanaMandiriArrears[];
-    
     // Buat array untuk menyimpan operasi database
     const operations = [];
     
-    // Iterasi melalui data tunggakan yang ada
-    for (const arrear of currentArrears) {
-      // Cek apakah keluarga ini belum bayar tahun ini
-      const keluargaBelumBayar = belumBayar.some(k => k.id === arrear.keluargaId);
+    // Mendapatkan semua pengaturan iuran dana mandiri yang ada
+    const settingIuran = await prisma.danaMandiriSetting.findMany();
+    
+    // Proses untuk semua keluarga yang belum bayar
+    for (const kel of belumBayar) {
+      // Cari apakah keluarga sudah ada di daftar tunggakan
+      const existingArrear = await prisma.danaMandiriArrears.findUnique({
+        where: { keluargaId: kel.id }
+      });
       
-      if (keluargaBelumBayar) {
-        // Jika belum ada dalam tahun tunggakan, tambahkan dan perbarui total
-        const tahunTertunggak = arrear.tahunTertunggak.includes(year) ? 
-          arrear.tahunTertunggak : 
-          [...arrear.tahunTertunggak, year];
-          
-        const totalTunggakan = arrear.tahunTertunggak.includes(year) ? 
-          arrear.totalTunggakan : 
-          arrear.totalTunggakan + amount;
-          
+      if (existingArrear) {
+        // Jika sudah ada, perbarui tahun tertunggak dan total tunggakan
+        let tahunTertunggak = existingArrear.tahunTertunggak;
+        if (!tahunTertunggak.includes(year)) {
+          tahunTertunggak.push(year);
+        }
+        
+        // Hitung ulang total tunggakan berdasarkan tahun-tahun tertunggak
+        let totalTunggakan = 0;
+        for (const tahun of tahunTertunggak) {
+          const setting = settingIuran.find(s => s.tahun === tahun);
+          if (tahun === year) {
+            // Gunakan nilai iuran yang baru untuk tahun yang sedang diatur
+            totalTunggakan += amount;
+          } else if (setting) {
+            // Gunakan nilai dari database untuk tahun lain
+            totalTunggakan += setting.jumlahIuran;
+          }
+        }
+        
         operations.push(
-          prisma.danaMandiriArrears.upsert({
-            where: { keluargaId: arrear.keluargaId },
-            update: {
-              tahunTertunggak,
-              totalTunggakan
-            },
-            create: {
-              keluargaId: arrear.keluargaId,
-              namaKepalaKeluarga: arrear.namaKepalaKeluarga,
-              alamat: arrear.alamat,
-              nomorTelepon: arrear.nomorTelepon,
+          prisma.danaMandiriArrears.update({
+            where: { keluargaId: kel.id },
+            data: {
               tahunTertunggak,
               totalTunggakan
             }
           })
         );
-      }
-    }
-    
-    // Tambahkan keluarga yang belum ada di daftar tunggakan
-    for (const kel of belumBayar) {
-      const arrearsExists = currentArrears.some(a => a.keluargaId === kel.id);
-      
-      if (!arrearsExists) {
+      } else {
+        // Jika belum ada, buat baru
         operations.push(
           prisma.danaMandiriArrears.create({
             data: {
@@ -550,12 +547,51 @@ export async function setDanaMandiriDues(formData: FormData) {
       }
     }
     
+    // Perbarui total tunggakan untuk keluarga yang sudah memiliki tunggakan tahun ini
+    const existingArrears = await prisma.danaMandiriArrears.findMany({
+      where: {
+        tahunTertunggak: {
+          has: year
+        }
+      }
+    });
+    
+    for (const arrear of existingArrears) {
+      // Hanya perbarui total tunggakan jika tahun ini termasuk dalam tunggakan
+      if (arrear.tahunTertunggak.includes(year)) {
+        // Hitung ulang total tunggakan
+        let totalTunggakan = 0;
+        for (const tahun of arrear.tahunTertunggak) {
+          if (tahun === year) {
+            totalTunggakan += amount;
+          } else {
+            const setting = settingIuran.find(s => s.tahun === tahun);
+            if (setting) {
+              totalTunggakan += setting.jumlahIuran;
+            }
+          }
+        }
+        
+        // Hanya tambahkan ke operasi jika keluarga belum diproses sebelumnya
+        const alreadyProcessed = belumBayar.some(k => k.id === arrear.keluargaId);
+        if (!alreadyProcessed) {
+          operations.push(
+            prisma.danaMandiriArrears.update({
+              where: { keluargaId: arrear.keluargaId },
+              data: {
+                totalTunggakan
+              }
+            })
+          );
+        }
+      }
+    }
+    
     // Jalankan semua operasi database dalam satu transaksi
     if (operations.length > 0) {
       await prisma.$transaction(operations);
     }
     
-    // Log informasi untuk debugging
     console.log(`Set iuran Dana Mandiri tahun ${year} sebesar ${amount}. Total ${operations.length} tunggakan diperbarui.`);
     
     // Revalidasi path untuk memperbarui UI
@@ -565,5 +601,31 @@ export async function setDanaMandiriDues(formData: FormData) {
   } catch (error) {
     console.error("Error saat mengatur iuran dana mandiri:", error)
     return { success: false, error: error instanceof Error ? error.message : "Gagal mengatur iuran dana mandiri" }
+  }
+}
+
+// Dapatkan pengaturan iuran dana mandiri berdasarkan tahun
+export async function getDanaMandiriSetting(year: number) {
+  try {
+    // Cek hak akses (opsional, bisa dihapus jika semua pengguna boleh melihat setting)
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      throw new Error("Anda harus login untuk melihat data ini")
+    }
+    
+    // Ambil data setting dari database
+    const setting = await prisma.danaMandiriSetting.findUnique({
+      where: {
+        tahun: year
+      }
+    })
+    
+    // Jika tidak ada setting untuk tahun tersebut, gunakan nilai default 0
+    const amount = setting?.jumlahIuran || 0
+    
+    return { success: true, data: { year, amount } }
+  } catch (error) {
+    console.error("Error saat mengambil setting iuran dana mandiri:", error)
+    return { success: false, error: error instanceof Error ? error.message : "Gagal mengambil setting iuran dana mandiri" }
   }
 }

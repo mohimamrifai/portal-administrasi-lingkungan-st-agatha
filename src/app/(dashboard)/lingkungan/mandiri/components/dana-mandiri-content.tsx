@@ -38,7 +38,8 @@ import {
   submitToParoki,
   sendReminderNotifications,
   setDanaMandiriDues,
-  getKeluargaList
+  getKeluargaList,
+  getDanaMandiriSetting
 } from "../actions"
 
 interface KeluargaListItem {
@@ -118,6 +119,9 @@ export default function DanaMandiriContent() {
   // State untuk dialog slip penyetoran
   const [slipPenyetoranDialogOpen, setSlipPenyetoranDialogOpen] = useState(false)
   
+  // State untuk iuran saat ini
+  const [currentDuesAmount, setCurrentDuesAmount] = useState<number>(0)
+  
   // Redirect jika tidak memiliki akses
   useEffect(() => {
     if (!hasAccess) {
@@ -166,6 +170,12 @@ export default function DanaMandiriContent() {
         setKeluargaList(keluargaResult.data)
       } else {
         toast.error(keluargaResult.error || "Gagal mengambil data keluarga")
+      }
+      
+      // Dapatkan data pengaturan iuran dana mandiri
+      const duesSettingResult = await getDanaMandiriSetting(selectedYear)
+      if (duesSettingResult.success && duesSettingResult.data) {
+        setCurrentDuesAmount(duesSettingResult.data.amount)
       }
     } catch (error) {
       console.error("Error saat memuat data:", error)
@@ -477,6 +487,18 @@ export default function DanaMandiriContent() {
     setDetailDialogOpen(true)
   }
 
+  // Handle pemilihan tahun saat akan set dues
+  const handleOpenSetDuesDialog = async () => {
+    // Dapatkan setting iuran terbaru untuk tahun yang dipilih
+    const duesSettingResult = await getDanaMandiriSetting(selectedYear)
+    if (duesSettingResult.success && duesSettingResult.data) {
+      setCurrentDuesAmount(duesSettingResult.data.amount)
+    }
+    
+    // Buka dialog
+    setSetDuesDialogOpen(true)
+  }
+
   return (
     <div className="space-y-4">
       {!hasAccess && (
@@ -569,7 +591,7 @@ export default function DanaMandiriContent() {
           <div className="flex flex-wrap gap-2">
             {(canModifyData || userRole === 'SUPER_USER') && (
               <Button 
-                onClick={() => setSetDuesDialogOpen(true)}
+                onClick={handleOpenSetDuesDialog}
                 disabled={isMutating}
               >
                 Set Iuran Dana Mandiri
@@ -637,6 +659,7 @@ export default function DanaMandiriContent() {
         open={setDuesDialogOpen}
         onOpenChange={setSetDuesDialogOpen}
         onSubmit={handleSetDues}
+        currentAmount={currentDuesAmount}
       />
       
       <ReminderDialog
