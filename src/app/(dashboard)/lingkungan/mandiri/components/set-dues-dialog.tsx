@@ -29,17 +29,20 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { formatCurrency } from "../utils"
+import { useEffect } from "react"
 
 interface SetDuesDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (values: SetDuesValues) => void
+  currentAmount?: number
 }
 
 export function SetDuesDialog({
   open,
   onOpenChange,
   onSubmit,
+  currentAmount = 0,
 }: SetDuesDialogProps) {
   // Current year as default
   const currentYear = new Date().getFullYear()
@@ -52,9 +55,16 @@ export function SetDuesDialog({
     resolver: zodResolver(setDuesSchema),
     defaultValues: {
       year: currentYear,
-      amount: 1000000,
+      amount: currentAmount || 1000000,
     },
   })
+  
+  // Perbarui nilai default saat prop currentAmount berubah
+  useEffect(() => {
+    if (open && currentAmount > 0) {
+      form.setValue("amount", currentAmount);
+    }
+  }, [open, currentAmount, form]);
   
   // Preview formatted amount
   const watchAmount = form.watch("amount")
