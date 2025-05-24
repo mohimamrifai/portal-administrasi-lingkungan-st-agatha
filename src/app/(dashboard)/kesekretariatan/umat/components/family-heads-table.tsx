@@ -324,10 +324,12 @@ export function FamilyHeadsTable({
                       {familyHead.jumlahAnggotaKeluarga} jiwa
                       <div className="text-xs text-muted-foreground mt-1">
                         <ul className="list-disc pl-4">
-                          <li>1 Kepala Keluarga</li>
-                          {familyHead.statusPernikahan === 'MENIKAH' && <li>1 Pasangan/Istri</li>}
-                          {familyHead.jumlahAnakTertanggung > 0 && <li>{familyHead.jumlahAnakTertanggung} Anak</li>}
-                          {familyHead.jumlahKerabatTertanggung > 0 && <li>{familyHead.jumlahKerabatTertanggung} Kerabat</li>}
+                          {familyHead.status === 'HIDUP' && <li>1 Kepala Keluarga</li>}
+                          {familyHead.statusPernikahan === 'MENIKAH' && familyHead.status === 'HIDUP' && <li>1 Pasangan/Istri</li>}
+                          {familyHead.jumlahAnakTertanggung > 0 && familyHead.status === 'HIDUP' && <li>{familyHead.jumlahAnakTertanggung} Anak</li>}
+                          {familyHead.jumlahKerabatTertanggung > 0 && familyHead.status === 'HIDUP' && <li>{familyHead.jumlahKerabatTertanggung} Kerabat</li>}
+                          {familyHead.status === 'MENINGGAL' && <li className="text-red-500">Kepala Keluarga Meninggal</li>}
+                          {familyHead.tanggalKeluar && <li className="text-orange-500">Keluarga Pindah Domisili</li>}
                         </ul>
                       </div>
                     </TableCell>

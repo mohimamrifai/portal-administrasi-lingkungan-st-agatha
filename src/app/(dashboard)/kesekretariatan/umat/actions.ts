@@ -190,16 +190,27 @@ export async function updateFamilyHead(id: string, data: FamilyHeadFormData): Pr
 
 /**
  * Menandai keluarga sebagai pindah
+ * Keluarga yang pindah tidak akan lagi dihitung dalam statistik
  */
 export async function markFamilyAsMoved(id: string): Promise<void> {
   try {
     const tanggalKeluar = new Date();
     
+    // Ambil data keluarga terlebih dahulu
+    const keluarga = await prisma.keluargaUmat.findUnique({
+      where: { id }
+    });
+    
+    if (!keluarga) {
+      throw new Error("Keluarga tidak ditemukan");
+    }
+    
+    // Update status keluarga
     await prisma.keluargaUmat.update({
       where: { id },
       data: {
-        status: StatusKehidupan.HIDUP, // Tetap hidup, hanya pindah
         tanggalKeluar: tanggalKeluar,
+        jumlahAnggotaKeluarga: 0 // Set ke 0 karena keluarga pindah tidak dihitung lagi
       },
     });
 
@@ -212,16 +223,46 @@ export async function markFamilyAsMoved(id: string): Promise<void> {
 
 /**
  * Menandai keluarga sebagai meninggal
+ * Keluarga yang semua anggotanya meninggal tidak akan lagi dihitung dalam statistik
  */
 export async function markFamilyAsDeceased(id: string): Promise<void> {
   try {
     const tanggalMeninggal = new Date();
     
+    // Ambil data keluarga terlebih dahulu
+    const keluarga = await prisma.keluargaUmat.findUnique({
+      where: { id },
+      include: {
+        pasangan: true,
+        tanggungan: true
+      }
+    });
+    
+    if (!keluarga) {
+      throw new Error("Keluarga tidak ditemukan");
+    }
+    
+    // Jika pasangan ada, tandai juga sebagai meninggal
+    if (keluarga.pasangan) {
+      await prisma.pasangan.update({
+        where: { id: keluarga.pasangan.id },
+        data: {
+          status: StatusKehidupan.MENINGGAL,
+          tanggalMeninggal: tanggalMeninggal
+        }
+      });
+    }
+    
+    // Tanggungan bisa dihapus atau dibiarkan, karena tidak memengaruhi statistik
+    // ketika kepala keluarga meninggal
+    
+    // Update status kepala keluarga
     await prisma.keluargaUmat.update({
       where: { id },
       data: {
         status: StatusKehidupan.MENINGGAL,
         tanggalMeninggal: tanggalMeninggal,
+        jumlahAnggotaKeluarga: 0 // Set ke 0 karena semua anggota keluarga dianggap meninggal
       },
     });
 
@@ -240,9 +281,16 @@ export async function markFamilyMemberAsDeceased(id: string, memberName: string)
   try {
     const tanggalMeninggal = new Date();
     
+    // Impor fungsi utilitas
+    const { updateJumlahAnggotaKeluarga } = await import('@/app/(dashboard)/dashboard/utils/family-utils');
+    
     // Cek apakah memberName adalah kepala keluarga
     const keluarga = await prisma.keluargaUmat.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        pasangan: true,
+        tanggungan: true
+      }
     });
 
     if (!keluarga) {
@@ -258,6 +306,9 @@ export async function markFamilyMemberAsDeceased(id: string, memberName: string)
           tanggalMeninggal: tanggalMeninggal
         }
       });
+      
+      // Update jumlah anggota keluarga menggunakan fungsi utilitas
+      await updateJumlahAnggotaKeluarga(id);
       
       revalidatePath("/kesekretariatan/umat");
       return;
@@ -281,13 +332,8 @@ export async function markFamilyMemberAsDeceased(id: string, memberName: string)
         }
       });
       
-      // Update jumlah anggota keluarga
-      await prisma.keluargaUmat.update({
-        where: { id },
-        data: {
-          jumlahAnggotaKeluarga: Math.max(1, keluarga.jumlahAnggotaKeluarga - 1)
-        }
-      });
+      // Update jumlah anggota keluarga menggunakan fungsi utilitas
+      await updateJumlahAnggotaKeluarga(id);
       
       revalidatePath("/kesekretariatan/umat");
       return;
@@ -302,32 +348,30 @@ export async function markFamilyMemberAsDeceased(id: string, memberName: string)
     });
 
     if (tanggungan) {
-      // Karena model Tanggungan tidak memiliki field status untuk kematian,
-      // kita bisa menandainya dengan cara lain, seperti menghapusnya
-      // atau memperbarui status pernikahannya (sebagai penanda saja)
-      await prisma.tanggungan.update({
-        where: { id: tanggungan.id },
-        data: { statusPernikahan: StatusPernikahan.TIDAK_MENIKAH } 
+      // Hapus tanggungan yang meninggal dari database
+      await prisma.tanggungan.delete({
+        where: { id: tanggungan.id }
       });
       
-      // Kurangi jumlah anggota keluarga
+      // Update jumlah anak atau kerabat tertanggung
       if (tanggungan.jenisTanggungan === "ANAK") {
         await prisma.keluargaUmat.update({
           where: { id },
           data: {
-            jumlahAnakTertanggung: Math.max(0, keluarga.jumlahAnakTertanggung - 1),
-            jumlahAnggotaKeluarga: Math.max(1, keluarga.jumlahAnggotaKeluarga - 1)
+            jumlahAnakTertanggung: Math.max(0, keluarga.jumlahAnakTertanggung - 1)
           }
         });
       } else {
         await prisma.keluargaUmat.update({
           where: { id },
           data: {
-            jumlahKerabatTertanggung: Math.max(0, keluarga.jumlahKerabatTertanggung - 1),
-            jumlahAnggotaKeluarga: Math.max(1, keluarga.jumlahAnggotaKeluarga - 1)
+            jumlahKerabatTertanggung: Math.max(0, keluarga.jumlahKerabatTertanggung - 1)
           }
         });
       }
+      
+      // Update jumlah anggota keluarga menggunakan fungsi utilitas
+      await updateJumlahAnggotaKeluarga(id);
     }
 
     revalidatePath("/kesekretariatan/umat");
