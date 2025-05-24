@@ -7,24 +7,18 @@ import { revalidatePath } from "next/cache";
 // Fungsi untuk mendapatkan data transaksi Kas IKATA
 export async function getKasIkataTransactions(bulan?: number, tahun?: number) {
   try {
-    console.log("[getKasIkataTransactions] Called with params:", { bulan, tahun });
-    
     // Gunakan bulan dan tahun saat ini jika tidak diberikan
     const currentDate = new Date();
     const currentMonth = currentDate.getMonth() + 1; // Januari = 1
     const currentYear = currentDate.getFullYear();
     
-    // Gunakan bulan dan tahun saat ini, bukan parameter input
-    const month = currentMonth;
-    const year = currentYear;
-    
-    console.log("[getKasIkataTransactions] Using current month/year:", { month, year });
+    // Gunakan parameter input jika diberikan, atau default ke bulan dan tahun saat ini
+    const month = bulan || currentMonth;
+    const year = tahun || currentYear;
     
     // Filter berdasarkan bulan dan tahun
     const dateStart = new Date(year, month - 1, 1);
     const dateEnd = new Date(year, month, 0, 23, 59, 59);
-    
-    console.log("[getKasIkataTransactions] Date range:", { dateStart, dateEnd });
 
     // Query untuk mendapatkan transaksi
     const transactionQuery = {
@@ -39,15 +33,10 @@ export async function getKasIkataTransactions(bulan?: number, tahun?: number) {
       }
     };
     
-    console.log("[getKasIkataTransactions] Query:", JSON.stringify(transactionQuery.where));
-    
     const transactions = await prisma.kasIkata.findMany(transactionQuery);
-    
-    console.log("[getKasIkataTransactions] Found transactions:", transactions.length);
     
     return transactions;
   } catch (error) {
-    console.error("[getKasIkataTransactions] Error:", error);
     throw new Error("Gagal mengambil data transaksi kas IKATA");
   }
 }
@@ -55,24 +44,18 @@ export async function getKasIkataTransactions(bulan?: number, tahun?: number) {
 // Fungsi untuk mendapatkan ringkasan Kas IKATA
 export async function getKasIkataSummary(bulan?: number, tahun?: number) {
   try {
-    console.log("[getKasIkataSummary] Called with params:", { bulan, tahun });
-    
     // Gunakan bulan dan tahun saat ini jika tidak diberikan
     const currentDate = new Date();
     const currentMonth = currentDate.getMonth() + 1; // Januari = 1
     const currentYear = currentDate.getFullYear();
     
-    // Gunakan bulan dan tahun saat ini, bukan parameter input
-    const month = currentMonth;
-    const year = currentYear;
-    
-    console.log("[getKasIkataSummary] Using current month/year:", { month, year });
+    // Gunakan parameter input jika diberikan, atau default ke bulan dan tahun saat ini
+    const month = bulan || currentMonth;
+    const year = tahun || currentYear;
     
     // Filter berdasarkan bulan dan tahun
     const dateStart = new Date(year, month - 1, 1);
     const dateEnd = new Date(year, month, 0, 23, 59, 59);
-    
-    console.log("[getKasIkataSummary] Date range:", { dateStart, dateEnd });
 
     // Dapatkan saldo awal dari transaksi SALDO AWAL
     const saldoAwalTransaction = await prisma.kasIkata.findFirst({
@@ -86,7 +69,6 @@ export async function getKasIkataSummary(bulan?: number, tahun?: number) {
     });
     
     const saldoAwal = saldoAwalTransaction ? saldoAwalTransaction.debit : 0;
-    console.log("[getKasIkataSummary] Saldo awal:", saldoAwal, saldoAwalTransaction?.id);
     
     // Query untuk transaksi pada bulan yang dipilih
     const transactionQuery = {
@@ -113,8 +95,6 @@ export async function getKasIkataSummary(bulan?: number, tahun?: number) {
       }
     });
     
-    console.log("[getKasIkataSummary] Found transactions:", transactions.length);
-    
     // Hitung pemasukan dan pengeluaran
     const pemasukanTxs = transactions.filter(tx => tx.jenisTranasksi === "UANG_MASUK");
     const pengeluaranTxs = transactions.filter(tx => tx.jenisTranasksi === "UANG_KELUAR");
@@ -132,11 +112,8 @@ export async function getKasIkataSummary(bulan?: number, tahun?: number) {
       saldoAkhir
     };
     
-    console.log("[getKasIkataSummary] Result:", result);
-    
     return result;
   } catch (error) {
-    console.error("[getKasIkataSummary] Error:", error);
     throw new Error("Gagal menghitung ringkasan kas IKATA");
   }
 }
@@ -172,9 +149,13 @@ export async function createKasIkataTransaction(data: {
   keluargaId?: string;
 }) {
   try {
+    // Pastikan tanggal valid dengan membuat objek Date baru
+    const validDate = new Date(data.tanggal);
+    
     const transaction = await prisma.kasIkata.create({
       data: {
-        ...data
+        ...data,
+        tanggal: validDate
       }
     });
     
@@ -183,8 +164,8 @@ export async function createKasIkataTransaction(data: {
         data.jenisTranasksi === JenisTransaksi.UANG_MASUK && 
         data.keluargaId) {
       
-      const tahun = data.tanggal.getFullYear();
-      const bulan = data.tanggal.getMonth() + 1;
+      const tahun = validDate.getFullYear();
+      const bulan = validDate.getMonth() + 1;
       
       // Update atau buat record IuranIkata
       await prisma.iuranIkata.upsert({
@@ -204,9 +185,11 @@ export async function createKasIkataTransaction(data: {
       });
     }
     
+    // Revalidasi path agar UI diperbarui
+    revalidatePath('/ikata/kas');
+    
     return transaction;
   } catch (error) {
-    console.error("Error creating kas ikata transaction:", error);
     throw new Error("Gagal membuat transaksi kas IKATA");
   }
 }
@@ -222,10 +205,14 @@ export async function updateKasIkataTransaction(id: string, data: {
   keluargaId?: string;
 }) {
   try {
+    // Pastikan tanggal valid
+    const validDate = new Date(data.tanggal);
+    
     const transaction = await prisma.kasIkata.update({
       where: { id },
       data: {
-        ...data
+        ...data,
+        tanggal: validDate
       }
     });
     
@@ -234,7 +221,7 @@ export async function updateKasIkataTransaction(id: string, data: {
         data.jenisTranasksi === JenisTransaksi.UANG_MASUK && 
         data.keluargaId) {
       
-      const tahun = data.tanggal.getFullYear();
+      const tahun = validDate.getFullYear();
       
       // Update record IuranIkata
       await prisma.iuranIkata.updateMany({
@@ -249,9 +236,11 @@ export async function updateKasIkataTransaction(id: string, data: {
       });
     }
     
+    // Revalidasi path agar UI diperbarui
+    revalidatePath('/ikata/kas');
+    
     return transaction;
   } catch (error) {
-    console.error("Error updating kas ikata transaction:", error);
     throw new Error("Gagal memperbarui transaksi kas IKATA");
   }
 }
@@ -263,9 +252,11 @@ export async function deleteKasIkataTransaction(id: string) {
       where: { id }
     });
     
+    // Revalidasi path agar UI diperbarui
+    revalidatePath('/ikata/kas');
+    
     return transaction;
   } catch (error) {
-    console.error("Error deleting kas ikata transaction:", error);
     throw new Error("Gagal menghapus transaksi kas IKATA");
   }
 }
@@ -297,9 +288,11 @@ export async function lockKasIkataTransactions(transactionIds: string[]) {
       )
     );
 
+    // Revalidasi path agar UI diperbarui
+    revalidatePath('/ikata/kas');
+
     return { count: result.length };
   } catch (error) {
-    console.error("Error locking transactions:", error);
     throw new Error("Gagal mengunci transaksi");
   }
 }
@@ -324,8 +317,6 @@ export async function getSaldoAwalIkata(bulan: number, tahun: number) {
 // Fungsi untuk menyimpan saldo awal IKATA
 export async function setSaldoAwalIkata(saldoAwal: number) {
   try {
-    console.log("Setting saldo awal IKATA to:", saldoAwal);
-    
     // Cari konfigurasi saldo awal jika sudah ada
     const existingConfig = await prisma.kasIkata.findFirst({
       where: {
@@ -338,7 +329,6 @@ export async function setSaldoAwalIkata(saldoAwal: number) {
     
     // Jika sudah ada, update nilai
     if (existingConfig) {
-      console.log("Found existing saldo awal record, updating:", existingConfig.id);
       result = await prisma.kasIkata.update({
         where: { id: existingConfig.id },
         data: {
@@ -348,10 +338,8 @@ export async function setSaldoAwalIkata(saldoAwal: number) {
           updatedAt: new Date()
         }
       });
-      console.log("Update result:", result);
     } else {
       // Jika belum ada, buat baru
-      console.log("No existing saldo awal record, creating new");
       result = await prisma.kasIkata.create({
         data: {
           tanggal: new Date(),
@@ -363,19 +351,16 @@ export async function setSaldoAwalIkata(saldoAwal: number) {
           locked: true
         }
       });
-      console.log("Create result:", result);
     }
     
     // Hapus data dari tabel saldoAwalIkata jika ada (untuk bersihkan data lama)
     try {
       await prisma.saldoAwalIkata.deleteMany({});
-      console.log("Cleaned up old saldoAwalIkata records");
     } catch (cleanupError) {
-      console.log("Note: Could not clean up saldoAwalIkata table, but this is not critical");
+      // Kegagalan pembersihan tidak kritis
     }
     
     // Revalidasi path agar data diperbarui
-    console.log("Revalidating paths");
     revalidatePath('/ikata/kas');
     revalidatePath('/dashboard');
     
@@ -388,7 +373,6 @@ export async function setSaldoAwalIkata(saldoAwal: number) {
       }
     };
   } catch (error) {
-    console.error("Error setting saldo awal IKATA:", error);
     return { 
       success: false, 
       error: "Gagal menyimpan saldo awal IKATA",

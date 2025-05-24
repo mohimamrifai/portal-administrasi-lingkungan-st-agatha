@@ -9,6 +9,14 @@ interface PeriodFilterProps {
 }
 
 export function PeriodFilter({ period, onPeriodChange }: PeriodFilterProps) {
+  // Mendapatkan tahun saat ini
+  const currentYear = new Date().getFullYear();
+  
+  // Membuat array tahun dari 5 tahun ke belakang sampai 5 tahun ke depan
+  const startYear = currentYear - 5;
+  const endYear = currentYear + 5;
+  const years = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
+  
   return (
     <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
       <Select
@@ -37,7 +45,7 @@ export function PeriodFilter({ period, onPeriodChange }: PeriodFilterProps) {
           <SelectValue placeholder="Pilih Tahun" />
         </SelectTrigger>
         <SelectContent>
-          {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+          {years.map((year) => (
             <SelectItem key={year} value={year.toString()}>
               {year}
             </SelectItem>

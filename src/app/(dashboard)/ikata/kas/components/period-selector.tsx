@@ -33,8 +33,10 @@ export function PeriodSelector({ period, onChange }: PeriodSelectorProps) {
     { value: 12, label: 'Desember' }
   ];
 
-  // Array tahun untuk dropdown (5 tahun terakhir hingga 5 tahun ke depan)
-  const years = Array.from({ length: 10 }, (_, i) => currentYear - 5 + i);
+  // Array tahun untuk dropdown (5 tahun ke belakang sampai 5 tahun ke depan dari tahun saat ini)
+  const startYear = currentYear - 5;
+  const endYear = currentYear + 5;
+  const years = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
 
   // Handler untuk perubahan bulan
   const handleMonthChange = (e: ChangeEvent<HTMLSelectElement>) => {
