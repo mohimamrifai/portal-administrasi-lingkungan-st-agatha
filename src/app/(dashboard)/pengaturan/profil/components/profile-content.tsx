@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useCallback } from "react"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { AlertCircle, PlusCircle, Camera, User, Save } from "lucide-react"
+import { AlertCircle, PlusCircle, Camera, User } from "lucide-react"
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -25,16 +25,25 @@ import { FamilyHeadForm } from "./family-head-form"
 import { SpouseForm } from "./spouse-form"
 import { DependentForm } from "./dependent-form"
 import { DependentItem } from "./dependent-item"
+
 import { 
   FamilyHeadFormValues, 
   SpouseFormValues, 
   DependentFormValues, 
-  ProfileData, 
   Dependent, 
-  Spouse,
   MaritalStatus 
 } from "../types"
-import { generateMockProfile, convertFormValuesToProfileData } from "../utils"
+
+import { getInitials } from "../utils/helpers"
+import { useProfileData } from "../hooks/useProfileData"
+import { useConfirmationDialog } from "../hooks/useConfirmationDialog"
+import { 
+  handleFamilyHeadSubmit, 
+  handleSpouseSubmit, 
+  handleAddDependent, 
+  handleUpdateDependent, 
+  handleDeleteDependent 
+} from "./profile-handlers"
 
 // Berdasarkan README.md:
 // Submenu Profil - Hanya role "Umat" yang dapat memperbarui data profil
@@ -54,23 +63,33 @@ const ROLE_ACCESS_MAP = {
 }
 
 export default function ProfileContent() {
-  const { userRole } = useAuth()
+  const { userRole, userId } = useAuth()
   
   // Ambil konfigurasi akses berdasarkan role
   const roleAccess = ROLE_ACCESS_MAP[userRole as keyof typeof ROLE_ACCESS_MAP] || ROLE_ACCESS_MAP.umat
   
-  // State untuk menyimpan data profil
-  const [profileData, setProfileData] = useState<ProfileData | null>(null)
-  const [isLoading, setIsLoading] = useState<boolean>(true)
-  const [isSaving, setIsSaving] = useState<boolean>(false)
+  // Gunakan custom hook untuk data profil
+  const { 
+    profileData, 
+    isLoading, 
+    isSaving, 
+    setIsSaving,
+    refreshProfileData 
+  } = useProfileData(userId)
   
-  // State untuk dialog konfirmasi
-  const [showConfirmDialog, setShowConfirmDialog] = useState<boolean>(false)
-  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null)
-  const [confirmDialogProps, setConfirmDialogProps] = useState({
-    title: "",
-    description: ""
-  })
+  // Buat wrapper untuk refreshProfileData yang mengembalikan Promise<boolean>
+  const refreshProfile = useCallback(async (): Promise<boolean> => {
+    return await refreshProfileData() || false
+  }, [refreshProfileData])
+  
+  // Gunakan custom hook untuk dialog konfirmasi
+  const {
+    showConfirmDialog,
+    setShowConfirmDialog,
+    confirmDialogProps,
+    showConfirmationDialog,
+    handleConfirm
+  } = useConfirmationDialog()
   
   // State untuk tanggungan yang sedang diedit
   const [editingDependent, setEditingDependent] = useState<Dependent | null>(null)
@@ -78,62 +97,6 @@ export default function ProfileContent() {
   
   // Nilai default untuk tab
   const [activeTab, setActiveTab] = useState<string>("kepala-keluarga")
-  
-  // Fetch data saat komponen di-mount
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true)
-        // Simulasi delay
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        // Gunakan data dummy berdasarkan ID pengguna
-        // TODO: Ganti dengan API call ke backend
-        const userId = 1 // Akan diganti dari auth context
-        const data = generateMockProfile(userId)
-        setProfileData(data)
-      } catch (error) {
-        toast.error("Gagal memuat data profil")
-        console.error(error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchData()
-  }, [])
-  
-  // Helper untuk mendapatkan inisial nama
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(part => part.charAt(0))
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  }
-  
-  // Fungsi untuk menampilkan dialog konfirmasi
-  const showConfirmationDialog = (
-    title: string,
-    description: string,
-    action: () => void
-  ) => {
-    setConfirmDialogProps({
-      title,
-      description
-    })
-    setPendingAction(() => action)
-    setShowConfirmDialog(true)
-  }
-  
-  // Fungsi untuk melanjutkan aksi setelah konfirmasi
-  const handleConfirm = () => {
-    if (pendingAction) {
-      pendingAction()
-    }
-    setShowConfirmDialog(false)
-    setPendingAction(null)
-  }
   
   // Simulasi upload gambar
   const handleImageUpload = async (entityType: 'familyHead' | 'spouse' | 'dependent', id?: number) => {
@@ -180,55 +143,13 @@ export default function ProfileContent() {
           throw new Error('Gagal mengunggah foto')
         }
         
-        const data = await response.json()
+        // Refresh data profil setelah berhasil upload
+        await refreshProfile()
         
-        // Update state dengan URL gambar baru
-        if (!profileData) return
-        
-        if (entityType === 'familyHead') {
-          setProfileData({
-            ...profileData,
-            familyHead: {
-              ...profileData.familyHead,
-              imageUrl: data.fileUrl
-            }
-          })
-          toast.success("Foto profil berhasil diperbarui", {
-            id: toastId,
-            duration: 3000
-          })
-        } else if (entityType === 'spouse' && profileData.spouse) {
-          setProfileData({
-            ...profileData,
-            spouse: {
-              ...profileData.spouse,
-              imageUrl: data.fileUrl
-            }
-          })
-          toast.success("Foto pasangan berhasil diperbarui", {
-            id: toastId,
-            duration: 3000
-          })
-        } else if (entityType === 'dependent' && id) {
-          const updatedDependents = profileData.dependents.map(dependent => {
-            if (dependent.id === id) {
-              return {
-                ...dependent,
-                imageUrl: data.fileUrl
-              }
-            }
-            return dependent
-          })
-          
-          setProfileData({
-            ...profileData,
-            dependents: updatedDependents
-          })
-          toast.success("Foto tanggungan berhasil diperbarui", {
-            id: toastId,
-            duration: 3000
-          })
-        }
+        toast.success(`Foto ${entityType === 'familyHead' ? 'profil' : entityType === 'spouse' ? 'pasangan' : 'tanggungan'} berhasil diperbarui`, {
+          id: toastId,
+          duration: 3000
+        })
       } catch (error) {
         console.error(error)
         toast.error("Gagal mengunggah foto. Pastikan ukuran file tidak terlalu besar dan format file didukung (jpg, png, webp).")
@@ -240,8 +161,8 @@ export default function ProfileContent() {
     input.click()
   }
   
-  // Handler untuk menyimpan data Kepala Keluarga
-  const handleFamilyHeadSubmit = (values: FamilyHeadFormValues) => {
+  // Handler untuk form kepala keluarga
+  const onFamilyHeadSubmit = (values: FamilyHeadFormValues) => {
     // Cek apakah pengguna memiliki izin untuk memperbarui data
     if (!roleAccess.canEdit) {
       toast.error(`Hanya pengguna dengan role Umat yang dapat memperbarui data`)
@@ -253,48 +174,14 @@ export default function ProfileContent() {
       "Simpan Data Kepala Keluarga",
       "Apakah Anda yakin ingin menyimpan perubahan data Kepala Keluarga?",
       async () => {
-        if (!profileData) return
-        
-        try {
-          setIsSaving(true)
-          
-          // Simulasi API call
-          // TODO: Ganti dengan API call ke backend
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          
-          // Update local state, pastikan imageUrl tetap ada
-          const updatedProfile = {
-            ...profileData,
-            familyHead: {
-              ...profileData.familyHead,
-              ...values,
-              imageUrl: profileData.familyHead.imageUrl // Pastikan imageUrl tidak hilang
-            }
-          }
-          
-          setProfileData(updatedProfile)
-          toast.success("Data Kepala Keluarga berhasil disimpan")
-          
-          // Jika status pernikahan bukan menikah, hapus data pasangan
-          if (values.maritalStatus !== MaritalStatus.MARRIED) {
-            setProfileData(prev => prev ? {
-              ...prev,
-              spouse: null
-            } : null)
-          }
-          
-        } catch (error) {
-          toast.error("Gagal menyimpan data")
-          console.error(error)
-        } finally {
-          setIsSaving(false)
-        }
+        if (!userId) return
+        await handleFamilyHeadSubmit(userId, values, setIsSaving, refreshProfile)
       }
     )
   }
   
-  // Handler untuk menyimpan data Pasangan
-  const handleSpouseSubmit = (values: SpouseFormValues) => {
+  // Handler untuk form pasangan
+  const onSpouseSubmit = (values: SpouseFormValues) => {
     // Cek apakah pengguna memiliki izin untuk memperbarui data
     if (!roleAccess.canEdit) {
       toast.error(`Hanya pengguna dengan role Umat yang dapat memperbarui data`)
@@ -306,36 +193,14 @@ export default function ProfileContent() {
       "Simpan Data Pasangan",
       "Apakah Anda yakin ingin menyimpan perubahan data Pasangan?",
       async () => {
-        if (!profileData) return
-        
-        try {
-          setIsSaving(true)
-          
-          // Simulasi API call
-          // TODO: Ganti dengan API call ke backend
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          
-          // Update local state, pastikan imageUrl tetap ada
-          const updatedProfile = {
-            ...profileData,
-            spouse: values as Spouse
-          }
-          
-          setProfileData(updatedProfile)
-          toast.success("Data Pasangan berhasil disimpan")
-          
-        } catch (error) {
-          toast.error("Gagal menyimpan data")
-          console.error(error)
-        } finally {
-          setIsSaving(false)
-        }
+        if (!userId) return
+        await handleSpouseSubmit(userId, values, setIsSaving, refreshProfile)
       }
     )
   }
   
   // Handler untuk menambah tanggungan
-  const handleAddDependent = (values: DependentFormValues) => {
+  const onAddDependent = (values: DependentFormValues) => {
     // Cek apakah pengguna memiliki izin untuk memperbarui data
     if (!roleAccess.canEdit) {
       toast.error(`Hanya pengguna dengan role Umat yang dapat memperbarui data`)
@@ -347,125 +212,49 @@ export default function ProfileContent() {
       "Tambah Data Tanggungan",
       "Apakah Anda yakin ingin menambah data Tanggungan?",
       async () => {
-        if (!profileData) return
-        
-        try {
-          setIsSaving(true)
-          
-          // Simulasi API call
-          // TODO: Ganti dengan API call ke backend
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          
-          // Generate ID untuk tanggungan baru (dalam implementasi nyata, ID akan dari backend)
-          const newId = Math.max(0, ...profileData.dependents.map(d => d.id)) + 1
-          
-          // Buat objek tanggungan baru
-          const newDependent: Dependent = {
-            id: newId,
-            name: values.name,
-            birthDate: values.birthDate,
-            birthPlace: values.birthPlace,
-            gender: values.gender,
-            education: values.education,
-            religion: values.religion,
-            maritalStatus: values.maritalStatus,
-            dependentType: values.dependentType,
-            baptismDate: values.baptismDate,
-            confirmationDate: values.confirmationDate,
-            imageUrl: values.imageUrl
-          }
-          
-          // Update state dengan tanggungan baru
-          const updatedDependents = [...profileData.dependents, newDependent]
-          setProfileData({
-            ...profileData,
-            dependents: updatedDependents
-          })
-          
-          // Sembunyikan form
+        if (!userId) return
+        const success = await handleAddDependent(userId, values, setIsSaving, refreshProfile)
+        if (success) {
           setShowDependentForm(false)
           setEditingDependent(null)
-          
-          toast.success("Data Tanggungan berhasil ditambahkan")
-          
-        } catch (error) {
-          toast.error("Gagal menambah data tanggungan")
-          console.error(error)
-        } finally {
-          setIsSaving(false)
         }
       }
     )
   }
   
   // Handler untuk mengupdate tanggungan
-  const handleUpdateDependent = (values: DependentFormValues) => {
+  const onUpdateDependent = (values: DependentFormValues) => {
     // Cek apakah pengguna memiliki izin untuk memperbarui data
     if (!roleAccess.canEdit) {
       toast.error(`Hanya pengguna dengan role Umat yang dapat memperbarui data`)
       return
     }
     
-    if (!editingDependent) return
+    if (!editingDependent || !userId) return
     
     // Tampilkan dialog konfirmasi
     showConfirmationDialog(
       "Perbarui Data Tanggungan",
       "Apakah Anda yakin ingin memperbarui data Tanggungan?",
       async () => {
-        if (!profileData) return
+        const success = await handleUpdateDependent(
+          userId, 
+          editingDependent.id, 
+          values, 
+          setIsSaving, 
+          refreshProfile
+        )
         
-        try {
-          setIsSaving(true)
-          
-          // Simulasi API call
-          // TODO: Ganti dengan API call ke backend
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          
-          // Update data tanggungan
-          const updatedDependents = profileData.dependents.map(dependent => {
-            if (dependent.id === editingDependent.id) {
-              return {
-                ...dependent,
-                name: values.name,
-                gender: values.gender,
-                birthPlace: values.birthPlace,
-                birthDate: values.birthDate,
-                education: values.education,
-                religion: values.religion,
-                maritalStatus: values.maritalStatus,
-                dependentType: values.dependentType,
-                baptismDate: values.baptismDate,
-                confirmationDate: values.confirmationDate
-              }
-            }
-            return dependent
-          })
-          
-          // Update state
-          setProfileData({
-            ...profileData,
-            dependents: updatedDependents
-          })
-          
-          // Sembunyikan form
+        if (success) {
           setShowDependentForm(false)
           setEditingDependent(null)
-          
-          toast.success("Data Tanggungan berhasil diperbarui")
-          
-        } catch (error) {
-          toast.error("Gagal memperbarui data tanggungan")
-          console.error(error)
-        } finally {
-          setIsSaving(false)
         }
       }
     )
   }
   
   // Handler untuk menghapus tanggungan
-  const handleDeleteDependent = (dependent: Dependent) => {
+  const onDeleteDependent = (dependent: Dependent) => {
     // Cek apakah pengguna memiliki izin untuk memperbarui data
     if (!roleAccess.canEdit) {
       toast.error(`Hanya pengguna dengan role Umat yang dapat memperbarui data`)
@@ -477,40 +266,14 @@ export default function ProfileContent() {
       "Hapus Data Tanggungan",
       `Apakah Anda yakin ingin menghapus data tanggungan ${dependent.name}?`,
       async () => {
-        if (!profileData) return
-        
-        try {
-          setIsSaving(true)
-          
-          // Simulasi API call
-          // TODO: Ganti dengan API call ke backend
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          
-          // Hapus tanggungan dari array
-          const updatedDependents = profileData.dependents.filter(
-            item => item.id !== dependent.id
-          )
-          
-          // Update state
-          setProfileData({
-            ...profileData,
-            dependents: updatedDependents
-          })
-          
-          toast.success("Data Tanggungan berhasil dihapus")
-          
-        } catch (error) {
-          toast.error("Gagal menghapus data tanggungan")
-          console.error(error)
-        } finally {
-          setIsSaving(false)
-        }
+        if (!userId) return
+        await handleDeleteDependent(userId, dependent, setIsSaving, refreshProfile)
       }
     )
   }
   
   // Handler untuk membuka form edit tanggungan
-  const handleEditDependent = (dependent: Dependent) => {
+  const onEditDependent = (dependent: Dependent) => {
     // Cek apakah pengguna memiliki izin untuk memperbarui data
     if (!roleAccess.canEdit) {
       toast.error(`Hanya pengguna dengan role Umat yang dapat memperbarui data`)
@@ -522,17 +285,17 @@ export default function ProfileContent() {
   }
   
   // Handler untuk membatalkan form tanggungan
-  const handleCancelDependentForm = () => {
+  const onCancelDependentForm = () => {
     setShowDependentForm(false)
     setEditingDependent(null)
   }
   
   // Wrapper untuk handle submit dari form tanggungan
-  const handleDependentSubmit = (values: DependentFormValues) => {
+  const onDependentSubmit = (values: DependentFormValues) => {
     if (editingDependent) {
-      handleUpdateDependent(values)
+      onUpdateDependent(values)
     } else {
-      handleAddDependent(values)
+      onAddDependent(values)
     }
   }
   
@@ -678,7 +441,7 @@ export default function ProfileContent() {
             <div className="w-full">
               <FamilyHeadForm 
                 defaultValues={profileData.familyHead} 
-                onSubmit={handleFamilyHeadSubmit}
+                onSubmit={onFamilyHeadSubmit}
                 isSubmitting={isSaving}
                 readOnly={!roleAccess.canEdit}
               />
@@ -724,7 +487,7 @@ export default function ProfileContent() {
               <div className="w-full">
                 <SpouseForm 
                   defaultValues={profileData.spouse || undefined} 
-                  onSubmit={handleSpouseSubmit}
+                  onSubmit={onSpouseSubmit}
                   isSubmitting={isSaving}
                   readOnly={!roleAccess.canEdit}
                 />
@@ -739,8 +502,8 @@ export default function ProfileContent() {
             <div className="bg-background/80 p-3 border rounded-lg">
               <DependentForm 
                 defaultValues={editingDependent || undefined}
-                onSubmit={handleDependentSubmit}
-                onCancel={handleCancelDependentForm}
+                onSubmit={onDependentSubmit}
+                onCancel={onCancelDependentForm}
                 isSubmitting={isSaving}
               />
             </div>
@@ -781,8 +544,8 @@ export default function ProfileContent() {
                       <DependentItem
                         key={dependent.id}
                         dependent={dependent}
-                        onEdit={handleEditDependent}
-                        onDelete={handleDeleteDependent}
+                        onEdit={onEditDependent}
+                        onDelete={onDeleteDependent}
                         onImageUpload={handleImageUpload}
                         readOnly={!roleAccess.canEdit}
                       />

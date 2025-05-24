@@ -191,7 +191,7 @@ export function DependentForm({
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={field.value}
+                        selected={field.value as Date | undefined}
                         onSelect={field.onChange}
                         initialFocus
                         disabled={(date) =>
@@ -358,7 +358,7 @@ export function DependentForm({
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={field.value || undefined}
+                        selected={field.value as Date | undefined}
                         onSelect={field.onChange}
                         initialFocus
                         disabled={(date) =>
@@ -404,7 +404,7 @@ export function DependentForm({
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={field.value || undefined}
+                        selected={field.value as Date | undefined}
                         onSelect={field.onChange}
                         initialFocus
                         disabled={(date) =>

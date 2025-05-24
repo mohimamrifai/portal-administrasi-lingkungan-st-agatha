@@ -109,22 +109,22 @@ export const familyHeadFormSchema = z.object({
   gender: z.nativeEnum(Gender, { 
     required_error: "Jenis kelamin wajib dipilih" 
   }),
-  birthPlace: z.string().min(3, { message: "Tempat lahir minimal 3 karakter" }),
+  birthPlace: z.string().min(3, { message: "Tempat lahir minimal 3 karakter" }).optional().or(z.literal("")),
   birthDate: z.date({ 
     required_error: "Tanggal lahir wajib diisi" 
-  }),
-  nik: z.string().regex(/^\d{16}$/, { message: "NIK harus 16 digit angka" }),
+  }).optional().nullable(),
+  nik: z.string().regex(/^\d{16}$/, { message: "NIK harus 16 digit angka" }).optional().or(z.literal("")),
   maritalStatus: z.nativeEnum(MaritalStatus, { 
     required_error: "Status pernikahan wajib dipilih" 
   }),
   address: z.string().min(5, { message: "Alamat minimal 5 karakter" }),
-  city: z.string().min(3, { message: "Kota domisili minimal 3 karakter" }),
+  city: z.string().min(3, { message: "Kota domisili minimal 3 karakter" }).optional().or(z.literal("")),
   phoneNumber: z.string().regex(/^08\d{8,11}$/, { 
     message: "Nomor telepon harus dimulai dengan 08 dan minimal 10 digit" 
-  }),
+  }).optional().or(z.literal("")),
   email: z.string().email({ message: "Format email tidak valid" }).optional().or(z.literal("")),
-  occupation: z.string().min(3, { message: "Pekerjaan minimal 3 karakter" }),
-  education: z.string().min(2, { message: "Pendidikan terakhir wajib diisi" }),
+  occupation: z.string().min(3, { message: "Pekerjaan minimal 3 karakter" }).optional().or(z.literal("")),
+  education: z.string().min(2, { message: "Pendidikan terakhir wajib diisi" }).optional().or(z.literal("")),
   religion: z.nativeEnum(Religion, {
     required_error: "Agama wajib dipilih" 
   }),

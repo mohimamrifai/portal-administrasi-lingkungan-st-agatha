@@ -186,7 +186,7 @@ export function SpouseForm({
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={field.value}
+                      selected={field.value as Date | undefined}
                       onSelect={field.onChange}
                       disabled={isSubmitting || readOnly}
                       initialFocus
@@ -439,7 +439,7 @@ export function SpouseForm({
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={field.value || undefined}
+                        selected={field.value as Date | undefined}
                         onSelect={field.onChange}
                         disabled={isSubmitting || readOnly}
                         initialFocus
@@ -482,7 +482,7 @@ export function SpouseForm({
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={field.value || undefined}
+                        selected={field.value as Date | undefined}
                         onSelect={field.onChange}
                         disabled={isSubmitting || readOnly}
                         initialFocus
@@ -525,7 +525,7 @@ export function SpouseForm({
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={field.value || undefined}
+                        selected={field.value as Date | undefined}
                         onSelect={field.onChange}
                         disabled={isSubmitting || readOnly}
                         initialFocus

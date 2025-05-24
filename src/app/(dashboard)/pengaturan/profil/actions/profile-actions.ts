@@ -28,7 +28,7 @@ export async function getProfileData(userId: string) {
     }
 
     // Gunakan adapter untuk konversi data
-    const profileData = adaptProfileData(user.keluarga)
+    const profileData = await adaptProfileData(user.keluarga)
 
     return {
       success: true,
@@ -46,7 +46,7 @@ export async function getProfileData(userId: string) {
 export async function updateFamilyHead(userId: string, data: {
   fullName: string
   birthPlace: string
-  birthDate: Date
+  birthDate: Date | null | undefined
   address: string
   city: string
   phoneNumber: string

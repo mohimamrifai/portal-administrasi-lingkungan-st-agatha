@@ -12,12 +12,12 @@ import {
 /**
  * Adapts data from database to UI data format
  */
-export function adaptProfileData(
+export async function adaptProfileData(
   keluarga: KeluargaUmat & { 
     pasangan: Pasangan | null;
     tanggungan: Tanggungan[];
   }
-): ProfileData {
+): Promise<ProfileData> {
   return {
     familyHead: {
       id: parseInt(keluarga.id),
@@ -48,8 +48,8 @@ export function adaptProfileData(
       birthPlace: keluarga.pasangan.tempatLahir,
       birthDate: keluarga.pasangan.tanggalLahir,
       nik: "",
-      address: "",
-      city: "",
+      address: keluarga.alamat,
+      city: keluarga.kotaDomisili || "",
       phoneNumber: keluarga.pasangan.nomorTelepon || "",
       email: "",
       occupation: "",
