@@ -39,6 +39,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
   const [editingTransaction, setEditingTransaction] = useState<IKATATransaction | null>(null);
   const [skipConfirmation, setSkipConfirmation] = useState(false);
   const [transactions, setTransactions] = useState<IKATATransaction[]>(initialTransactions);
+  const [filteredTransactions, setFilteredTransactions] = useState<IKATATransaction[]>(initialTransactions);
   
   // State untuk menentukan apakah filter aktif atau tidak
   const [filterActive, setFilterActive] = useState(false);
@@ -49,24 +50,20 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
   const canModifyData = isAdmin || isTreasurer;
 
   // Filter transaksi berdasarkan periode yang dipilih
-  const filteredTransactions = useMemo(() => {
-    if (!filterActive) {
-      return transactions;
+  useEffect(() => {
+    if (filterActive) {
+      // Format tanggal transaksi: '2024-04-01' (tahun-bulan-hari)
+      const filtered = transactions.filter(tx => {
+        const dateParts = tx.tanggal.split('-');
+        const txYear = parseInt(dateParts[0], 10);
+        const txMonth = parseInt(dateParts[1], 10);
+        
+        return txMonth === period.bulan && txYear === period.tahun;
+      });
+      setFilteredTransactions(filtered);
+    } else {
+      setFilteredTransactions(transactions);
     }
-    
-    // Jika bulan = 0, tampilkan semua data
-    if (period.bulan === 0) {
-      return transactions;
-    }
-    
-    // Filter berdasarkan bulan dan tahun
-    const startDate = new Date(period.tahun, period.bulan - 1, 1);
-    const endDate = new Date(period.tahun, period.bulan, 0);
-    
-    return transactions.filter(transaction => {
-      const txDate = new Date(transaction.tanggal);
-      return txDate >= startDate && txDate <= endDate;
-    });
   }, [transactions, period, filterActive]);
 
   // const { 
@@ -98,34 +95,9 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
   const [summaryData, setSummaryData] = useState<IKATASummary>(summary);
 
   useEffect(() => {
-    // Hitung ulang summary berdasarkan data transaksi saat ini
-    const filteredTransactions = filterActive ? transactions.filter(tx => {
-      // Format tanggal transaksi: '2024-04-01' (tahun-bulan-hari)
-      const dateParts = tx.tanggal.split('-');
-      const txYear = parseInt(dateParts[0], 10);
-      const txMonth = parseInt(dateParts[1], 10); // Bulan dalam format 1-12
-      
-      // Bandingkan dengan period (bulan juga dalam format 1-12)
-      return txMonth === period.bulan && txYear === period.tahun;
-    }) : transactions;
-    
-    const pemasukan = filteredTransactions
-      .filter(tx => tx.jenis === 'uang_masuk')
-      .reduce((sum, tx) => sum + tx.jumlah, 0);
-    
-    const pengeluaran = filteredTransactions
-      .filter(tx => tx.jenis === 'uang_keluar')
-      .reduce((sum, tx) => sum + tx.jumlah, 0);
-    
-    const saldoAkhir = summary.saldoAwal + pemasukan - pengeluaran;
-    
-    setSummaryData({
-      ...summary,
-      pemasukan,
-      pengeluaran,
-      saldoAkhir
-    });
-  }, [transactions, summary, period, filterActive]);
+    // Gunakan data summary langsung dari server, bukan menghitung ulang di sisi klien
+    setSummaryData(summary);
+  }, [summary]);
 
   if (!hasAccess) {
     return <div className="flex justify-center items-center h-64">Memeriksa akses...</div>;
@@ -363,7 +335,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {!canModifyData && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -374,61 +346,23 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         </Alert>
       )}
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold mb-1">Kas IKATA</h2>
-          <p className="text-muted-foreground">
-            Manajemen kas Ikatan Keluarga Katolik
-          </p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-2xl font-bold">Kas IKATA</h1>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
           <PeriodFilter period={period} onPeriodChange={handlePeriodChange} />
-
-          {filterActive && (
-            <Button 
-              variant="outline" 
-              onClick={handleResetFilter}
-              className="h-10"
-            >
-              Reset Filter
-            </Button>
-          )}
-
-          {canModifyData && (
-            <>
-              <Button 
-                onClick={() => {
-                  setEditingTransaction(null);
-                  setIsAddTransactionOpen(true);
-                }}
-                className="h-10"
-              >
-                Tambah Transaksi
-              </Button>
-              
-              <SaldoAwalFormDialog
-                onSubmit={handleSaveSaldoAwal}
-                currentBalance={summaryData.saldoAwal}
-              />
-            </>
-          )}
-          
-          <Button 
-            variant="outline" 
-            onClick={handleOpenPrintDialog}
-            className="h-10"
-          >
-            <Printer className="h-4 w-4 mr-2" /> Cetak PDF
-          </Button>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={filterActive}
+              onChange={(e) => setFilterActive(e.target.checked)}
+              className="checkbox checkbox-sm"
+            />
+            <span className="text-sm">Filter Periode</span>
+          </label>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <SummaryCards 
-          summary={summaryData} 
-        />
-      </div>
+      <SummaryCards summary={summaryData} />
 
       <Card>
         <CardHeader>

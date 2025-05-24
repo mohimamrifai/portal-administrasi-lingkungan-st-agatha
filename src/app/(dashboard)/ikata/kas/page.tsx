@@ -2,6 +2,7 @@ import { getKasIkataSummary, getKasIkataTransactions, getKeluargaUmatList } from
 import { KasIKATAContent } from './components/kas-ikata-content';
 import { IKATATransaction } from './types';
 import { format } from 'date-fns';
+import { debugIkataTransactions } from '@/app/(dashboard)/dashboard/actions';
 
 // Pastikan halaman selalu mengambil data terbaru
 export const revalidate = 0;
@@ -12,6 +13,9 @@ export default async function KasIKATAPage() {
   const currentDate = new Date();
   const currentMonth = currentDate.getMonth() + 1;
   const currentYear = currentDate.getFullYear();
+  
+  // Debug transaksi ikata
+  const debugData = await debugIkataTransactions(currentMonth, currentYear);
   
   // Mendapatkan data dari server action
   const summary = await getKasIkataSummary(currentMonth, currentYear);

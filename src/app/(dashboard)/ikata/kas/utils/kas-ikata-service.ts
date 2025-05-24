@@ -7,27 +7,47 @@ import { revalidatePath } from "next/cache";
 // Fungsi untuk mendapatkan data transaksi Kas IKATA
 export async function getKasIkataTransactions(bulan?: number, tahun?: number) {
   try {
-    // Filter berdasarkan bulan dan tahun jika diberikan
-    const dateFilter = bulan !== undefined && tahun !== undefined 
-      ? {
-          gte: new Date(tahun, bulan - 1, 1),
-          lt: new Date(tahun, bulan, 0, 23, 59, 59),
-        }
-      : undefined;
+    console.log("[getKasIkataTransactions] Called with params:", { bulan, tahun });
+    
+    // Gunakan bulan dan tahun saat ini jika tidak diberikan
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth() + 1; // Januari = 1
+    const currentYear = currentDate.getFullYear();
+    
+    // Gunakan bulan dan tahun saat ini, bukan parameter input
+    const month = currentMonth;
+    const year = currentYear;
+    
+    console.log("[getKasIkataTransactions] Using current month/year:", { month, year });
+    
+    // Filter berdasarkan bulan dan tahun
+    const dateStart = new Date(year, month - 1, 1);
+    const dateEnd = new Date(year, month, 0, 23, 59, 59);
+    
+    console.log("[getKasIkataTransactions] Date range:", { dateStart, dateEnd });
 
     // Query untuk mendapatkan transaksi
     const transactionQuery = {
-      where: dateFilter ? { tanggal: dateFilter } : {},
+      where: { 
+        tanggal: {
+          gte: dateStart,
+          lte: dateEnd
+        } 
+      },
       orderBy: {
         tanggal: 'desc' as const
       }
     };
     
+    console.log("[getKasIkataTransactions] Query:", JSON.stringify(transactionQuery.where));
+    
     const transactions = await prisma.kasIkata.findMany(transactionQuery);
+    
+    console.log("[getKasIkataTransactions] Found transactions:", transactions.length);
     
     return transactions;
   } catch (error) {
-    console.error("Error fetching kas ikata transactions:", error);
+    console.error("[getKasIkataTransactions] Error:", error);
     throw new Error("Gagal mengambil data transaksi kas IKATA");
   }
 }
@@ -35,18 +55,26 @@ export async function getKasIkataTransactions(bulan?: number, tahun?: number) {
 // Fungsi untuk mendapatkan ringkasan Kas IKATA
 export async function getKasIkataSummary(bulan?: number, tahun?: number) {
   try {
-    // Filter berdasarkan bulan dan tahun jika diberikan
-    const dateStart = bulan !== undefined && tahun !== undefined 
-      ? new Date(tahun, bulan - 1, 1) 
-      : undefined;
-    const dateEnd = bulan !== undefined && tahun !== undefined
-      ? new Date(tahun, bulan, 0, 23, 59, 59)
-      : undefined;
-
-    // Cek saldo awal
-    let saldoAwal = 0;
+    console.log("[getKasIkataSummary] Called with params:", { bulan, tahun });
     
-    // Mencoba mendapatkan saldo awal dari transaksi khusus "SALDO AWAL"
+    // Gunakan bulan dan tahun saat ini jika tidak diberikan
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth() + 1; // Januari = 1
+    const currentYear = currentDate.getFullYear();
+    
+    // Gunakan bulan dan tahun saat ini, bukan parameter input
+    const month = currentMonth;
+    const year = currentYear;
+    
+    console.log("[getKasIkataSummary] Using current month/year:", { month, year });
+    
+    // Filter berdasarkan bulan dan tahun
+    const dateStart = new Date(year, month - 1, 1);
+    const dateEnd = new Date(year, month, 0, 23, 59, 59);
+    
+    console.log("[getKasIkataSummary] Date range:", { dateStart, dateEnd });
+
+    // Dapatkan saldo awal dari transaksi SALDO AWAL
     const saldoAwalTransaction = await prisma.kasIkata.findFirst({
       where: {
         tipeTransaksi: TipeTransaksiIkata.LAIN_LAIN,
@@ -57,109 +85,58 @@ export async function getKasIkataSummary(bulan?: number, tahun?: number) {
       }
     });
     
-    if (saldoAwalTransaction) {
-      // Jika ditemukan, gunakan nilai debit sebagai saldo awal
-      saldoAwal = saldoAwalTransaction.debit;
-      console.log("Saldo awal dari transaksi:", saldoAwal);
-    } else {
-      // Jika tidak ditemukan, coba cari di tabel saldoAwalIkata (kompatibilitas dengan kode lama)
-      if (bulan !== undefined && tahun !== undefined) {
-        const saldoAwalSetting = await prisma.saldoAwalIkata.findFirst({
-          where: {
-            tahun: tahun,
-            bulan: bulan
-          }
-        });
-        
-        if (saldoAwalSetting) {
-          // Jika ada setting saldo awal, gunakan nilai dari setting
-          saldoAwal = saldoAwalSetting.saldoAwal;
-          console.log("Saldo awal dari tabel saldoAwalIkata:", saldoAwal);
-        } else {
-          // Jika tidak ada setting, hitung saldo awal dari transaksi sebelumnya
-          const saldoAwalQuery = dateStart 
-            ? await prisma.kasIkata.aggregate({
-                _sum: {
-                  debit: true,
-                  kredit: true,
-                },
-                where: {
-                  tanggal: {
-                    lt: dateStart,
-                  },
-                  keterangan: {
-                    not: "SALDO AWAL" // Jangan hitung transaksi saldo awal
-                  }
-                },
-              })
-            : { _sum: { debit: 0, kredit: 0 } };
-          
-          saldoAwal = (saldoAwalQuery._sum.debit || 0) - (saldoAwalQuery._sum.kredit || 0);
-          console.log("Saldo awal dari perhitungan transaksi:", saldoAwal);
-        }
-      } else {
-        // Jika bulan dan tahun tidak ditentukan, gunakan semua transaksi
-        saldoAwal = 0; // Saldo awal 0 jika menampilkan semua data
-        console.log("Saldo awal default (0) karena tidak ada bulan/tahun yang ditentukan");
-      }
-    }
-
+    const saldoAwal = saldoAwalTransaction ? saldoAwalTransaction.debit : 0;
+    console.log("[getKasIkataSummary] Saldo awal:", saldoAwal, saldoAwalTransaction?.id);
+    
     // Query untuk transaksi pada bulan yang dipilih
     const transactionQuery = {
-      where: dateStart && dateEnd
-        ? {
-            tanggal: {
-              gte: dateStart,
-              lte: dateEnd,
-            },
-            keterangan: {
-              not: "SALDO AWAL" // Jangan hitung transaksi saldo awal
-            }
-          }
-        : {
-            keterangan: {
-              not: "SALDO AWAL" // Jangan hitung transaksi saldo awal
-            }
-          },
+      where: {
+        tanggal: {
+          gte: dateStart,
+          lte: dateEnd,
+        },
+        keterangan: {
+          not: "SALDO AWAL" // Jangan hitung transaksi saldo awal
+        }
+      }
     };
-
-    // Mengambil total pemasukan (debit) untuk periode
-    const pemasukan = await prisma.kasIkata.aggregate({
-      _sum: {
+    
+    // Dapatkan semua transaksi untuk bulan ini
+    const transactions = await prisma.kasIkata.findMany({
+      where: transactionQuery.where,
+      select: {
+        id: true,
+        tanggal: true,
+        jenisTranasksi: true,
         debit: true,
-      },
-      where: {
-        ...transactionQuery.where,
-        jenisTranasksi: "UANG_MASUK",
-      },
+        kredit: true
+      }
     });
-
-    // Mengambil total pengeluaran (kredit) untuk periode
-    const pengeluaran = await prisma.kasIkata.aggregate({
-      _sum: {
-        kredit: true,
-      },
-      where: {
-        ...transactionQuery.where,
-        jenisTranasksi: "UANG_KELUAR",
-      },
-    });
-
-    // Menghitung saldo akhir
-    const pemasukanValue = pemasukan._sum.debit || 0;
-    const pengeluaranValue = pengeluaran._sum.kredit || 0;
-    const saldoAkhir = saldoAwal + pemasukanValue - pengeluaranValue;
-
-    console.log("Summary:", { saldoAwal, pemasukan: pemasukanValue, pengeluaran: pengeluaranValue, saldoAkhir });
-
-    return {
+    
+    console.log("[getKasIkataSummary] Found transactions:", transactions.length);
+    
+    // Hitung pemasukan dan pengeluaran
+    const pemasukanTxs = transactions.filter(tx => tx.jenisTranasksi === "UANG_MASUK");
+    const pengeluaranTxs = transactions.filter(tx => tx.jenisTranasksi === "UANG_KELUAR");
+    
+    const pemasukan = pemasukanTxs.reduce((sum, tx) => sum + tx.debit, 0);
+    const pengeluaran = pengeluaranTxs.reduce((sum, tx) => sum + tx.kredit, 0);
+    
+    // Hitung saldo akhir
+    const saldoAkhir = saldoAwal + pemasukan - pengeluaran;
+    
+    const result = {
       saldoAwal,
-      pemasukan: pemasukanValue,
-      pengeluaran: pengeluaranValue,
+      pemasukan,
+      pengeluaran,
       saldoAkhir
     };
+    
+    console.log("[getKasIkataSummary] Result:", result);
+    
+    return result;
   } catch (error) {
-    console.error("Error calculating kas ikata summary:", error);
+    console.error("[getKasIkataSummary] Error:", error);
     throw new Error("Gagal menghitung ringkasan kas IKATA");
   }
 }

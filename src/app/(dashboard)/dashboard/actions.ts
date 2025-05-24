@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import { unstable_noStore as noStore } from "next/cache";
 import { KesekretariatanSummary, KeuanganIkataSummary, KeuanganLingkunganSummary } from "./types";
+import { TipeTransaksiLingkungan, TipeTransaksiIkata } from "@prisma/client";
 
 // Fungsi untuk mendapatkan data Keuangan Lingkungan
 export async function getKeuanganLingkunganData(bulan?: number, tahun?: number): Promise<KeuanganLingkunganSummary> {
@@ -17,67 +18,59 @@ export async function getKeuanganLingkunganData(bulan?: number, tahun?: number):
       ? new Date(tahun, bulan + 1, 0)
       : undefined;
 
-    // Query untuk saldo awal (semua transaksi sebelum periode yang dipilih)
-    const saldoAwalQuery = dateStart 
-      ? await prisma.kasLingkungan.aggregate({
-          _sum: {
-            debit: true,
-            kredit: true,
-          },
-          where: {
-            tanggal: {
-              lt: dateStart,
-            },
-          },
-        })
-      : { _sum: { debit: 0, kredit: 0 } };
+    // Cek apakah ada transaksi saldo awal
+    const initialBalanceTransaction = await prisma.kasLingkungan.findFirst({
+      where: {
+        tipeTransaksi: TipeTransaksiLingkungan.LAIN_LAIN,
+        keterangan: 'SALDO AWAL'
+      },
+      orderBy: {
+        tanggal: 'desc'
+      }
+    });
+    
+    // Gunakan saldo awal dari transaksi jika ada
+    const saldoAwal = initialBalanceTransaction ? initialBalanceTransaction.debit : 0;
 
-    // Query untuk transaksi pada bulan yang dipilih
-    const transactionQuery = {
-      where: dateStart && dateEnd
-        ? {
-            tanggal: {
-              gte: dateStart,
-              lte: dateEnd,
-            },
-          }
-        : {},
-    };
-
-    // Mengambil total pemasukan (debit) untuk periode sesuai dengan schema dan seed data
+    // Mengambil total pemasukan (debit) untuk periode
     const pemasukan = await prisma.kasLingkungan.aggregate({
       _sum: {
         debit: true,
       },
       where: {
-        ...transactionQuery.where,
+        ...(dateStart && dateEnd ? { tanggal: { gte: dateStart, lte: dateEnd } } : {}),
         jenisTranasksi: "UANG_MASUK",
+        NOT: {
+          keterangan: 'SALDO AWAL'
+        }
       },
     });
 
-    // Mengambil total pengeluaran (kredit) untuk periode sesuai dengan schema dan seed data
+    // Mengambil total pengeluaran (kredit) untuk periode
     const pengeluaran = await prisma.kasLingkungan.aggregate({
       _sum: {
         kredit: true,
       },
       where: {
-        ...transactionQuery.where,
+        ...(dateStart && dateEnd ? { tanggal: { gte: dateStart, lte: dateEnd } } : {}),
         jenisTranasksi: "UANG_KELUAR",
+        NOT: {
+          keterangan: 'SALDO AWAL'
+        }
       },
     });
 
-    // Menghitung saldo awal
-    const saldoAwal = 
-      (saldoAwalQuery._sum.debit || 0) - (saldoAwalQuery._sum.kredit || 0);
-
-    // Menghitung saldo akhir
-    const totalPemasukan = pemasukan._sum.debit || 0;
-    const totalPengeluaran = pengeluaran._sum.kredit || 0;
+    // Menghitung saldo akhir (dengan null check)
+    const totalPemasukan = pemasukan._sum?.debit || 0;
+    const totalPengeluaran = pengeluaran._sum?.kredit || 0;
+    
+    // Menyesuaikan perhitungan untuk konsisten dengan halaman kas lingkungan
+    const adjustedTotalPemasukan = saldoAwal + totalPemasukan;
     const saldoAkhir = saldoAwal + totalPemasukan - totalPengeluaran;
 
     return {
       saldoAwal,
-      totalPemasukan,
+      totalPemasukan: adjustedTotalPemasukan, // Termasuk saldo awal dalam total pemasukan
       totalPengeluaran,
       saldoAkhir,
     };
@@ -97,98 +90,20 @@ export async function getKeuanganIkataData(bulan?: number, tahun?: number): Prom
   noStore(); // Menonaktifkan caching
 
   try {
-    // Filter berdasarkan bulan dan tahun jika diberikan
-    const dateStart = bulan !== undefined && tahun !== undefined 
-      ? new Date(tahun, bulan, 1) 
-      : undefined;
-    const dateEnd = bulan !== undefined && tahun !== undefined
-      ? new Date(tahun, bulan + 1, 0)
-      : undefined;
-
-    // Cek apakah ada setting saldo awal untuk bulan dan tahun ini
-    let saldoAwal = 0;
+    console.log("[getKeuanganIkataData] Called with params:", { bulan, tahun });
     
-    if (bulan !== undefined && tahun !== undefined) {
-      const saldoAwalSetting = await prisma.saldoAwalIkata.findFirst({
-        where: {
-          tahun: tahun,
-          bulan: bulan
-        }
-      });
-      
-      if (saldoAwalSetting) {
-        // Jika ada setting saldo awal, gunakan nilai dari setting
-        saldoAwal = saldoAwalSetting.saldoAwal;
-      } else {
-        // Jika tidak ada setting, hitung saldo awal dari transaksi sebelumnya
-        const saldoAwalQuery = dateStart 
-          ? await prisma.kasIkata.aggregate({
-              _sum: {
-                kredit: true,
-                debit: true,
-              },
-              where: {
-                tanggal: {
-                  lt: dateStart,
-                },
-              },
-            })
-          : { _sum: { kredit: 0, debit: 0 } };
-        
-        saldoAwal = (saldoAwalQuery._sum.debit || 0) - (saldoAwalQuery._sum.kredit || 0);
-      }
-    } else {
-      // Jika bulan dan tahun tidak ditentukan, gunakan semua transaksi
-      saldoAwal = 0; // Saldo awal 0 jika menampilkan semua data
-    }
-
-    // Query untuk transaksi pada bulan yang dipilih
-    const transactionQuery = {
-      where: dateStart && dateEnd
-        ? {
-            tanggal: {
-              gte: dateStart,
-              lte: dateEnd,
-            },
-          }
-        : {},
-    };
-
-    // Mengambil total pemasukan (debit) untuk periode sesuai dengan schema dan seed data
-    const pemasukan = await prisma.kasIkata.aggregate({
-      _sum: {
-        debit: true,
-      },
-      where: {
-        ...transactionQuery.where,
-        jenisTranasksi: "UANG_MASUK",
-      },
-    });
-
-    // Mengambil total pengeluaran (kredit) untuk periode
-    const pengeluaran = await prisma.kasIkata.aggregate({
-      _sum: {
-        kredit: true,
-      },
-      where: {
-        ...transactionQuery.where,
-        jenisTranasksi: "UANG_KELUAR",
-      },
-    });
-
-    // Menghitung saldo akhir
-    const pemasukan_value = pemasukan._sum.debit || 0;
-    const pengeluaran_value = pengeluaran._sum.kredit || 0;
-    const saldoAkhir = saldoAwal + pemasukan_value - pengeluaran_value;
-
-    return {
-      saldoAwal,
-      pemasukan: pemasukan_value,
-      pengeluaran: pengeluaran_value,
-      saldoAkhir,
-    };
+    // Import fungsi getKasIkataSummary langsung
+    const { getKasIkataSummary } = await import("@/app/(dashboard)/ikata/kas/utils/kas-ikata-service");
+    
+    // Gunakan hasil dari getKasIkataSummary langsung
+    const summary = await getKasIkataSummary();
+    
+    console.log("[getKeuanganIkataData] Using summary from getKasIkataSummary:", summary);
+    
+    // Kembalikan data yang persis sama
+    return summary;
   } catch (error) {
-    console.error("Error getting keuangan IKATA data:", error);
+    console.error("[getKeuanganIkataData] Error:", error);
     return {
       saldoAwal: 0,
       pemasukan: 0,
@@ -556,5 +471,93 @@ export async function getPenunggakIkataData() {
   } catch (error) {
     console.error("Error getting penunggak IKATA data:", error);
     return [];
+  }
+}
+
+// Fungsi khusus untuk debugging transaksi IKATA
+export async function debugIkataTransactions(bulan?: number, tahun?: number) {
+  noStore();
+  
+  try {
+    console.log("[debugIkataTransactions] Checking transactions for", { bulan, tahun });
+    
+    // Gunakan bulan dan tahun saat ini, bukan parameter input
+    const currentDate = new Date();
+    const month = currentDate.getMonth() + 1; // Januari = 1
+    const year = currentDate.getFullYear();
+    
+    console.log("[debugIkataTransactions] Using current month/year:", { month, year });
+    
+    // Dapatkan semua transaksi saldo awal
+    const saldoAwalTransactions = await prisma.kasIkata.findMany({
+      where: {
+        tipeTransaksi: TipeTransaksiIkata.LAIN_LAIN,
+        keterangan: "SALDO AWAL"
+      },
+      orderBy: {
+        updatedAt: 'desc'
+      }
+    });
+    
+    console.log("[debugIkataTransactions] Saldo Awal transactions:", saldoAwalTransactions);
+    
+    // Filter berdasarkan bulan dan tahun saat ini
+    const dateStart = new Date(year, month - 1, 1);
+    const dateEnd = new Date(year, month, 0, 23, 59, 59);
+    
+    console.log("[debugIkataTransactions] Date range:", { dateStart, dateEnd });
+    
+    // Ambil semua transaksi pemasukan
+    const incomeTransactions = await prisma.kasIkata.findMany({
+      where: {
+        tanggal: {
+          gte: dateStart,
+          lte: dateEnd,
+        },
+        jenisTranasksi: "UANG_MASUK",
+        keterangan: {
+          not: "SALDO AWAL"
+        }
+      }
+    });
+    
+    console.log("[debugIkataTransactions] Income transactions:", incomeTransactions);
+    
+    // Ambil semua transaksi pengeluaran
+    const expenseTransactions = await prisma.kasIkata.findMany({
+      where: {
+        tanggal: {
+          gte: dateStart,
+          lte: dateEnd,
+        },
+        jenisTranasksi: "UANG_KELUAR"
+      }
+    });
+    
+    console.log("[debugIkataTransactions] Expense transactions:", expenseTransactions);
+    
+    // Hitung total
+    const totalIncome = incomeTransactions.reduce((sum, tx) => sum + tx.debit, 0);
+    const totalExpense = expenseTransactions.reduce((sum, tx) => sum + tx.kredit, 0);
+    
+    console.log("[debugIkataTransactions] Totals:", { 
+      totalIncome, 
+      totalExpense, 
+      incomeCount: incomeTransactions.length,
+      expenseCount: expenseTransactions.length
+    });
+    
+    return {
+      saldoAwalTransactions,
+      incomeTransactions,
+      expenseTransactions,
+      totals: {
+        totalIncome,
+        totalExpense
+      }
+    };
+  } catch (error) {
+    console.error("[debugIkataTransactions] Error:", error);
+    return null;
   }
 }

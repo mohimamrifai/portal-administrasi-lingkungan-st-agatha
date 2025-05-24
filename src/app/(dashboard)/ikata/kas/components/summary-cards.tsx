@@ -11,7 +11,7 @@ interface SummaryCardsProps {
 
 export function SummaryCards({ summary }: SummaryCardsProps) {
   return (
-    <>
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
       <Card className="gap-0 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Saldo Awal</CardTitle>
@@ -48,6 +48,6 @@ export function SummaryCards({ summary }: SummaryCardsProps) {
           <p className="text-xl sm:text-2xl font-bold">{formatCurrency(summary.saldoAkhir)}</p>
         </CardContent>
       </Card>
-    </>
+    </div>
   );
 } 
