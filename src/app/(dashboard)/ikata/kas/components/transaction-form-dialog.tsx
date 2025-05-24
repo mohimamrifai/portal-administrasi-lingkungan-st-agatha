@@ -44,20 +44,18 @@ import {
 } from "@/components/ui/command"
 
 // Periode bulan untuk pembayaran
-const periodeBulanOptions = [
-  { value: '2024-01', label: 'Januari 2024' },
-  { value: '2024-02', label: 'Februari 2024' },
-  { value: '2024-03', label: 'Maret 2024' },
-  { value: '2024-04', label: 'April 2024' },
-  { value: '2024-05', label: 'Mei 2024' },
-  { value: '2024-06', label: 'Juni 2024' },
-  { value: '2024-07', label: 'Juli 2024' },
-  { value: '2024-08', label: 'Agustus 2024' },
-  { value: '2024-09', label: 'September 2024' },
-  { value: '2024-10', label: 'Oktober 2024' },
-  { value: '2024-11', label: 'November 2024' },
-  { value: '2024-12', label: 'Desember 2024' },
-];
+const getPeriodeBulanOptions = () => {
+  const currentYear = new Date().getFullYear();
+  const months = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+  
+  return months.map((month, index) => ({
+    value: `${currentYear}-${(index + 1).toString().padStart(2, '0')}`,
+    label: `${month} ${currentYear}`
+  }));
+};
 
 const transactionFormSchema = z.object({
   tanggal: z.date({
@@ -373,7 +371,7 @@ export function TransactionFormDialog({
                         selected={field.value}
                         onSelect={field.onChange}
                         disabled={(date) =>
-                          date > new Date() || date < new Date("1900-01-01")
+                          date > new Date(new Date().setHours(23, 59, 59, 999)) || date < new Date("1900-01-01")
                         }
                         locale={id}
                       />
@@ -481,7 +479,7 @@ export function TransactionFormDialog({
                       </FormDescription>
                     </div>
                     <div className="grid grid-cols-2 gap-3 max-h-40 overflow-y-auto p-1">
-                      {periodeBulanOptions.map((periode) => (
+                      {getPeriodeBulanOptions().map((periode) => (
                         <FormField
                           key={periode.value}
                           control={form.control}
