@@ -19,7 +19,10 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
+    DialogFooter,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 // Import components
 import { JadwalDolingCards } from "./summary-cards";
@@ -85,6 +88,7 @@ export function DoaLingkunganContent({
     const [absensiFormOpen, setAbsensiFormOpen] = useState(false);
     const [printJadwalOpen, setPrintJadwalOpen] = useState(false);
     const [showPDFPreview, setShowPDFPreview] = useState(false);
+    const [resetKKConfirmOpen, setResetKKConfirmOpen] = useState(false);
 
     // PDF data state
     const [pdfData, setPdfData] = useState<{
@@ -105,12 +109,17 @@ export function DoaLingkunganContent({
         setLoading(true);
         try {
             const currentYear = selectedTahun === "all" ? new Date().getFullYear() : parseInt(selectedTahun);
+            
+            // Ambil semua data secara parallel untuk kinerja yang lebih baik
             const [dolingData, keluargaData, riwayatData, rekapitulasi] = await Promise.all([
                 getAllDoling(),
                 getKeluargaForSelection(),
                 getRiwayatKehadiran(),
                 getRekapitulasiBulanan(currentYear)
             ]);
+            
+            // Log jumlah keluarga yang didapat (untuk debugging)
+            console.log(`Data keluarga diperbarui: ${keluargaData.length} keluarga tersedia`);
             
             // Urutkan jadwal berdasarkan tanggal terbaru dulu
             const sortedDolingData = [...dolingData].sort((a, b) => {
@@ -119,6 +128,7 @@ export function DoaLingkunganContent({
                 return dateB.getTime() - dateA.getTime(); // Terbaru di atas
             });
             
+            // Update semua state dengan data terbaru
             setJadwalState(sortedDolingData);
             setDetilState(sortedDolingData);
             setKepalaKeluargaState(keluargaData);
@@ -250,15 +260,35 @@ export function DoaLingkunganContent({
         }
     };
 
+    const handleResetKKConfirm = () => {
+        setResetKKConfirmOpen(true);
+    };
+
     const handleResetKepalaKeluarga = async () => {
         try {
             // Ambil data keluarga dari server
             const keluargaData = await getKeluargaForSelection();
-            setKepalaKeluargaState(keluargaData);
+            
+            // Pastikan semua kepala keluarga sudahTerpilih diatur ke false
+            const resetKeluargaData = keluargaData.map(keluarga => ({
+                ...keluarga,
+                sudahTerpilih: false, // Reset semua ke false
+            }));
+            
+            // Update state dengan data yang sudah direset
+            setKepalaKeluargaState(resetKeluargaData);
+            
+            // Refresh data untuk memastikan semua data terupdate
+            fetchData();
+            
+            // Tutup dialog konfirmasi
+            setResetKKConfirmOpen(false);
+            
             toast.success("Reset berhasil. Semua kepala keluarga dapat dipilih kembali.");
         } catch (error) {
             console.error("Error resetting kepala keluarga:", error);
             toast.error("Gagal melakukan reset kepala keluarga");
+            setResetKKConfirmOpen(false);
         }
     };
 
@@ -427,7 +457,7 @@ export function DoaLingkunganContent({
                 return (
                     <JadwalActionButtons
                         onAddJadwal={handleAddJadwal}
-                        onResetKepalaKeluarga={handleResetKepalaKeluarga}
+                        onResetKepalaKeluarga={handleResetKKConfirm}
                         onPrintJadwal={handlePrintJadwal}
                     />
                 );
@@ -553,6 +583,28 @@ export function DoaLingkunganContent({
                         endMonth={pdfData.endMonth}
                         endYear={pdfData.endYear}
                     />
+                </DialogContent>
+            </Dialog>
+
+            {/* Dialog Konfirmasi Reset KK */}
+            <Dialog open={resetKKConfirmOpen} onOpenChange={setResetKKConfirmOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Konfirmasi Reset Kepala Keluarga</DialogTitle>
+                        <DialogDescription>
+                            Anda yakin ingin melakukan reset data Kepala Keluarga? 
+                            Tindakan ini akan memastikan semua Kepala Keluarga (termasuk yang sudah pernah menjadi tuan rumah) 
+                            dapat dipilih kembali sebagai tuan rumah dalam jadwal doa lingkungan.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="mt-4">
+                        <Button variant="outline" onClick={() => setResetKKConfirmOpen(false)}>
+                            Batal
+                        </Button>
+                        <Button onClick={handleResetKepalaKeluarga}>
+                            Ya, Reset
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>

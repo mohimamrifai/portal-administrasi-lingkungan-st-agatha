@@ -10,7 +10,7 @@ export type FamilyHead = FamilyHeadData;
 
 export const familyHeadStatuses = [
   { value: StatusKehidupan.HIDUP, label: "Aktif" },
-  { value: StatusKehidupan.MENINGGAL, label: "Meninggal" }
+  { value: StatusKehidupan.MENINGGAL, label: "Tidak Aktif" }
 ] as const;
 
 export const familyHeadFormSchema = z.object({
