@@ -19,10 +19,15 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { AbsensiDoling, DetilDoling, JadwalDoling } from "../types"
 import { toast } from "sonner"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 import { Combobox, ComboboxOption } from "@/components/ui/combobox"
+import { Check, ChevronsUpDown, SearchIcon } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Input } from "@/components/ui/input"
 import { KeluargaForSelect } from "../actions"
 
 interface AbsensiDolingFormDialogProps {
@@ -36,6 +41,89 @@ interface AbsensiDolingFormDialogProps {
 }
 
 export type StatusKehadiran = "TIDAK_HADIR" | "SUAMI_SAJA" | "ISTRI_SAJA" | "SUAMI_ISTRI_HADIR";
+
+// Custom Combobox untuk pencarian Keluarga
+function KeluargaSearchCombobox({
+  options,
+  value,
+  onChange,
+  placeholder = "Pilih keluarga...",
+  emptyMessage = "Tidak ada keluarga ditemukan",
+  disabled = false,
+}: {
+  options: ComboboxOption[];
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  emptyMessage?: string;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  
+  const selectedOption = options.find(option => option.value === value);
+  
+  // Filter opsi berdasarkan search term - tidak case sensitive
+  const filteredOptions = useMemo(() => {
+    if (!searchTerm) return options;
+    
+    return options.filter(option => 
+      option.label.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [options, searchTerm]);
+  
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between"
+          disabled={disabled}
+        >
+          {selectedOption?.label || placeholder}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-full p-0">
+        <div className="flex items-center border-b px-3">
+          <SearchIcon className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+          <Input
+            placeholder={`Cari ${placeholder.toLowerCase()}...`}
+            className="flex h-9 w-full rounded-md border-0 bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <Command>
+          <CommandEmpty>{emptyMessage}</CommandEmpty>
+          <CommandGroup className="max-h-[300px] overflow-auto">
+            {filteredOptions.map((option) => (
+              <CommandItem
+                key={option.value}
+                value={option.value}
+                onSelect={() => {
+                  onChange(option.value);
+                  setSearchTerm("");
+                  setOpen(false);
+                }}
+              >
+                <Check
+                  className={cn(
+                    "mr-2 h-4 w-4",
+                    value === option.value ? "opacity-100" : "opacity-0"
+                  )}
+                />
+                {option.label}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export function AbsensiDolingFormDialog({
   open,
@@ -51,10 +139,12 @@ export function AbsensiDolingFormDialog({
   const [statusKehadiran, setStatusKehadiran] = useState<StatusKehadiran>(absensi?.statusKehadiran as StatusKehadiran || "TIDAK_HADIR");
   
   // Konversi keluargaList ke ComboboxOption[]
-  const keluargaOptions: ComboboxOption[] = keluargaList.map(keluarga => ({
-    label: `${keluarga.nama} - ${keluarga.alamat}`,
-    value: keluarga.id
-  }));
+  const keluargaOptions: ComboboxOption[] = keluargaList
+    .filter(keluarga => !keluarga.sudahTerpilih || (absensi && keluarga.id === absensi.keluargaId))
+    .map(keluarga => ({
+      label: keluarga.nama,
+      value: keluarga.id
+    }));
   
   // Filter jadwal yang sudah selesai atau terjadwal
   const availableJadwal = jadwalDoling.filter(jadwal => 
@@ -156,7 +246,7 @@ export function AbsensiDolingFormDialog({
           
           <div className="space-y-2">
             <Label htmlFor="keluargaId">Nama Kepala Keluarga</Label>
-            <Combobox
+            <KeluargaSearchCombobox
               options={keluargaOptions}
               value={keluargaId}
               onChange={setKeluargaId}
@@ -164,6 +254,11 @@ export function AbsensiDolingFormDialog({
               emptyMessage="Tidak ada keluarga ditemukan"
               disabled={Boolean(absensi)} // Disable jika edit mode
             />
+            {!absensi && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {keluargaOptions.length} keluarga tersedia untuk dipilih
+              </p>
+            )}
           </div>
           
           <div className="space-y-2">

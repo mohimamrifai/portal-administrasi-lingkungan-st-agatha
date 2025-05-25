@@ -60,7 +60,7 @@ export function AbsensiActionButtons({ onAddAbsensi, userRole = 'UMAT' }: Absens
   return (
     <div className="flex flex-wrap gap-2">
       <Button onClick={onAddAbsensi} variant="default" size="sm">
-        <PlusIcon className="h-4 w-4 mr-2 mb-2" />
+        <PlusIcon className="h-4 w-4 mr-2" />
         Tambah Absensi
       </Button>
     </div>

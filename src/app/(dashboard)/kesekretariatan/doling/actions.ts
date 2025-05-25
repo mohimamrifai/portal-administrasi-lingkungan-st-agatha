@@ -204,7 +204,7 @@ export async function getDolingById(id: string): Promise<DolingData | null> {
 /**
  * Mendapatkan data keluarga yang tersedia sebagai tuan rumah
  */
-export async function getKeluargaForSelection(): Promise<KeluargaForSelect[]> {
+export async function getKeluargaForSelection(dolingId?: string): Promise<KeluargaForSelect[]> {
   try {
     // Ambil semua keluarga yang masih aktif (status HIDUP dan belum keluar)
     const keluargaData = await prisma.keluargaUmat.findMany({
@@ -225,13 +225,28 @@ export async function getKeluargaForSelection(): Promise<KeluargaForSelect[]> {
       },
     });
 
+    // Jika ada dolingId, dapatkan daftar keluarga yang sudah terabsensi
+    let absensiKeluargaIds: string[] = [];
+    if (dolingId) {
+      const existingAbsensi = await prisma.absensiDoling.findMany({
+        where: {
+          doaLingkunganId: dolingId,
+        },
+        select: {
+          keluargaId: true,
+        },
+      });
+      absensiKeluargaIds = existingAbsensi.map(absensi => absensi.keluargaId);
+      console.log(`Ditemukan ${absensiKeluargaIds.length} keluarga yang sudah terabsensi untuk dolingId: ${dolingId}`);
+    }
+
     // Map data keluarga ke format yang dibutuhkan UI
     return keluargaData.map(keluarga => ({
       id: keluarga.id,
       nama: keluarga.namaKepalaKeluarga,
       alamat: keluarga.alamat,
       nomorTelepon: keluarga.nomorTelepon,
-      sudahTerpilih: false, // Selalu set false agar semua kepala keluarga dapat dipilih
+      sudahTerpilih: dolingId ? absensiKeluargaIds.includes(keluarga.id) : false,
     }));
   } catch (error) {
     console.error("Error getting keluarga data:", error);
@@ -879,5 +894,55 @@ export async function getKaleidoskopData(): Promise<{
   } catch (error) {
     console.error("Error getting kaleidoskop data:", error);
     throw new Error("Gagal mengambil data kaleidoskop");
+  }
+}
+
+/**
+ * Menghapus data absensi berdasarkan ID
+ */
+export async function deleteAbsensi(absensiId: string): Promise<void> {
+  try {
+    console.log(`Menghapus absensi dengan ID: ${absensiId}`);
+
+    // Dapatkan data absensi terlebih dahulu untuk mengetahui dolingId-nya
+    const absensi = await prisma.absensiDoling.findUnique({
+      where: { id: absensiId },
+      select: { doaLingkunganId: true }
+    });
+
+    if (!absensi) {
+      throw new Error(`Absensi dengan ID ${absensiId} tidak ditemukan`);
+    }
+
+    const dolingId = absensi.doaLingkunganId;
+
+    // Gunakan transaksi untuk konsistensi data
+    await prisma.$transaction(async (tx) => {
+      // Hapus absensi
+      await tx.absensiDoling.delete({
+        where: { id: absensiId }
+      });
+
+      // Update jumlahKKHadir pada doa lingkungan
+      const hadirCount = await tx.absensiDoling.count({
+        where: {
+          doaLingkunganId: dolingId,
+          hadir: true,
+        },
+      });
+
+      await tx.doaLingkungan.update({
+        where: { id: dolingId },
+        data: { jumlahKKHadir: hadirCount }
+      });
+
+      console.log(`Updated jumlahKKHadir to ${hadirCount} for dolingId: ${dolingId}`);
+    });
+
+    console.log(`Berhasil menghapus absensi dengan ID: ${absensiId}`);
+    revalidatePath("/kesekretariatan/doling");
+  } catch (error) {
+    console.error("Error deleting absensi:", error);
+    throw new Error(`Gagal menghapus absensi: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 } 

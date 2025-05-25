@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { EditIcon, SearchIcon, X, ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon } from "lucide-react";
+import { EditIcon, SearchIcon, X, ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon, Trash2Icon } from "lucide-react";
 import { AbsensiDoling } from "../types";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,12 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/auth-context";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -28,11 +22,12 @@ import { JadwalDoling } from "../types";
 interface AbsensiDolingTableProps {
   absensi: AbsensiDoling[];
   onEdit: (absensi: AbsensiDoling) => void;
+  onDelete?: (absensiId: string) => void;
   onAdd?: () => void;
   jadwalDoling?: JadwalDoling[];
 }
 
-export function AbsensiDolingTable({ absensi, onEdit, onAdd, jadwalDoling = [] }: AbsensiDolingTableProps) {
+export function AbsensiDolingTable({ absensi, onEdit, onDelete, onAdd, jadwalDoling = [] }: AbsensiDolingTableProps) {
   // Get user role for authorized actions
   const { userRole } = useAuth();
   
@@ -160,10 +155,24 @@ export function AbsensiDolingTable({ absensi, onEdit, onAdd, jadwalDoling = [] }
                       <TableCell>{item.namaKeluarga}</TableCell>
                       <TableCell>{getKehadiranBadge(item)}</TableCell>
                       <TableCell className="sticky right-0 bg-white shadow-[-8px_0_10px_-6px_rgba(0,0,0,0.1)] z-10">
-                        <Button variant="ghost" size="sm" onClick={() => onEdit(item)}>
-                          <EditIcon className="h-4 w-4 mr-2" />
-                          Edit
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => onEdit(item)}>
+                            <EditIcon className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                          {onDelete && (
+                            <Button variant="ghost" size="sm" className="text-red-500" 
+                              onClick={() => {
+                                if (window.confirm('Apakah Anda yakin ingin menghapus absensi ini?')) {
+                                  onDelete(item.id);
+                                }
+                              }}
+                            >
+                              <Trash2Icon className="h-4 w-4 mr-1" />
+                              Hapus
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
