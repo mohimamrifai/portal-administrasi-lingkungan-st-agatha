@@ -76,6 +76,9 @@ const transactionFormSchema = z.object({
   anggotaId: z.string().optional(),
   statusPembayaran: z.enum(['lunas', 'sebagian_bulan', 'belum_ada_pembayaran']).optional(),
   periodeBayar: z.array(z.string()).optional(),
+  totalIuran: z.coerce.number().positive({
+    message: 'Total iuran harus lebih dari 0',
+  }).optional(),
 });
 
 type TransactionFormValues = z.infer<typeof transactionFormSchema>;
@@ -98,7 +101,26 @@ export function TransactionFormDialog({
   const [showAnggotaFields, setShowAnggotaFields] = useState(false);
   const [showStatusPembayaran, setShowStatusPembayaran] = useState(false);
   const [showPeriodeBayar, setShowPeriodeBayar] = useState(false);
+  const [showTotalIuran, setShowTotalIuran] = useState(false);
   const isEditing = !!editTransaction;
+  
+  // Ambil parameter keluargaId dari URL jika ada
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const keluargaId = urlParams.get('keluargaId');
+      
+      if (keluargaId && open && !isEditing) {
+        // Set default values untuk pembayaran iuran dari parameter URL
+        form.setValue('jenis', 'uang_masuk');
+        form.setValue('tipeTransaksi', 'iuran_anggota');
+        form.setValue('anggotaId', keluargaId);
+        setShowAnggotaFields(true);
+        setShowStatusPembayaran(true);
+        setShowTotalIuran(true);
+      }
+    }
+  }, [open, isEditing]);
   
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionFormSchema),
@@ -111,6 +133,7 @@ export function TransactionFormDialog({
       anggotaId: undefined,
       statusPembayaran: undefined,
       periodeBayar: [],
+      totalIuran: 120000, // Default 120.000 (10.000 x 12 bulan)
     },
   });
 
@@ -128,6 +151,7 @@ export function TransactionFormDialog({
           anggotaId: editTransaction.anggotaId,
           statusPembayaran: editTransaction.statusPembayaran,
           periodeBayar: editTransaction.periodeBayar || [],
+          totalIuran: editTransaction.totalIuran || 120000,
         });
       } else {
         // Reset form untuk transaksi baru
@@ -140,6 +164,7 @@ export function TransactionFormDialog({
           anggotaId: undefined,
           statusPembayaran: undefined,
           periodeBayar: [],
+          totalIuran: 120000,
         });
       }
     }
@@ -180,10 +205,12 @@ export function TransactionFormDialog({
     form.setValue('anggotaId', undefined);
     form.setValue('statusPembayaran', undefined);
     form.setValue('periodeBayar', []);
+    form.setValue('totalIuran', 120000);
     
     setShowAnggotaFields(false);
     setShowStatusPembayaran(false);
     setShowPeriodeBayar(false);
+    setShowTotalIuran(false);
   }, [watchJenis, form]);
 
   // Update field saat tipe transaksi berubah
@@ -192,16 +219,20 @@ export function TransactionFormDialog({
       if (watchTipeTransaksi === 'iuran_anggota') {
         setShowAnggotaFields(true);
         setShowStatusPembayaran(true);
+        setShowTotalIuran(true);
       } else if (watchTipeTransaksi === 'sumbangan_anggota') {
         setShowAnggotaFields(true);
         setShowStatusPembayaran(false);
+        setShowTotalIuran(false);
       } else {
         setShowAnggotaFields(false);
         setShowStatusPembayaran(false);
+        setShowTotalIuran(false);
       }
     } else {
       setShowAnggotaFields(false);
       setShowStatusPembayaran(false);
+      setShowTotalIuran(false);
     }
   }, [watchJenis, watchTipeTransaksi]);
 
@@ -263,6 +294,7 @@ export function TransactionFormDialog({
         anggotaId: values.anggotaId,
         statusPembayaran: values.statusPembayaran,
         periodeBayar: values.periodeBayar,
+        totalIuran: values.totalIuran,
       });
       
       form.reset();
@@ -435,6 +467,30 @@ export function TransactionFormDialog({
                         </Command>
                       </PopoverContent>
                     </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {showTotalIuran && (
+              <FormField
+                control={form.control}
+                name="totalIuran"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Total Iuran</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        placeholder="120000" 
+                        {...field}
+                        onChange={(e) => field.onChange(e.target.valueAsNumber || 120000)}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Total iuran untuk satu tahun penuh
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

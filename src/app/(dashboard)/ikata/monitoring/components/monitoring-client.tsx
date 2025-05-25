@@ -12,7 +12,8 @@ import {
   ChevronRightIcon,
   ChevronsLeftIcon,
   ChevronsRightIcon,
-  X
+  X,
+  CreditCard
 } from "lucide-react";
 import {
   Select,
@@ -26,6 +27,7 @@ import { SendNotificationDialog } from "./send-notification-dialog";
 import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
 import { DelinquentPayment } from "../types";
+import Link from "next/link";
 
 // Tipe data untuk props komponen
 interface MonitoringClientProps {
@@ -111,6 +113,11 @@ export default function MonitoringClient({ delinquentPayments }: MonitoringClien
     return `${formatDate(awal)} - ${formatDate(akhir)}`;
   };
 
+  // Fungsi untuk membuat link ke Kas IKATA dengan parameter kepala keluarga
+  const getKasIkataLink = (payment: DelinquentPayment) => {
+    return `/ikata/kas?keluargaId=${payment.keluargaId}&kepalaKeluarga=${encodeURIComponent(payment.kepalaKeluarga)}`;
+  };
+
   return (
     <div className="container mx-auto py-6 space-y-6 px-4">
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-2">
@@ -171,14 +178,22 @@ export default function MonitoringClient({ delinquentPayments }: MonitoringClien
                     </span>
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSetIuran(payment)}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Set Iuran
-                    </Button>
+                    <div className="flex space-x-2">
+                      <Link href={getKasIkataLink(payment)} passHref>
+                        <Button variant="outline" size="sm">
+                          <CreditCard className="mr-2 h-4 w-4" />
+                          Bayar di Kas IKATA
+                        </Button>
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSetIuran(payment)}
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Set Iuran
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

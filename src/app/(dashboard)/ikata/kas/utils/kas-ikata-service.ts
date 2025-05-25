@@ -147,6 +147,7 @@ export async function createKasIkataTransaction(data: {
   debit: number;
   kredit: number;
   keluargaId?: string;
+  totalIuran?: number;
 }) {
   try {
     // Pastikan tanggal valid dengan membuat objek Date baru
@@ -174,19 +175,22 @@ export async function createKasIkataTransaction(data: {
         },
         update: {
           status: "LUNAS",
-          jumlahDibayar: data.debit
+          jumlahDibayar: data.debit,
+          totalIuran: data.totalIuran || 120000 // Default 120000 jika tidak diisi
         },
         create: {
           keluargaId: data.keluargaId,
           status: "LUNAS",
           tahun: tahun,
-          jumlahDibayar: data.debit
+          jumlahDibayar: data.debit,
+          totalIuran: data.totalIuran || 120000 // Default 120000 jika tidak diisi
         }
       });
     }
     
     // Revalidasi path agar UI diperbarui
     revalidatePath('/ikata/kas');
+    revalidatePath('/ikata/monitoring');
     
     return transaction;
   } catch (error) {
@@ -203,6 +207,7 @@ export async function updateKasIkataTransaction(id: string, data: {
   debit: number;
   kredit: number;
   keluargaId?: string;
+  totalIuran?: number;
 }) {
   try {
     // Pastikan tanggal valid
@@ -231,13 +236,15 @@ export async function updateKasIkataTransaction(id: string, data: {
         },
         data: {
           status: "LUNAS",
-          jumlahDibayar: data.debit
+          jumlahDibayar: data.debit,
+          totalIuran: data.totalIuran || 120000 // Default 120000 jika tidak diisi
         }
       });
     }
     
     // Revalidasi path agar UI diperbarui
     revalidatePath('/ikata/kas');
+    revalidatePath('/ikata/monitoring');
     
     return transaction;
   } catch (error) {

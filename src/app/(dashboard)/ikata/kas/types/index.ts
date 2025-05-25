@@ -18,6 +18,7 @@ export interface IKATATransaction {
   statusPembayaran?: StatusPembayaran;
   periodeBayar?: string[];
   anggotaId?: string;
+  totalIuran?: number;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
@@ -46,6 +47,7 @@ export interface TransactionFormData {
   statusPembayaran?: StatusPembayaran;
   periodeBayar?: string[];
   anggotaId?: string;
+  totalIuran?: number;
 }
 
 export interface SaldoAwalFormData {

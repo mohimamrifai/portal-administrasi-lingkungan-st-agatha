@@ -38,6 +38,7 @@ const mapDbToUITransaction = (
     anggotaId?: string;
     statusPembayaran?: string;
     periodeBayar?: string[];
+    totalIuran?: number;
   },
   userRole?: string
 ): IKATATransaction => {
@@ -53,6 +54,7 @@ const mapDbToUITransaction = (
     anggotaId: uiData.anggotaId,
     statusPembayaran: uiData.statusPembayaran as any,
     periodeBayar: uiData.periodeBayar,
+    totalIuran: uiData.totalIuran,
     createdAt: dbTransaction.createdAt 
       ? new Date(dbTransaction.createdAt).toISOString() 
       : new Date().toISOString(),
@@ -120,6 +122,19 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
     setSummaryData(summary);
   }, [summary]);
 
+  useEffect(() => {
+    // Check for URL parameters when component mounts
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const keluargaId = urlParams.get('keluargaId');
+      
+      if (keluargaId) {
+        // Auto-open transaction form dialog with pre-filled data
+        setIsAddTransactionOpen(true);
+      }
+    }
+  }, []);
+
   if (!hasAccess) {
     return <div className="flex justify-center items-center h-64">Memeriksa akses...</div>;
   }
@@ -167,7 +182,8 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         tipeTransaksi,
         keterangan: data.keterangan,
         jumlah: data.jumlah,
-        keluargaId: data.anggotaId
+        keluargaId: data.anggotaId,
+        totalIuran: data.totalIuran
       });
       
       // Buat transaksi UI baru dari hasil
@@ -265,7 +281,8 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         tipeTransaksi,
         keterangan: data.keterangan,
         jumlah: data.jumlah,
-        keluargaId: data.anggotaId
+        keluargaId: data.anggotaId,
+        totalIuran: data.totalIuran
       });
       
       // Update state dengan data yang diperbarui

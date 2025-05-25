@@ -6,6 +6,7 @@ export interface DelinquentPayment {
   periodeAkhir: string;
   jumlahTunggakan: number;
   status: 'belum_lunas' | 'sebagian_bulan';
+  totalIuran?: number; // Total iuran tahunan
   createdAt: string;
   updatedAt: string;
 }
