@@ -47,7 +47,7 @@ export default async function AgendaPage() {
     
     return {
       id: agenda.id,
-      title: agenda.perihal,
+      title: agenda.perihal || "",
       description: agenda.alasanPenolakan || "",
       date: new Date(agenda.tanggal),
       location: agenda.alasanPenolakan || "", // Gunakan field lain yang tersedia
@@ -61,7 +61,7 @@ export default async function AgendaPage() {
       updatedAt: new Date(agenda.updatedAt),
       // Menambahkan completedAt jika statusnya completed, atau undefined
       completedAt: statusValue === 'completed' ? new Date() : undefined,
-      rejectionReason: agenda.alasanPenolakan || undefined
+      rejectionReason: agenda.alasanPenolakan || ""
     } as Agenda;
   });
   

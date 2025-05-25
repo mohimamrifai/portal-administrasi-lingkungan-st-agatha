@@ -63,10 +63,13 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10; // Meningkatkan jumlah item per halaman karena tabel lebih ringkas
   const totalPages = Math.ceil(
-    agendas.filter((agenda) =>
-      agenda.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      agenda.description.toLowerCase().includes(searchQuery.toLowerCase())
-    ).length / itemsPerPage
+    agendas.filter((agenda) => {
+      const searchLower = searchQuery.toLowerCase();
+      // Menambahkan validasi untuk pastikan properti tidak undefined sebelum panggil toLowerCase()
+      const titleMatch = agenda.title ? agenda.title.toLowerCase().includes(searchLower) : false;
+      const descMatch = agenda.description ? agenda.description.toLowerCase().includes(searchLower) : false;
+      return titleMatch || descMatch;
+    }).length / itemsPerPage
   );
 
   // Setup notifikasi saat komponen di-mount
@@ -137,10 +140,13 @@ export default function AgendaContent({ initialAgendas = [] }: { initialAgendas:
   }, [agendas, userId]);
 
   const filteredAgendas = agendas
-    .filter((agenda) =>
-      agenda.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      agenda.description.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+    .filter((agenda) => {
+      const searchLower = searchQuery.toLowerCase();
+      // Menambahkan validasi untuk pastikan properti tidak undefined sebelum panggil toLowerCase()
+      const titleMatch = agenda.title ? agenda.title.toLowerCase().includes(searchLower) : false;
+      const descMatch = agenda.description ? agenda.description.toLowerCase().includes(searchLower) : false;
+      return titleMatch || descMatch;
+    })
     .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()); // Sort by most recently updated
 
   const paginatedAgendas = filteredAgendas.slice(

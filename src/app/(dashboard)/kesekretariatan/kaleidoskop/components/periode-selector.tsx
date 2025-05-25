@@ -49,9 +49,9 @@ export function PeriodeSelector({
     "Desember",
   ];
 
-  // Mendapatkan tahun saat ini dan 10 tahun sebelumnya
+  // Mendapatkan tahun saat ini dan rentang -5 sampai +5 tahun
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 10 }, (_, i) => (currentYear - 9 + i).toString());
+  const years = Array.from({ length: 11 }, (_, i) => (currentYear - 5 + i).toString());
 
   return (
     <div className="grid gap-4 mb-4">

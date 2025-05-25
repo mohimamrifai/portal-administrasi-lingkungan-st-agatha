@@ -7,18 +7,18 @@ const bulanList = [
 const bulanLabel = [
   "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"
 ];
-const tahunList = Array.from({ length: 11 }, (_, i) => (2020 + i).toString());
 
 export function DropdownBulanTahun({ value, onChange, className }: {
   value: string;
   onChange: (val: string) => void;
   className?: string;
 }) {
-  const currentYear = new Date().getFullYear().toString();
+  const currentYear = new Date().getFullYear();
+  const tahunList = Array.from({ length: 11 }, (_, i) => (currentYear - 5 + i).toString());
   
   // Default 'all' untuk bulan dan tahun sekarang untuk value awal
   const [bulan, setBulan] = React.useState<string>(value === 'all' ? 'all' : value.split("-")[1] || "all");
-  const [tahun, setTahun] = React.useState<string>(value === 'all' ? 'all' : value.split("-")[0] || currentYear);
+  const [tahun, setTahun] = React.useState<string>(value === 'all' ? 'all' : value.split("-")[0] || currentYear.toString());
 
   React.useEffect(() => {
     if (value === 'all') {
