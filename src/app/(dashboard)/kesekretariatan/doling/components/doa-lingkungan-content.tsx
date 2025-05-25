@@ -38,6 +38,7 @@ import {
     updateDolingDetail,
     updateAbsensi,
     deleteDoling,
+    deleteAbsensi,
     updateApprovalStatus,
     getRiwayatKehadiran,
     getRekapitulasiBulanan,
@@ -46,8 +47,7 @@ import {
 
 import { setupReminderNotifications } from "../utils/reminder-notifications";
 import { JenisIbadat, SubIbadat, StatusApproval } from "@prisma/client";
-import { format } from "date-fns";
-import { id } from "date-fns/locale";
+
 
 export interface DoaLingkunganContentProps {
     initialDoling?: DolingData[];
@@ -384,14 +384,57 @@ export function DoaLingkunganContent({
 
     // Event handlers - Absensi Doling -----------------------------------------
 
-    const handleAddAbsensi = () => {
+    const handleAddAbsensi = async () => {
         setEditingAbsensi(undefined);
+        
+        // Pastikan ada dolingId yang terpilih
+        const dolingIdToUse = selectedDolingId || 
+            (jadwalState.length > 0 ? jadwalState[0].id : null);
+            
+        if (dolingIdToUse) {
+            try {
+                // Dapatkan daftar keluarga dengan filter yang sudah terabsensi
+                const keluargaFilteredData = await getKeluargaForSelection(dolingIdToUse);
+                setKepalaKeluargaState(keluargaFilteredData);
+            } catch (error) {
+                console.error("Error getting filtered keluarga data:", error);
+            }
+        }
+        
         setAbsensiFormOpen(true);
     };
 
-    const handleEditAbsensi = (absensi: AbsensiDoling) => {
+    const handleEditAbsensi = async (absensi: AbsensiDoling) => {
         setEditingAbsensi(absensi);
+        
+        if (absensi.doaLingkunganId) {
+            try {
+                // Dapatkan daftar keluarga untuk mode edit
+                const keluargaFilteredData = await getKeluargaForSelection(absensi.doaLingkunganId);
+                setKepalaKeluargaState(keluargaFilteredData);
+            } catch (error) {
+                console.error("Error getting filtered keluarga data for edit:", error);
+            }
+        }
+        
         setAbsensiFormOpen(true);
+    };
+
+    const handleDeleteAbsensi = async (absensiId: string) => {
+        try {
+            await deleteAbsensi(absensiId);
+            
+            // Refresh data absensi jika ada dolingId yang dipilih
+            if (selectedDolingId) {
+                const absensiData = await getAbsensiByDolingId(selectedDolingId);
+                setAbsensiState(absensiData);
+            }
+            
+            toast.success("Absensi berhasil dihapus");
+        } catch (error) {
+            console.error("Error deleting absensi:", error);
+            toast.error("Gagal menghapus absensi");
+        }
     };
 
     const handleSubmitAbsensi = async (values: { 
@@ -526,6 +569,7 @@ export function DoaLingkunganContent({
                     <AbsensiDolingTable
                         absensi={absensiState}
                         onEdit={handleEditAbsensi}
+                        onDelete={handleDeleteAbsensi}
                         jadwalDoling={jadwalState}
                     />
                 </TabsContent>
