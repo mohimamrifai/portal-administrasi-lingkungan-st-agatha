@@ -244,6 +244,7 @@ model IuranIkata {
   bulanAkhir    Int?
   tahun         Int
   jumlahDibayar Float
+  totalIuran    Float        @default(120000)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 }

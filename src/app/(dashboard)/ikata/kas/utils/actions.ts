@@ -12,6 +12,7 @@ export async function createTransaction(data: {
   keterangan?: string;
   jumlah: number;
   keluargaId?: string;
+  totalIuran?: number;
 }) {
   try {
     console.log("[createTransaction] Processing request:", data);
@@ -28,7 +29,8 @@ export async function createTransaction(data: {
       keterangan: data.keterangan,
       debit,
       kredit,
-      keluargaId: data.keluargaId
+      keluargaId: data.keluargaId,
+      totalIuran: data.totalIuran
     });
     
     console.log("[createTransaction] Transaction created:", transaction);
@@ -48,6 +50,7 @@ export async function updateTransaction(id: string, data: {
   keterangan?: string;
   jumlah: number;
   keluargaId?: string;
+  totalIuran?: number;
 }) {
   try {
     // Tentukan debit dan kredit berdasarkan jenis transaksi
@@ -62,7 +65,8 @@ export async function updateTransaction(id: string, data: {
       keterangan: data.keterangan,
       debit,
       kredit,
-      keluargaId: data.keluargaId
+      keluargaId: data.keluargaId,
+      totalIuran: data.totalIuran
     });
     
     return transaction;
