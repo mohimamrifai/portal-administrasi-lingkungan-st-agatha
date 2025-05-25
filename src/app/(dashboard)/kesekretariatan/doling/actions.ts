@@ -206,6 +206,7 @@ export async function getDolingById(id: string): Promise<DolingData | null> {
  */
 export async function getKeluargaForSelection(): Promise<KeluargaForSelect[]> {
   try {
+    // Ambil semua keluarga yang masih aktif (status HIDUP dan belum keluar)
     const keluargaData = await prisma.keluargaUmat.findMany({
       where: {
         status: 'HIDUP',
@@ -214,14 +215,23 @@ export async function getKeluargaForSelection(): Promise<KeluargaForSelect[]> {
       orderBy: {
         namaKepalaKeluarga: 'asc',
       },
+      include: {
+        // Sertakan relasi doaLingkungan untuk mengetahui apakah keluarga pernah menjadi tuan rumah
+        doaLingkungan: {
+          select: {
+            id: true,
+          },
+        },
+      },
     });
 
+    // Map data keluarga ke format yang dibutuhkan UI
     return keluargaData.map(keluarga => ({
       id: keluarga.id,
       nama: keluarga.namaKepalaKeluarga,
       alamat: keluarga.alamat,
       nomorTelepon: keluarga.nomorTelepon,
-      sudahTerpilih: false, // Semua kepala keluarga dapat dipilih
+      sudahTerpilih: false, // Selalu set false agar semua kepala keluarga dapat dipilih
     }));
   } catch (error) {
     console.error("Error getting keluarga data:", error);
@@ -266,6 +276,18 @@ export async function addDoling(data: {
       }
     }
     
+    // Verifikasi bahwa keluarga yang dipilih ada di database
+    const keluarga = await prisma.keluargaUmat.findUnique({
+      where: { 
+        id: data.tuanRumahId 
+      }
+    });
+    
+    if (!keluarga) {
+      throw new Error(`Keluarga dengan ID ${data.tuanRumahId} tidak ditemukan`);
+    }
+    
+    // Buat data baru
     const newDoling = await prisma.doaLingkungan.create({
       data: {
         tanggal: data.tanggal,
@@ -280,8 +302,10 @@ export async function addDoling(data: {
       },
     });
 
+    // Refresh data di seluruh aplikasi
     revalidatePath("/kesekretariatan/doling");
 
+    // Format hasil untuk dikembalikan ke UI
     return {
       id: newDoling.id,
       tanggal: newDoling.tanggal,

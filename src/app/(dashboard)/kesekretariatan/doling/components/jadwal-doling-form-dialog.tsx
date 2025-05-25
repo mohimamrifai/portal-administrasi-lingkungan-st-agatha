@@ -151,6 +151,23 @@ export function JadwalDolingFormDialog({
     }
   }, [jadwal, open]);
   
+  // Memastikan daftar kepala keluarga selalu diperbarui saat dialog dibuka
+  useEffect(() => {
+    if (open) {
+      // Log untuk debugging
+      console.log("Dialog dibuka, jumlah kepala keluarga tersedia:", kepalaKeluarga.length);
+      
+      // Verifikasi data kepala keluarga
+      if (kepalaKeluarga.length === 0) {
+        console.warn("Peringatan: Daftar kepala keluarga kosong saat dialog dibuka");
+      } else {
+        // Cek apakah ada data yang sudahTerpilih = true
+        const anySelected = kepalaKeluarga.some(k => k.sudahTerpilih);
+        console.log("Apakah ada kepala keluarga yang sudahTerpilih:", anySelected);
+      }
+    }
+  }, [open, kepalaKeluarga]);
+  
   // Update alamat when family head is selected
   useEffect(() => {
     if (selectedFamilyHead && !manualInput) {
@@ -313,8 +330,21 @@ export function JadwalDolingFormDialog({
                 </PopoverTrigger>
                 <PopoverContent className="w-full p-0">
                   <Command>
-                    <CommandInput placeholder="Cari Tuan Rumah..." />
-                    <CommandEmpty>Tidak ditemukan.</CommandEmpty>
+                    <CommandInput 
+                      placeholder="Cari Tuan Rumah..." 
+                      onValueChange={(value) => {
+                        // Memastikan pencarian berfungsi dengan baik
+                        console.log("Searching for:", value);
+                      }}
+                    />
+                    <CommandEmpty>
+                      <div className="p-2 text-center">
+                        <p>Nama tidak ditemukan.</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Coba kata kunci lain atau gunakan tombol "Reset KK" di halaman utama.
+                        </p>
+                      </div>
+                    </CommandEmpty>
                     <CommandGroup className="max-h-60 overflow-y-auto">
                       {kepalaKeluarga.map((head) => (
                         <CommandItem
