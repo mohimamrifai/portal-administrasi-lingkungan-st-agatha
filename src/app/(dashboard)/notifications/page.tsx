@@ -24,6 +24,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface NotificationItem {
   id: number;
@@ -43,6 +44,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [activeTab, setActiveTab] = useState("recent");
+  const isMobile = useIsMobile();
 
   // Fungsi untuk memuat notifikasi
   const fetchNotifications = async () => {
@@ -244,7 +246,7 @@ export default function NotificationsPage() {
             </div>
           </div>
         </CardHeader>
-        <CardFooter className="py-2 px-4 flex justify-between items-center">
+        <CardFooter className="py-2 px-4 flex justify-between items-center flex-wrap gap-2">
           <span className="text-xs text-muted-foreground">
             {notification.relatedItemType ? `Terkait: ${notification.relatedItemType}` : ''}
           </span>
@@ -256,7 +258,7 @@ export default function NotificationsPage() {
                 onClick={(e) => handleMarkAsRead(notification.id, e)}
               >
                 <Check className="h-4 w-4 mr-1" />
-                Tandai Dibaca
+                <span className="hidden sm:inline">Tandai Dibaca</span>
               </Button>
             )}
             <Button variant="ghost" size="sm" className="text-primary">
@@ -270,14 +272,14 @@ export default function NotificationsPage() {
 
   return (
     <div className="container mx-auto py-6 px-4 max-w-5xl">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
           <h1 className="text-2xl font-bold mb-2">Notifikasi</h1>
           <p className="text-muted-foreground">
             Lihat dan kelola semua notifikasi dan pemberitahuan
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 self-end md:self-auto">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
@@ -316,30 +318,32 @@ export default function NotificationsPage() {
             disabled={unreadCount === 0 || notifications.length === 0}
           >
             <CheckCheck className="mr-2 h-4 w-4" />
-            Tandai Semua Dibaca
+            {isMobile ? "" : "Tandai Semua Dibaca"}
           </Button>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="mb-4 w-full justify-start">
-          <TabsTrigger value="all" className="flex gap-2">
-            Semua
-            <Badge variant="secondary">{notifications.length}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="recent" className="flex gap-2">
-            24 Jam Terakhir
-            <Badge variant="secondary">{getRecentUnreadCount()}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="unread" className="flex gap-2">
-            Belum Dibaca
-            <Badge variant="secondary">{unreadCount}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="info">Info</TabsTrigger>
-          <TabsTrigger value="success">Sukses</TabsTrigger>
-          <TabsTrigger value="warning">Peringatan</TabsTrigger>
-          <TabsTrigger value="error">Error</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-4 px-4">
+          <TabsList className="mb-4 w-full min-w-max justify-start">
+            <TabsTrigger value="all" className="flex gap-2">
+              Semua
+              <Badge variant="secondary">{notifications.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="recent" className="flex gap-2">
+              {isMobile ? "Terbaru" : "24 Jam Terakhir"}
+              <Badge variant="secondary">{getRecentUnreadCount()}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="unread" className="flex gap-2">
+              {isMobile ? "Belum" : "Belum Dibaca"}
+              <Badge variant="secondary">{unreadCount}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="info">Info</TabsTrigger>
+            <TabsTrigger value="success">Sukses</TabsTrigger>
+            <TabsTrigger value="warning">{isMobile ? "Warn" : "Peringatan"}</TabsTrigger>
+            <TabsTrigger value="error">Error</TabsTrigger>
+          </TabsList>
+        </div>
 
         <Separator className="mb-4" />
 
