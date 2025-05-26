@@ -12,7 +12,13 @@ import {
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { JenisIbadat, jenisIbadatOptions, subIbadatOptions } from "../types/form-types";
-import { JadwalDoling } from "../types";
+import { JadwalDoling, KeluargaForSelect } from "../types";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useState, useEffect } from "react";
+import { CommandInput, CommandEmpty, CommandGroup, CommandItem, Command } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface InformasiDasarSectionProps {
   selectedJadwal: string;
@@ -21,12 +27,15 @@ interface InformasiDasarSectionProps {
   jenisIbadat: JenisIbadat;
   subIbadat: string;
   temaIbadat?: string;
+  customSubIbadat?: string;
   jadwalDoling: JadwalDoling[];
+  keluargaList: KeluargaForSelect[];
   onSelectedJadwalChange: (value: string) => void;
   onTanggalValueChange: (value: string) => void;
   onTuanRumahValueChange: (value: string) => void;
   onJenisIbadatChange: (value: JenisIbadat) => void;
   onSubIbadatChange: (value: string) => void;
+  onCustomSubIbadatChange?: (value: string) => void;
   onTemaIbadatChange?: (value: string) => void;
   shouldShowSubIbadat?: boolean;
   shouldShowTemaIbadat?: boolean;
@@ -41,47 +50,56 @@ export function InformasiDasarSection({
   jenisIbadat,
   subIbadat,
   temaIbadat,
+  customSubIbadat = "",
   jadwalDoling,
+  keluargaList = [],
   onSelectedJadwalChange,
   onTanggalValueChange,
   onTuanRumahValueChange,
   onJenisIbadatChange,
   onSubIbadatChange,
+  onCustomSubIbadatChange,
   onTemaIbadatChange,
   shouldShowSubIbadat = true,
   shouldShowTemaIbadat = true,
   shouldShowTuanRumah = true,
   hideJadwalSelect = false,
 }: InformasiDasarSectionProps) {
+  const [manualSubIbadat, setManualSubIbadat] = useState<boolean>(customSubIbadat ? true : false);
+  const [open, setOpen] = useState(false);
+
+  // Debug informasi
+  useEffect(() => {
+    console.log("InformasiDasarSection - selectedJadwal:", selectedJadwal);
+    console.log("InformasiDasarSection - customSubIbadat:", customSubIbadat);
+    console.log("InformasiDasarSection - manualSubIbadat:", manualSubIbadat);
+  }, [selectedJadwal, customSubIbadat, manualSubIbadat]);
+
+  // Set manualSubIbadat ke true jika customSubIbadat ada
+  useEffect(() => {
+    if (customSubIbadat) {
+      setManualSubIbadat(true);
+    }
+  }, [customSubIbadat]);
+
+  // Reset manualSubIbadat when subIbadat changes
+  useEffect(() => {
+    if (subIbadat !== "") {
+      setManualSubIbadat(false);
+    }
+  }, [subIbadat]);
+
+  // Sync with parent when manualSubIbadat changes
+  useEffect(() => {
+    if (manualSubIbadat) {
+      onSubIbadatChange("");
+    }
+  }, [manualSubIbadat, onSubIbadatChange]);
+
   return (
     <div className="space-y-2 rounded-lg border p-4">
       <h3 className="text-md font-medium mb-2">Informasi Dasar</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {!hideJadwalSelect && (
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="jadwalId">Pilih Jadwal Doling</Label>
-            <Select 
-              value={selectedJadwal} 
-              onValueChange={onSelectedJadwalChange}
-              name="jadwalId"
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Pilih jadwal doa lingkungan" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="manual">Input Manual</SelectItem>
-                {jadwalDoling
-                  .filter(j => j.status === 'terjadwal')
-                  .map((jadwal) => (
-                    <SelectItem key={jadwal.id} value={jadwal.id.toString()}>
-                      {format(jadwal.tanggal, "dd MMM yyyy", { locale: id })} - {jadwal.tuanRumah}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-        
         <div className="space-y-2">
           <Label htmlFor="tanggal">Tanggal</Label>
           <Input
@@ -93,25 +111,61 @@ export function InformasiDasarSection({
             required
           />
         </div>
-        
+
         {shouldShowTuanRumah && (
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="tuanRumah">Tuan Rumah</Label>
-            <Input
-              id="tuanRumah"
-              name="tuanRumah"
-              value={tuanRumahValue}
-              onChange={(e) => onTuanRumahValueChange(e.target.value)}
-              required
-            />
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <div
+                  className={cn(
+                    "flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                    !tuanRumahValue && "text-muted-foreground"
+                  )}
+                  role="combobox"
+                  aria-expanded={open}
+                >
+                  {tuanRumahValue
+                    ? keluargaList.find((keluarga) => keluarga.id === tuanRumahValue)?.nama || "Pilih Tuan Rumah"
+                    : "Pilih Tuan Rumah"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </div>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Cari kepala keluarga..." />
+                  <CommandEmpty>Tidak ada data yang cocok.</CommandEmpty>
+                  <CommandGroup className="max-h-60 overflow-y-auto">
+                    {keluargaList.map((keluarga) => (
+                      <CommandItem
+                        key={keluarga.id}
+                        value={keluarga.id}
+                        onSelect={() => {
+                          onTuanRumahValueChange(keluarga.id);
+                          setOpen(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            tuanRumahValue === keluarga.id ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        {keluarga.nama}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         )}
-        
+
         <div className="space-y-2">
           <Label htmlFor="jenisIbadat">Jenis Ibadat</Label>
-          <Select 
-            name="jenisIbadat" 
-            value={jenisIbadat} 
+          <Select
+            name="jenisIbadat"
+            value={jenisIbadat}
             onValueChange={(value: string) => onJenisIbadatChange(value as JenisIbadat)}
           >
             <SelectTrigger>
@@ -126,29 +180,63 @@ export function InformasiDasarSection({
             </SelectContent>
           </Select>
         </div>
-        
+
         {shouldShowSubIbadat && (
-          <div className="space-y-2">
-            <Label htmlFor="subIbadat">Sub Ibadat</Label>
-            <Select 
-              name="subIbadat" 
-              value={subIbadat} 
-              onValueChange={onSubIbadatChange}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Pilih sub ibadat" />
-              </SelectTrigger>
-              <SelectContent>
-                {subIbadatOptions[jenisIbadat]?.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <>
+            <div className="space-y-2 md:col-span-2">
+              <div className="flex items-center space-x-2 mb-2">
+                <Checkbox
+                  id="manualSubIbadat"
+                  checked={manualSubIbadat}
+                  onCheckedChange={(checked) => setManualSubIbadat(checked === true)}
+                />
+                <Label htmlFor="manualSubIbadat" className="text-sm cursor-pointer">
+                  Input Manual untuk Sub Ibadat
+                </Label>
+              </div>
+            </div>
+
+            {manualSubIbadat ? (
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="customSubIbadat">Sub Ibadat (Manual)</Label>
+                <Input
+                  id="customSubIbadat"
+                  value={customSubIbadat}
+                  onChange={(e) => onCustomSubIbadatChange?.(e.target.value)}
+                  placeholder="Masukkan sub ibadat"
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="subIbadat">Sub Ibadat</Label>
+                <Select
+                  name="subIbadat"
+                  value={subIbadat || "none"}
+                  onValueChange={(value) => {
+                    if (value === "none") {
+                      onSubIbadatChange("");
+                    } else {
+                      onSubIbadatChange(value);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih sub ibadat" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Tidak Ada</SelectItem>
+                    {subIbadatOptions[jenisIbadat]?.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </>
         )}
-        
+
         {/* Tema ibadat (hanya untuk doa lingkungan) */}
         {shouldShowTemaIbadat && (
           <div className="space-y-2 md:col-span-2">

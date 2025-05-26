@@ -391,8 +391,11 @@ export async function updateDolingDetail(id: string, data: {
   pemazmur?: string;
   jumlahPeserta?: number;
   status?: string;
+  customSubIbadat?: string | null;
 }): Promise<DolingData> {
   try {
+    console.log("Menerima data update doling:", { id, customSubIbadat: data.customSubIbadat });
+    
     // Update data doling
     const updatedDoling = await prisma.doaLingkungan.update({
       where: { id },
@@ -415,7 +418,8 @@ export async function updateDolingDetail(id: string, data: {
         pemimpinMisa: data.pemimpinMisa,
         bacaanI: data.bacaanI,
         pemazmur: data.pemazmur,
-        jumlahPeserta: data.jumlahPeserta
+        jumlahPeserta: data.jumlahPeserta,
+        customSubIbadat: data.customSubIbadat,
       },
       include: {
         tuanRumah: true,
