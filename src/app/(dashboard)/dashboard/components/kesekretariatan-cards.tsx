@@ -20,6 +20,7 @@ interface KesekretariatanCardsProps {
 }
 
 export function KesekretariatanCards({ data }: KesekretariatanCardsProps) {
+  console.log(data.detailKKBergabung)
   return (
     <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
       <Card className="bg-blue-100">
@@ -53,7 +54,7 @@ export function KesekretariatanCards({ data }: KesekretariatanCardsProps) {
               </CardHeader>
             </Card>
           </TooltipTrigger>
-          <TooltipContent className="max-w-xs p-2 bg-white shadow-lg rounded-md">
+          <TooltipContent className="max-w-xs p-2 text-gray-700 bg-white shadow-lg rounded-md">
             <div className="font-medium text-sm mb-1">Daftar Keluarga Bergabung:</div>
             {data.detailKKBergabung.length > 0 ? (
               <ul className="text-xs space-y-1">
@@ -83,7 +84,7 @@ export function KesekretariatanCards({ data }: KesekretariatanCardsProps) {
               </CardHeader>
             </Card>
           </TooltipTrigger>
-          <TooltipContent className="max-w-xs p-2 bg-white shadow-lg rounded-md">
+          <TooltipContent className="max-w-xs p-2 text-gray-700 bg-white shadow-lg rounded-md">
             <div className="font-medium text-sm mb-1">Daftar Keluarga Pindah:</div>
             {data.detailKKPindah.length > 0 ? (
               <ul className="text-xs space-y-1">
@@ -113,7 +114,7 @@ export function KesekretariatanCards({ data }: KesekretariatanCardsProps) {
               </CardHeader>
             </Card>
           </TooltipTrigger>
-          <TooltipContent className="max-w-xs p-2 bg-white shadow-lg rounded-md">
+          <TooltipContent className="max-w-xs p-2 text-gray-700 bg-white shadow-lg rounded-md">
             <div className="font-medium text-sm mb-1">Daftar Umat Meninggal Dunia:</div>
             {data.detailUmatMeninggal.length > 0 ? (
               <ul className="text-xs space-y-1">
