@@ -19,6 +19,7 @@ import { DolingData } from "../actions"
 import { toast } from "sonner"
 import { JenisIbadat, SubIbadat } from "@prisma/client"
 import { JenisIbadat as FormJenisIbadat } from "../types/form-types"
+import { KeluargaForSelect } from "../actions"
 
 // Fungsi konversi dari JenisIbadat Prisma ke JenisIbadat form
 const mapPrismaJenisIbadatToForm = (jenisIbadat: JenisIbadat): FormJenisIbadat => {
@@ -38,6 +39,7 @@ interface DetilDolingFormDialogProps {
   detil?: DolingData;
   onSubmit: (values: any) => void;
   jadwalDoling: DolingData[];
+  keluargaList: KeluargaForSelect[];
 }
 
 // Interface untuk KehadiranData yang telah disinkronkan dengan komponen DataKehadiranSection
@@ -107,6 +109,7 @@ interface SubmitDataType {
   pemazmur: string;
   jumlahPeserta: number;
   status: string;
+  customSubIbadat?: string | null;
 }
 
 export function DetilDolingFormDialog({
@@ -115,15 +118,17 @@ export function DetilDolingFormDialog({
   detil,
   onSubmit,
   jadwalDoling,
+  keluargaList = [],
 }: DetilDolingFormDialogProps) {
   const [selectedJadwal, setSelectedJadwal] = useState<string>(detil?.id || "")
   const [tanggalValue, setTanggalValue] = useState<string>(detil ? format(new Date(detil.tanggal), 'yyyy-MM-dd') : "")
-  const [tuanRumahValue, setTuanRumahValue] = useState<string>(detil?.tuanRumah || "")
+  const [tuanRumahValue, setTuanRumahValue] = useState<string>(detil?.tuanRumahId || "")
   const [jenisIbadat, setJenisIbadat] = useState<JenisIbadat>(detil?.jenisIbadat || JenisIbadat.DOA_LINGKUNGAN)
   const [formJenisIbadat, setFormJenisIbadat] = useState<FormJenisIbadat>(
     mapPrismaJenisIbadatToForm(detil?.jenisIbadat || JenisIbadat.DOA_LINGKUNGAN)
   )
   const [subIbadat, setSubIbadat] = useState<SubIbadat | null>(detil?.subIbadat || null)
+  const [customSubIbadat, setCustomSubIbadat] = useState<string | null>(detil?.customSubIbadat || null)
   const [temaIbadat, setTemaIbadat] = useState<string | null>(detil?.temaIbadat || null)
   const [keterangan, setKeterangan] = useState<string>("")
   const [status, setStatus] = useState<string>(detil?.status === "selesai" || detil?.status === "dibatalkan" ? detil.status : "selesai")
@@ -169,6 +174,14 @@ export function DetilDolingFormDialog({
     bacaanI: detil?.bacaanI || ""
   })
   
+  // Reset state dan set default values setiap kali dialog dibuka
+  useEffect(() => {
+    if (open && detil) {
+      console.log("Dialog dibuka dengan data:", detil);
+      setSelectedJadwal(detil.id);
+    }
+  }, [open, detil]);
+  
   // Update JenisIbadat form saat JenisIbadat Prisma berubah
   useEffect(() => {
     setFormJenisIbadat(mapPrismaJenisIbadatToForm(jenisIbadat));
@@ -177,12 +190,14 @@ export function DetilDolingFormDialog({
   // Update all values when detil changes
   useEffect(() => {
     if (detil) {
+      console.log("Menerima data detil untuk edit:", detil);
       setSelectedJadwal(detil.id);
       setTanggalValue(format(new Date(detil.tanggal), 'yyyy-MM-dd'));
-      setTuanRumahValue(detil.tuanRumah || "");
+      setTuanRumahValue(detil.tuanRumahId);
       setJenisIbadat(detil.jenisIbadat);
       setFormJenisIbadat(mapPrismaJenisIbadatToForm(detil.jenisIbadat));
       setSubIbadat(detil.subIbadat);
+      setCustomSubIbadat(detil.customSubIbadat);
       setTemaIbadat(detil.temaIbadat);
       setStatus(detil.status === "selesai" || detil.status === "dibatalkan" ? detil.status : "selesai");
       
@@ -194,7 +209,8 @@ export function DetilDolingFormDialog({
         bir: detil.bir || 0,
         biaBesar: detil.biaAtas || 0,
         biaKecil: detil.biaBawah || 0,
-        totalHadir: 0
+        totalHadir: (detil.bapak || 0) + (detil.ibu || 0) + (detil.omk || 0) + (detil.bir || 0) + 
+                    (detil.biaAtas || 0) + (detil.biaBawah || 0)
       });
       
       setKolekteData({
@@ -234,10 +250,11 @@ export function DetilDolingFormDialog({
       const jadwal = jadwalDoling.find(j => j.id === selectedJadwal);
       if (jadwal) {
         setTanggalValue(format(new Date(jadwal.tanggal), 'yyyy-MM-dd'));
-        setTuanRumahValue(jadwal.tuanRumah);
+        setTuanRumahValue(jadwal.tuanRumahId);
         setJenisIbadat(jadwal.jenisIbadat);
         setFormJenisIbadat(mapPrismaJenisIbadatToForm(jadwal.jenisIbadat));
         setSubIbadat(jadwal.subIbadat);
+        setCustomSubIbadat(jadwal.customSubIbadat);
         setTemaIbadat(jadwal.temaIbadat);
         setStatus(jadwal.status === "dibatalkan" ? "dibatalkan" : "selesai");
         
@@ -295,6 +312,24 @@ export function DetilDolingFormDialog({
     }
   }, [selectedJadwal, jadwalDoling]);
 
+  // Update totalHadir saat nilai kehadiran berubah
+  useEffect(() => {
+    const total = jumlahKehadiran.bapak + jumlahKehadiran.ibu + jumlahKehadiran.omk + 
+                 jumlahKehadiran.bir + jumlahKehadiran.biaBesar + jumlahKehadiran.biaKecil;
+    
+    setJumlahKehadiran(prev => ({
+      ...prev,
+      totalHadir: total
+    }));
+  }, [
+    jumlahKehadiran.bapak, 
+    jumlahKehadiran.ibu, 
+    jumlahKehadiran.omk, 
+    jumlahKehadiran.bir, 
+    jumlahKehadiran.biaBesar, 
+    jumlahKehadiran.biaKecil
+  ]);
+
   // Handler untuk perubahan JenisIbadat dari form
   const handleJenisIbadatChange = (value: FormJenisIbadat) => {
     setFormJenisIbadat(value);
@@ -311,7 +346,7 @@ export function DetilDolingFormDialog({
     setJenisIbadat(reverseMappingJenisIbadat[value]);
   };
   
-  // Handler untuk status
+  // Handle status
   const handleStatusChange = (value: string): void => {
     setStatus(value);
   };
@@ -324,18 +359,18 @@ export function DetilDolingFormDialog({
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    // Tentukan ID yang akan digunakan - gunakan selectedJadwal jika ada pilihan, jika tidak gunakan detil?.id
-    const dataId = selectedJadwal !== "manual" && selectedJadwal ? selectedJadwal : detil?.id;
-    
-    if (!dataId) {
-      toast.error("ID jadwal tidak valid");
+    // Validasi form sederhana
+    if (!selectedJadwal) {
+      toast.error("Pilih jadwal doling terlebih dahulu");
       return;
     }
     
-    // Siapkan data untuk dikirim ke server
+    console.log("Mengirim data dengan customSubIbadat:", customSubIbadat);
+    
+    // Prepare data untuk dikirim ke server
     const submitData: SubmitDataType = {
-      id: dataId,
-      jumlahKKHadir: jumlahKehadiran.jumlahKKHadir, 
+      id: selectedJadwal,
+      jumlahKKHadir: jumlahKehadiran.jumlahKKHadir,
       bapak: jumlahKehadiran.bapak,
       ibu: jumlahKehadiran.ibu,
       omk: jumlahKehadiran.omk,
@@ -355,12 +390,9 @@ export function DetilDolingFormDialog({
       pemazmur: petugasMisa.pemazmur,
       jumlahPeserta: petugasMisa.jumlahPeserta,
       status: status,
+      customSubIbadat: customSubIbadat
     };
     
-    // Log data yang akan dikirim
-    console.log("Mengirim data detil doling:", submitData);
-    
-    // Kirim data ke parent component untuk diproses
     onSubmit(submitData);
   };
   
@@ -455,13 +487,16 @@ export function DetilDolingFormDialog({
             tuanRumahValue={tuanRumahValue}
             jenisIbadat={formJenisIbadat}
             subIbadat={subIbadat ? subIbadat.toString() : ""}
+            customSubIbadat={customSubIbadat || ""}
             temaIbadat={temaIbadat || ""}
             jadwalDoling={jadwalDoling}
+            keluargaList={keluargaList}
             onSelectedJadwalChange={setSelectedJadwal}
             onTanggalValueChange={setTanggalValue}
             onTuanRumahValueChange={setTuanRumahValue}
             onJenisIbadatChange={handleJenisIbadatChange}
             onSubIbadatChange={(value: string) => setSubIbadat(value ? value as unknown as SubIbadat : null)}
+            onCustomSubIbadatChange={(value: string) => setCustomSubIbadat(value || null)}
             onTemaIbadatChange={(value: string) => setTemaIbadat(value || null)}
           />
           

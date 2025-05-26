@@ -75,6 +75,28 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete, onSelectDoling }: 
   // Reset to first page when filters change
   const resetPage = () => setCurrentPage(1);
   
+  // Filter data berdasarkan pencarian dan status
+  const filteredJadwal = jadwal.filter(item => {
+    const matchesSearch = searchTerm === "" ||
+      item.tuanRumah.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.alamat.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === null || item.status === statusFilter;
+    
+    const matchesJenisIbadat = jenisIbadatFilter === null || item.jenisIbadat === jenisIbadatFilter;
+    
+    return matchesSearch && matchesStatus && matchesJenisIbadat;
+  });
+  
+  // Calculate pagination
+  const totalItems = filteredJadwal.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  
+  // Current page data
+  const currentPageData = filteredJadwal.slice(startIndex, endIndex);
+  
   // Helper untuk badge status
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -288,14 +310,14 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete, onSelectDoling }: 
             </TableRow>
           </TableHeader>
           <TableBody>
-            {jadwal.length === 0 ? (
+            {currentPageData.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center">
                   Tidak ada jadwal ditemukan
                 </TableCell>
               </TableRow>
             ) : (
-              jadwal.map((item) => (
+              currentPageData.map((item) => (
                 <TableRow 
                   key={item.id} 
                   className={onSelectDoling ? "cursor-pointer hover:bg-slate-50" : ""}
@@ -413,14 +435,14 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete, onSelectDoling }: 
             <span className="sr-only">Halaman sebelumnya</span>
           </Button>
           <div className="text-xs px-3 py-1 bg-white rounded border min-w-[60px] text-center">
-            {currentPage}/{Math.max(1, Math.ceil(jadwal.length / pageSize))}
+            {currentPage}/{totalPages}
           </div>
           <Button
             variant="outline"
             size="icon"
             className="h-7 w-7"
-            onClick={() => setCurrentPage(prev => Math.min(Math.max(1, Math.ceil(jadwal.length / pageSize)), prev + 1))}
-            disabled={currentPage === Math.max(1, Math.ceil(jadwal.length / pageSize))}
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
           >
             <ChevronRightIcon className="h-3.5 w-3.5" />
             <span className="sr-only">Halaman berikutnya</span>
@@ -429,8 +451,8 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete, onSelectDoling }: 
             variant="outline"
             size="icon"
             className="h-7 w-7"
-            onClick={() => setCurrentPage(Math.max(1, Math.ceil(jadwal.length / pageSize)))}
-            disabled={currentPage === Math.max(1, Math.ceil(jadwal.length / pageSize))}
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage === totalPages}
           >
             <ChevronsRightIcon className="h-3.5 w-3.5" />
             <span className="sr-only">Halaman terakhir</span>
@@ -442,7 +464,7 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete, onSelectDoling }: 
           <div></div> {/* Spacer untuk layout */}
           <div className="flex items-center gap-1.5">
             <span className="whitespace-nowrap">
-              {jadwal.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, jadwal.length)} dari {jadwal.length} jadwal
+              {startIndex + 1}-{endIndex} dari {totalItems} jadwal
             </span>
             <span className="mx-1">•</span>
             <Select

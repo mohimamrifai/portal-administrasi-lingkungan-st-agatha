@@ -543,7 +543,7 @@ export function DoaLingkunganContent({
 
                     {renderActionButtons()}
                     <JadwalDolingTable
-                        jadwal={filteredJadwal}
+                        jadwal={jadwalState}
                         onEdit={handleEditJadwal}
                         onDelete={handleDeleteJadwal}
                         onSelectDoling={handleSelectDolingId}
@@ -593,13 +593,16 @@ export function DoaLingkunganContent({
                 onSubmit={handleSubmitJadwal}
                 kepalaKeluarga={kepalaKeluargaState}
             />
-            <DetilDolingFormDialog
-                open={detilFormOpen}
-                onOpenChange={setDetilFormOpen}
-                detil={editingDetil}
-                onSubmit={handleSubmitDetil}
-                jadwalDoling={jadwalState}
-            />
+            {detilFormOpen && (
+                <DetilDolingFormDialog
+                    open={detilFormOpen}
+                    onOpenChange={setDetilFormOpen}
+                    detil={editingDetil}
+                    onSubmit={handleSubmitDetil}
+                    jadwalDoling={jadwalState}
+                    keluargaList={kepalaKeluargaState}
+                />
+            )}
             <AbsensiDolingFormDialog
                 open={absensiFormOpen}
                 onOpenChange={setAbsensiFormOpen}
