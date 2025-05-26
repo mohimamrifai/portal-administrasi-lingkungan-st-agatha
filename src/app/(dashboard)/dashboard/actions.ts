@@ -121,11 +121,13 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
     const yearStart = new Date(tahun || new Date().getFullYear(), 0, 1);
     const yearEnd = new Date(tahun || new Date().getFullYear(), 11, 31);
     const monthStart = bulan !== undefined && tahun !== undefined 
-      ? new Date(tahun, bulan, 1) 
+      ? new Date(tahun, bulan - 1, 1) 
       : yearStart;
     const monthEnd = bulan !== undefined && tahun !== undefined
-      ? new Date(tahun, bulan + 1, 0)
+      ? new Date(tahun, bulan, 0, 23, 59, 59)
       : yearEnd;
+    
+    console.log("[getKesekretariatanData] Filter period:", { monthStart, monthEnd, bulan, tahun });
 
     // Impor fungsi utilitas untuk perhitungan keluarga
     const { hitungJumlahKepalaKeluarga, hitungTotalJiwa } = await import('./utils/family-utils');
@@ -159,6 +161,9 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
         namaKepalaKeluarga: true,
         tanggalBergabung: true,
       },
+      orderBy: {
+        tanggalBergabung: 'desc',
+      },
     });
 
     // KK Pindah - hanya pada periode yang dipilih
@@ -183,6 +188,9 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
         id: true,
         namaKepalaKeluarga: true,
         tanggalKeluar: true,
+      },
+      orderBy: {
+        tanggalKeluar: 'desc',
       },
     });
 
@@ -225,6 +233,9 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
         namaKepalaKeluarga: true,
         tanggalMeninggal: true,
       },
+      orderBy: {
+        tanggalMeninggal: 'desc',
+      },
     });
 
     // Detail Pasangan Meninggal
@@ -240,6 +251,9 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
         id: true,
         nama: true,
         tanggalMeninggal: true,
+      },
+      orderBy: {
+        tanggalMeninggal: 'desc',
       },
     });
 
@@ -257,7 +271,7 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
         tanggal: p.tanggalMeninggal!,
         statusKeluarga: "Pasangan"
       }))
-    ];
+    ].sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
 
     // Tingkat Partisipasi Umat
     // Dapatkan data doa lingkungan pada periode
