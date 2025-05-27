@@ -58,3 +58,13 @@ export interface PenunggakIkata {
   periodeTunggakan: string;
   jumlahTunggakan: number;
 } 
+
+// Tipe props untuk komponen
+export interface DashboardContentProps {
+  keuanganLingkunganData: KeuanganLingkunganSummary;
+  keuanganIkataData: KeuanganIkataSummary;
+  kesekretariatanData: KesekretariatanSummary;
+  penunggakDanaMandiri: PenunggakDanaMandiri[];
+  penunggakIkata: PenunggakIkata[];
+  userRole: string;
+}

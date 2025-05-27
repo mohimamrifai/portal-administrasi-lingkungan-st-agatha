@@ -422,16 +422,6 @@ export async function getFamilyMembers(familyId: string): Promise<{id: string, n
       where: { keluargaId: familyId },
     });
 
-    console.log(`Raw data for family ${keluarga.namaKepalaKeluarga}:`, {
-      kepalaKeluarga: keluarga.namaKepalaKeluarga,
-      pasangan: pasangan ? pasangan.nama : null,
-      jumlahAnakTertanggung: keluarga.jumlahAnakTertanggung,
-      jumlahKerabatTertanggung: keluarga.jumlahKerabatTertanggung,
-      totalTanggungan: tanggungan.length,
-      tanggunganAnak: tanggungan.filter(t => t.jenisTanggungan === 'ANAK').length,
-      tanggunganKerabat: tanggungan.filter(t => t.jenisTanggungan === 'KERABAT').length,
-    });
-
     // Inisialisasi array untuk menampung hasil
     const familyMembers: {id: string, nama: string, jenis: 'KEPALA_KELUARGA' | 'PASANGAN' | 'ANAK' | 'KERABAT'}[] = [];
 
@@ -461,8 +451,6 @@ export async function getFamilyMembers(familyId: string): Promise<{id: string, n
         });
       }
     }
-
-    console.log(`Final family members for ${keluarga.namaKepalaKeluarga}:`, familyMembers);
     return familyMembers;
   } catch (error) {
     console.error("Error getting family members:", error);
@@ -495,15 +483,6 @@ export async function syncFamilyDependents(familyId: string): Promise<{success: 
 
     const missingAnak = keluarga.jumlahAnakTertanggung - existingAnak;
     const missingKerabat = keluarga.jumlahKerabatTertanggung - existingKerabat;
-
-    console.log(`Sinkronisasi data untuk keluarga ${keluarga.namaKepalaKeluarga}:`, {
-      jumlahAnakTertanggung: keluarga.jumlahAnakTertanggung,
-      jumlahKerabatTertanggung: keluarga.jumlahKerabatTertanggung,
-      existingAnak,
-      existingKerabat,
-      missingAnak,
-      missingKerabat
-    });
 
     // Jika tidak ada yang perlu ditambahkan
     if (missingAnak <= 0 && missingKerabat <= 0) {

@@ -13,7 +13,6 @@ export async function seedPublikasi(prisma: PrismaClient) {
   const pembuat = sekretaris || await prisma.user.findFirst();
   
   if (!pembuat) {
-    console.log('No user found to create publikasi, skipping publikasi seeding');
     return;
   }
 
@@ -192,6 +191,4 @@ Terima kasih.`,
       data: notification,
     });
   }
-
-  console.log('Publikasi and notification data seeded successfully');
 } 

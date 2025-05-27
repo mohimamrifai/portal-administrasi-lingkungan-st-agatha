@@ -10,7 +10,6 @@ export async function seedPengajuan(prisma: PrismaClient) {
   });
   
   if (umatUsers.length === 0) {
-    console.log('No umat users found, skipping pengajuan seeding');
     return;
   }
 
@@ -129,6 +128,4 @@ export async function seedPengajuan(prisma: PrismaClient) {
       data: pengajuanItem,
     });
   }
-
-  console.log('Pengajuan data seeded successfully');
 } 

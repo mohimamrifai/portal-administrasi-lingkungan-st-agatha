@@ -28,8 +28,6 @@ const routeAccessMap: { [key: string]: string[] } = {
 const checkAccess = (path: string, role: string): boolean => {
   if (!role) return false
   
-  console.log(`[Middleware] Checking access for role: ${role} to path: ${path}`)
-  
   if (routeAccessMap[path]) {
     return routeAccessMap[path].includes(role)
   }
@@ -75,11 +73,10 @@ export async function middleware(request: NextRequest) {
       })
       
       if (token?.role) {
-        console.log(`[Middleware] User sudah login (${token.role}), redirect ke dashboard dari ${path}`)
         return NextResponse.redirect(new URL('/dashboard', request.url))
       }
     } catch (error) {
-      console.error('[Middleware] Error checking token:', error)
+      return NextResponse.next()
     }
     
     return NextResponse.next()
@@ -96,18 +93,14 @@ export async function middleware(request: NextRequest) {
     const userRole = token?.role as string | undefined
     
     if (!userRole) {
-      console.log(`[Middleware] User belum login, redirect ke login dari ${path}`)
       return NextResponse.redirect(new URL('/login', request.url))
     }
     
     if (!checkAccess(path, userRole)) {
-      console.log(`[Middleware] User (${userRole}) tidak memiliki akses ke ${path}, redirect ke dashboard`)
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
     
-    console.log(`[Middleware] User (${userRole}) mengakses ${path} - Diizinkan`)
   } catch (error) {
-    console.error('[Middleware] Error checking token:', error)
     return NextResponse.redirect(new URL('/login', request.url))
   }
   

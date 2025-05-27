@@ -15,25 +15,9 @@ import { KeuanganLingkunganCards } from "./keuangan-lingkungan-cards";
 import { KeuanganIkataCards } from "./keuangan-ikata-cards";
 import { KesekretariatanCards } from "./kesekretariatan-cards";
 import { PenunggakDanaMandiriTable, PenunggakIkataTable } from "./penunggak-table";
+import type { DashboardContentProps } from "../types";
+import { DaftarPenunggakSection } from "./daftar-penunggak-section";
 
-// Tipe data untuk props
-import type { 
-  KeuanganLingkunganSummary,
-  KeuanganIkataSummary,
-  KesekretariatanSummary,
-  PenunggakDanaMandiri,
-  PenunggakIkata
-} from "../types";
-
-// Tipe props untuk komponen
-interface DashboardContentProps {
-  keuanganLingkunganData: KeuanganLingkunganSummary;
-  keuanganIkataData: KeuanganIkataSummary;
-  kesekretariatanData: KesekretariatanSummary;
-  penunggakDanaMandiri: PenunggakDanaMandiri[];
-  penunggakIkata: PenunggakIkata[];
-  userRole: string;
-}
 
 export default function DashboardContent({
   keuanganLingkunganData,
@@ -105,36 +89,10 @@ export default function DashboardContent({
       
       {/* Daftar Penunggak */}
       {canViewPenunggak && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Kepala Keluarga Yang Belum Melunasi</h2>
-          
-          <Tabs defaultValue="dana-mandiri" className="w-full">
-            <div className="mb-4">
-              <TabsList className="w-full sm:w-auto">
-                <TabsTrigger 
-                  value="dana-mandiri" 
-                  className="flex-1 sm:flex-initial"
-                >
-                  Dana Mandiri
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="ikata" 
-                  className="flex-1 sm:flex-initial"
-                >
-                  IKATA
-                </TabsTrigger>
-              </TabsList>
-            </div>
-            
-            <TabsContent value="dana-mandiri" className="mt-0">
-              <PenunggakDanaMandiriTable data={penunggakDanaMandiri} />
-            </TabsContent>
-            
-            <TabsContent value="ikata" className="mt-0">
-              <PenunggakIkataTable data={penunggakIkata} />
-            </TabsContent>
-          </Tabs>
-        </div>
+        <DaftarPenunggakSection 
+          penunggakDanaMandiri={penunggakDanaMandiri}
+          penunggakIkata={penunggakIkata}
+        />
       )}
     </div>
   );

@@ -208,5 +208,4 @@ export async function seedKasLingkungan(prisma: PrismaClient) {
     // Leave some without approval
   }
 
-  console.log('Kas lingkungan data seeded successfully');
 } 

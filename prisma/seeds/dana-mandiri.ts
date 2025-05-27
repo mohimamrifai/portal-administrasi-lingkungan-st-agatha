@@ -49,6 +49,4 @@ export async function seedDanaMandiri(prisma: PrismaClient) {
       });
     }
   }
-
-  console.log('Dana mandiri data seeded successfully');
 } 

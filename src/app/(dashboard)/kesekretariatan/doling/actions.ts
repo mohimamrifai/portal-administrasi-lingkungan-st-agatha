@@ -140,17 +140,6 @@ export async function getDolingById(id: string): Promise<DolingData | null> {
     });
 
     if (!doling) return null;
-    
-    console.log("Data doling ditemukan:", {
-      id: doling.id,
-      tanggal: doling.tanggal,
-      jenisIbadat: doling.jenisIbadat,
-      subIbadat: doling.subIbadat,
-      customSubIbadat: doling.customSubIbadat,
-      temaIbadat: doling.temaIbadat,
-      tuanRumahId: doling.tuanRumahId,
-      tuanRumah: doling.tuanRumah.namaKepalaKeluarga,
-    });
 
     return {
       id: doling.id,
@@ -237,7 +226,6 @@ export async function getKeluargaForSelection(dolingId?: string): Promise<Keluar
         },
       });
       absensiKeluargaIds = existingAbsensi.map(absensi => absensi.keluargaId);
-      console.log(`Ditemukan ${absensiKeluargaIds.length} keluarga yang sudah terabsensi untuk dolingId: ${dolingId}`);
     }
 
     // Map data keluarga ke format yang dibutuhkan UI
@@ -266,14 +254,6 @@ export async function addDoling(data: {
   temaIbadat?: string;
 }): Promise<DolingData> {
   try {
-    console.log("addDoling menerima data:", {
-      tanggal: data.tanggal,
-      tuanRumahId: data.tuanRumahId,
-      jenisIbadat: data.jenisIbadat,
-      subIbadat: data.subIbadat,
-      customSubIbadat: data.customSubIbadat,
-      temaIbadat: data.temaIbadat
-    });
     
     // Validasi subIbadat, jika bukan nilai enum SubIbadat yang valid, set ke null
     let validSubIbadat = null;
@@ -283,8 +263,6 @@ export async function addDoling(data: {
         const isValidSubIbadat = Object.values(SubIbadat).includes(data.subIbadat as SubIbadat);
         if (isValidSubIbadat) {
           validSubIbadat = data.subIbadat;
-        } else {
-          console.log("SubIbadat tidak valid:", data.subIbadat);
         }
       } catch (error) {
         console.error("Error validating subIbadat:", error);
@@ -394,7 +372,6 @@ export async function updateDolingDetail(id: string, data: {
   customSubIbadat?: string | null;
 }): Promise<DolingData> {
   try {
-    console.log("Menerima data update doling:", { id, customSubIbadat: data.customSubIbadat });
     
     // Update data doling
     const updatedDoling = await prisma.doaLingkungan.update({
@@ -514,7 +491,6 @@ export async function getAbsensiByDolingId(dolingId: string): Promise<AbsensiDat
   try {
     // Validasi dolingId
     if (!dolingId || dolingId.trim() === "") {
-      console.log("dolingId kosong atau tidak valid:", dolingId);
       return [];
     }
 
@@ -524,11 +500,9 @@ export async function getAbsensiByDolingId(dolingId: string): Promise<AbsensiDat
     });
 
     if (!doling) {
-      console.log("Doa lingkungan tidak ditemukan untuk id:", dolingId);
       return [];
     }
 
-    console.log(`Mengambil data absensi untuk dolingId: ${dolingId}`);
 
     // Ambil data absensi
     const absensiData = await prisma.absensiDoling.findMany({
@@ -545,7 +519,6 @@ export async function getAbsensiByDolingId(dolingId: string): Promise<AbsensiDat
       },
     });
 
-    console.log(`Ditemukan ${absensiData.length} data absensi untuk dolingId: ${dolingId}`);
 
     return absensiData.map(absensi => {
       // Memastikan statusKehadiran selalu memiliki nilai yang valid
@@ -576,8 +549,6 @@ export async function getAbsensiByDolingId(dolingId: string): Promise<AbsensiDat
  */
 export async function updateAbsensi(dolingId: string, data: { keluargaId: string, hadir: boolean, statusKehadiran: string }[]): Promise<void> {
   try {
-    console.log(`Memperbarui data absensi untuk dolingId: ${dolingId}`);
-    console.log("Data absensi yang akan diperbarui:", data);
 
     // Validasi dolingId
     if (!dolingId || dolingId.trim() === "") {
@@ -603,7 +574,6 @@ export async function updateAbsensi(dolingId: string, data: { keluargaId: string
       // Iterasi semua data yang akan diupdate
       for (const item of data) {
         if (!item.keluargaId) {
-          console.log("Skipping item dengan keluargaId kosong:", item);
           continue;
         }
 
@@ -613,7 +583,6 @@ export async function updateAbsensi(dolingId: string, data: { keluargaId: string
         });
 
         if (!keluarga) {
-          console.log(`Keluarga tidak ditemukan untuk id: ${item.keluargaId}, skipping...`);
           continue;
         }
 
@@ -634,7 +603,6 @@ export async function updateAbsensi(dolingId: string, data: { keluargaId: string
               statusKehadiran: item.statusKehadiran
             }
           });
-          console.log(`Updated existing absensi: ${existingAbsensi.id} for keluarga: ${item.keluargaId}`);
         } else {
           // Buat baru jika belum ada
           const created = await tx.absensiDoling.create({
@@ -645,7 +613,6 @@ export async function updateAbsensi(dolingId: string, data: { keluargaId: string
               statusKehadiran: item.statusKehadiran
             }
           });
-          console.log(`Created new absensi for keluarga: ${item.keluargaId}, id: ${created.id}`);
         }
       }
 
@@ -662,10 +629,8 @@ export async function updateAbsensi(dolingId: string, data: { keluargaId: string
         data: { jumlahKKHadir: hadirCount }
       });
 
-      console.log(`Updated jumlahKKHadir to ${hadirCount} for dolingId: ${dolingId}`);
     });
 
-    console.log(`Berhasil memperbarui data absensi untuk dolingId: ${dolingId}`);
     revalidatePath("/kesekretariatan/doling");
   } catch (error) {
     console.error("Error updating absensi:", error);
@@ -792,7 +757,6 @@ export async function getRekapitulasiBulanan(tahun: number): Promise<{
   rataRataHadir: number;
 }[]> {
   try {
-    console.log(`Mengambil rekapitulasi untuk tahun: ${tahun}`);
     const namaBulan = [
       "Januari", "Februari", "Maret", "April", "Mei", "Juni",
       "Juli", "Agustus", "September", "Oktober", "November", "Desember"
@@ -828,14 +792,8 @@ export async function getRekapitulasiBulanan(tahun: number): Promise<{
         jumlahKegiatan,
         rataRataHadir,
       });
-      
-      // Log data yang dihasilkan untuk debugging
-      if (jumlahKegiatan > 0) {
-        console.log(`Data bulan ${namaBulan[bulan]} ${tahun}: kegiatan=${jumlahKegiatan}, rata-rata=${rataRataHadir}`);
-      }
     }
     
-    console.log(`Total bulan dengan kegiatan: ${hasil.filter(h => h.jumlahKegiatan > 0).length}`);
     return hasil;
   } catch (error) {
     console.error("Error getting monthly recap:", error);
@@ -906,7 +864,6 @@ export async function getKaleidoskopData(): Promise<{
  */
 export async function deleteAbsensi(absensiId: string): Promise<void> {
   try {
-    console.log(`Menghapus absensi dengan ID: ${absensiId}`);
 
     // Dapatkan data absensi terlebih dahulu untuk mengetahui dolingId-nya
     const absensi = await prisma.absensiDoling.findUnique({
@@ -940,10 +897,8 @@ export async function deleteAbsensi(absensiId: string): Promise<void> {
         data: { jumlahKKHadir: hadirCount }
       });
 
-      console.log(`Updated jumlahKKHadir to ${hadirCount} for dolingId: ${dolingId}`);
     });
 
-    console.log(`Berhasil menghapus absensi dengan ID: ${absensiId}`);
     revalidatePath("/kesekretariatan/doling");
   } catch (error) {
     console.error("Error deleting absensi:", error);

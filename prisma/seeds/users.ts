@@ -63,7 +63,4 @@ export async function seedUsers(prisma: PrismaClient) {
       create: user,
     });
   }
-
-  // Umat users will be created after keluarga umat
-  console.log('Admin users seeded successfully');
 } 

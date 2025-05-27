@@ -72,20 +72,12 @@ export function DeleteConfirmationDialog({
         setIsLoading(true);
         try {
           const members = await getFamilyMembers(familyHead.id);
-          console.log("Family members loaded:", members);
           
           // Check each type of member
           const kepalaKeluarga = members.filter(m => m.jenis === 'KEPALA_KELUARGA');
           const pasangan = members.filter(m => m.jenis === 'PASANGAN');
           const anak = members.filter(m => m.jenis === 'ANAK');
           const kerabat = members.filter(m => m.jenis === 'KERABAT');
-          
-          console.log("Family member types:", {
-            kepalaKeluarga: kepalaKeluarga.length,
-            pasangan: pasangan.length,
-            anak: anak.length,
-            kerabat: kerabat.length
-          });
           
           // Tampilkan peringatan jika ada ketidaksesuaian jumlah dengan data di UI
           if (familyHead.jumlahAnakTertanggung !== anak.length) {

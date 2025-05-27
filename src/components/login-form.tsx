@@ -33,7 +33,6 @@ export function LoginForm({
   // Redirect jika sudah login menggunakan useEffect
   useEffect(() => {
     if (status === "authenticated" && session) {
-      console.log("User authenticated, redirecting to dashboard", session)
       router.push("/dashboard")
     }
   }, [status, router, session])
@@ -48,15 +47,12 @@ export function LoginForm({
     setError(null)
     
     try {
-      console.log("Attempting login with username:", username)
       const res = await signIn("credentials", {
         redirect: false,
         username,
         password,
         callbackUrl: "/dashboard"
       })
-
-      console.log("Login response:", res)
 
       if (res?.error) {
         if (res.error === "CredentialsSignin") {
@@ -65,8 +61,6 @@ export function LoginForm({
           setError(`Login gagal: ${res.error}`)
         }
       } else if (res?.ok) {
-        console.log("Login successful, navigating to:", res.url)
-        // Gunakan router.push sebagai alternatif, mungkin lebih baik utk handling SPA
         router.push(res.url || "/dashboard") 
         
         // Gunakan setTimeout sebagai fallback jika router.push macet

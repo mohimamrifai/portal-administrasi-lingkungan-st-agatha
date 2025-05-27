@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -49,7 +49,8 @@ import { format } from "date-fns"
 import { id as localeID } from "date-fns/locale"
 import { Users } from "lucide-react"
 import { isPublikasiExpired, roleToLabel, KATEGORI_PUBLIKASI, TARGET_PENERIMA } from "../utils/constants"
-import { deletePublikasi, sendPublikasiNotification, lockPublikasi, updatePublikasi } from "../utils/actions"
+import { deletePublikasi, sendPublikasiNotification, lockPublikasi, updatePublikasi,
+         createLaporanPublikasi, getLaporanByPublikasiId } from "../utils/actions"
 import { getFilePath } from "@/lib/uploads"
 import {
   Select,
@@ -78,6 +79,9 @@ import {
 } from "@/components/ui/tooltip"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useAuth } from "@/contexts/auth-context"
+import { Laporan } from "../types/publikasi"
+import { JENIS_LAPORAN } from "../utils/constants"
+import BuatLaporanDialog from "./buat-laporan-dialog"
 
 interface PublikasiActionsProps {
   publikasi: PublikasiWithRelations
@@ -103,6 +107,42 @@ export function PublikasiActions({ publikasi, onRefresh }: PublikasiActionsProps
   const [editDeadline, setEditDeadline] = useState<Date | undefined>(undefined)
   const [editTargetPenerima, setEditTargetPenerima] = useState<Role[]>([])
   const [isEditing, setIsEditing] = useState(false)
+  const [laporan, setLaporan] = useState<Laporan[]>([])
+  const [isLoadingLaporan, setIsLoadingLaporan] = useState(false)
+
+  // Fungsi untuk mengambil laporan dari database saat dialog detail dibuka
+  useEffect(() => {
+    if (viewDetailOpen) {
+      loadLaporan()
+    }
+  }, [viewDetailOpen, publikasi.id])
+
+  // Fungsi untuk mengambil data laporan dari database
+  const loadLaporan = async () => {
+    setIsLoadingLaporan(true)
+    try {
+      const result = await getLaporanByPublikasiId(publikasi.id)
+      if (result.success && result.data) {
+        // Konversi hasil ke format Laporan
+        const formattedLaporan = result.data.map(item => ({
+          id: item.id,
+          judul: `Laporan ${JENIS_LAPORAN.find(j => j.id === item.jenis)?.label || item.jenis}`,
+          jenis: item.jenis,
+          tanggal: item.createdAt,
+          keterangan: item.keterangan,
+          lampiran: "",
+          publikasiId: item.publikasiId
+        }))
+        setLaporan(formattedLaporan)
+      } else {
+        console.error("Gagal mengambil laporan:", result.error)
+      }
+    } catch (error) {
+      console.error("Error loading laporan:", error)
+    } finally {
+      setIsLoadingLaporan(false)
+    }
+  }
 
   const handleViewDetail = () => {
     setViewDetailOpen(true)
@@ -242,28 +282,30 @@ export function PublikasiActions({ publikasi, onRefresh }: PublikasiActionsProps
     setReportDialogOpen(true)
   }
 
-  const handleCreateReport = async () => {
-    if (!reportType || !reportContent) {
-      toast.error("Silakan lengkapi semua kolom yang diperlukan")
-      return
-    }
-
-    setIsCreatingReport(true)
-    
+  const handleSubmitLaporan = async (values: any) => {
     try {
-      // Implementasi pembuatan laporan - menggunakan toast sementara
-      toast.success("Laporan berhasil dibuat", {
-        description: `Laporan untuk publikasi "${publikasi.judul}" telah dibuat`
+      // Simpan data ke database
+      const result = await createLaporanPublikasi({
+        jenis: values.type,
+        keterangan: values.description,
+        publikasiId: publikasi.id
       })
       
-      setReportDialogOpen(false)
-      setReportType("")
-      setReportContent("")
+      if (result.success) {
+        // Refresh laporan setelah berhasil disimpan
+        await loadLaporan()
+        
+        toast.success("Laporan berhasil dibuat", {
+          description: `Laporan untuk publikasi "${publikasi.judul}" telah dibuat`
+        })
+      } else {
+        toast.error("Gagal membuat laporan", {
+          description: result.error
+        })
+      }
     } catch (error) {
       console.error("Error creating report:", error)
       toast.error("Gagal membuat laporan")
-    } finally {
-      setIsCreatingReport(false)
     }
   }
 
@@ -506,6 +548,39 @@ export function PublikasiActions({ publikasi, onRefresh }: PublikasiActionsProps
                 {publikasi.pembuat.username} ({roleToLabel(publikasi.pembuat.role)})
               </div>
             </div>
+
+            {/* Tampilkan daftar laporan */}
+            <div className="grid grid-cols-4 gap-4">
+              <Label className="text-right font-medium align-top">Laporan:</Label>
+              <div className="col-span-3">
+                {isLoadingLaporan ? (
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin h-5 w-5 border-2 border-gray-500 rounded-full border-t-transparent"></div>
+                    <span className="ml-2 text-sm text-gray-500">Memuat laporan...</span>
+                  </div>
+                ) : laporan.length > 0 ? (
+                  <div className="space-y-3">
+                    {laporan.map((item) => (
+                      <div key={item.id} className="border rounded-md p-3 bg-gray-50">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              {JENIS_LAPORAN.find(j => j.id === item.jenis)?.label || item.jenis}
+                            </Badge>
+                            <span className="text-xs text-gray-500">
+                              {format(new Date(item.tanggal), "dd MMMM yyyy", { locale: localeID })}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-sm whitespace-pre-wrap">{item.keterangan}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-gray-500 text-sm italic">Belum ada laporan</div>
+                )}
+              </div>
+            </div>
           </div>
           <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setViewDetailOpen(false)}>
@@ -566,66 +641,26 @@ export function PublikasiActions({ publikasi, onRefresh }: PublikasiActionsProps
       </AlertDialog>
 
       {/* Dialog Buat Laporan */}
-      <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
-        <DialogContent className="sm:max-w-[550px] max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Buat Laporan Publikasi</DialogTitle>
-            <DialogDescription>
-              Buat laporan untuk publikasi "{publikasi.judul}"
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 gap-4 items-center">
-              <Label htmlFor="report-type" className="text-right font-medium">
-                Jenis Laporan:
-              </Label>
-              <Select
-                value={reportType}
-                onValueChange={setReportType}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Pilih jenis laporan" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="evaluasi">Evaluasi</SelectItem>
-                  <SelectItem value="keuangan">Keuangan</SelectItem>
-                  <SelectItem value="partisipasi">Partisipasi</SelectItem>
-                  <SelectItem value="kehadiran">Kehadiran</SelectItem>
-                  <SelectItem value="lainnya">Lainnya</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 gap-4 items-start">
-              <Label htmlFor="report-content" className="text-right font-medium">
-                Isi Laporan:
-              </Label>
-              <Textarea
-                id="report-content"
-                value={reportContent}
-                onChange={(e) => setReportContent(e.target.value)}
-                placeholder="Masukkan isi laporan"
-                className="col-span-3"
-                rows={5}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setReportDialogOpen(false)}
-              disabled={isCreatingReport}
-            >
-              Batal
-            </Button>
-            <Button
-              onClick={handleCreateReport}
-              disabled={isCreatingReport}
-            >
-              {isCreatingReport ? "Menyimpan..." : "Simpan Laporan"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <BuatLaporanDialog
+        open={reportDialogOpen}
+        onOpenChange={setReportDialogOpen}
+        publikasi={{
+          id: publikasi.id,
+          judul: publikasi.judul,
+          tanggal: format(new Date(publikasi.createdAt), "yyyy-MM-dd"),
+          waktu: format(new Date(publikasi.createdAt), "HH:mm"),
+          lokasi: "",
+          targetPenerima: "Semua Pengguna",
+          status: !publikasi.deadline || !isPublikasiExpired(publikasi.deadline) ? "aktif" : "kedaluwarsa",
+          pembuat: publikasi.pembuat.username,
+          lampiran: publikasi.lampiran.length > 0,
+          locked: publikasi.locked || false,
+          kategori: publikasi.klasifikasi === "PENTING" ? "Penting" : 
+                    publikasi.klasifikasi === "SEGERA" ? "Segera" : 
+                    publikasi.klasifikasi === "RAHASIA" ? "Rahasia" : "Umum",
+        }}
+        onSubmit={handleSubmitLaporan}
+      />
 
       {/* Dialog Edit Publikasi */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>

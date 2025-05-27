@@ -28,13 +28,6 @@ export const authOptions: NextAuthOptions = {
         const isValid = await compare(credentials.password, user.password)
         if (!isValid) return null
         
-        console.log("User authenticated:", {
-          id: user.id,
-          username: user.username,
-          role: user.role,
-          keluargaId: user.keluargaId
-        })
-        
         return {
           id: user.id,
           name: user.username,
@@ -60,11 +53,6 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role as string
         token.keluargaId = user.keluargaId as string | null
         token.keluargaNama = user.keluargaNama as string | null
-        
-        console.log("JWT token generated:", {
-          id: token.id,
-          role: token.role
-        })
       }
       return token
     },
@@ -74,11 +62,6 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role as string
         session.user.keluargaId = token.keluargaId as string | null
         session.user.keluargaNama = token.keluargaNama as string | null
-        
-        console.log("Session created:", {
-          id: session.user.id,
-          role: session.user.role
-        })
       }
       return session
     },

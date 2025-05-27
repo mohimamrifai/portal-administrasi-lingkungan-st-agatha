@@ -14,7 +14,14 @@ import { ApprovalHistory } from "./approval-history"
 import LoadingSkeleton from "./loading-skeleton"
 import { StatusApproval } from "@prisma/client"
 import { ExtendedApproval, ApprovalStats as ApprovalStatsType } from "../types"
-import { getApprovals, approveApproval, rejectApproval, getFilteredApprovals, getApprovalStats, resetApproval, getKeluargaUmatList } from "../utils/actions"
+import { getApprovals } from "../actions/get-approval"
+import { approveApproval } from "../actions/approve-approval"
+import { rejectApproval } from "../actions/reject-approval"
+import { getFilteredApprovals } from "../actions/get-filtered-approval"
+import { getApprovalStats } from "../actions/get-approval-stats"
+import { getKeluargaUmatList } from "../actions/get-keluarga-umat-list"
+import { resetApproval } from "../actions/reset-approval"
+
 
 export default function ApprovalContent() {
   const { data: session } = useSession()
@@ -42,8 +49,6 @@ export default function ApprovalContent() {
   const [selectedItem, setSelectedItem] = useState<ExtendedApproval | null>(null)
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
-
-  console.log(approvalData);
 
   // Fetch data
   useEffect(() => {

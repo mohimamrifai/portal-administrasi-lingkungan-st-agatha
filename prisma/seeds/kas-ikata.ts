@@ -186,6 +186,4 @@ export async function seedKasIkata(prisma: PrismaClient) {
       }
     });
   }
-
-  console.log('Kas ikata data seeded successfully');
 } 

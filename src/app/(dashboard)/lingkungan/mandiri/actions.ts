@@ -592,8 +592,6 @@ export async function setDanaMandiriDues(formData: FormData) {
       await prisma.$transaction(operations);
     }
     
-    console.log(`Set iuran Dana Mandiri tahun ${year} sebesar ${amount}. Total ${operations.length} tunggakan diperbarui.`);
-    
     // Revalidasi path untuk memperbarui UI
     revalidatePath("/lingkungan/mandiri")
 

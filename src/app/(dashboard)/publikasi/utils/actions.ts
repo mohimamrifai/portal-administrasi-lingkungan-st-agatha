@@ -292,4 +292,57 @@ export async function lockPublikasi(id: string, locked: boolean) {
     console.error("Error locking/unlocking publikasi:", error)
     return { success: false, error: "Gagal mengunci/membuka kunci publikasi" }
   }
+}
+
+// Fungsi untuk membuat laporan publikasi
+export async function createLaporanPublikasi(data: {
+  jenis: string;
+  keterangan: string;
+  publikasiId: string;
+}) {
+  try {
+    const result = await prisma.laporanPublikasi.create({
+      data: {
+        jenis: data.jenis,
+        keterangan: data.keterangan,
+        publikasiId: data.publikasiId,
+      }
+    });
+
+    return {
+      success: true,
+      data: result
+    };
+  } catch (error) {
+    console.error("Gagal membuat laporan publikasi:", error);
+    return {
+      success: false,
+      error: "Terjadi kesalahan saat membuat laporan publikasi"
+    };
+  }
+}
+
+// Fungsi untuk mendapatkan semua laporan publikasi berdasarkan ID publikasi
+export async function getLaporanByPublikasiId(publikasiId: string) {
+  try {
+    const laporan = await prisma.laporanPublikasi.findMany({
+      where: {
+        publikasiId
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    return {
+      success: true,
+      data: laporan
+    };
+  } catch (error) {
+    console.error("Gagal mendapatkan laporan publikasi:", error);
+    return {
+      success: false,
+      error: "Terjadi kesalahan saat mendapatkan laporan publikasi"
+    };
+  }
 } 

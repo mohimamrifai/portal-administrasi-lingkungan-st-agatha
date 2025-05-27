@@ -1,6 +1,5 @@
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -20,7 +19,6 @@ interface KesekretariatanCardsProps {
 }
 
 export function KesekretariatanCards({ data }: KesekretariatanCardsProps) {
-  console.log(data.detailKKBergabung)
   return (
     <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
       <Card className="bg-blue-100">
