@@ -19,17 +19,14 @@ type ApprovalHistoryProps = {
 };
 
 export function ApprovalHistory({ selectedMonth, approvalData }: ApprovalHistoryProps) {
-  // Selalu gunakan 'all' sebagai default untuk menampilkan semua data
   const [month, setMonth] = useState<string>("all");
 
-  // Gunakan selectedMonth hanya jika nilai bukan 'all'
   useEffect(() => {
     if (selectedMonth !== 'all') {
       setMonth(selectedMonth);
     }
   }, [selectedMonth]);
 
-  // Filter data: status approved/rejected, lalu filter bulan jika tidak 'all'
   const filteredHistory = useMemo(() => {
     if (!approvalData.length) return [];
     

@@ -402,6 +402,7 @@ model Publikasi {
   locked         Boolean              @default(false)
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
+  laporan        LaporanPublikasi[]
 }
 
 enum KlasifikasiPublikasi {
@@ -409,6 +410,17 @@ enum KlasifikasiPublikasi {
   UMUM
   RAHASIA
   SEGERA
+}
+
+// Model untuk laporan publikasi
+model LaporanPublikasi {
+  id           String    @id @default(uuid())
+  jenis        String
+  keterangan   String
+  publikasi    Publikasi @relation(fields: [publikasiId], references: [id], onDelete: Cascade)
+  publikasiId  String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 // Model untuk notifikasi

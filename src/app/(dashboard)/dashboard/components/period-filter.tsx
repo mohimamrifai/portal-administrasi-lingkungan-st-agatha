@@ -3,7 +3,6 @@
 import * as React from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { CalendarIcon, RefreshCw } from "lucide-react"
-import { id } from "date-fns/locale"
 
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -14,7 +13,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select"
-import { formatMonthYear, getMonthFromQuery, getYearFromQuery } from "../utils"
+import { formatMonthYear } from "../utils"
 
 export function PeriodFilter() {
   const router = useRouter()
@@ -67,7 +66,6 @@ export function PeriodFilter() {
 
   // Handler untuk perubahan bulan
   const handleMonthChange = (value: string) => {
-    console.log("[PeriodFilter] Month changed to:", value, "Year:", year);
     router.push(
       pathname + "?" + createQueryString({ month: value, year })
     )
@@ -75,7 +73,6 @@ export function PeriodFilter() {
 
   // Handler untuk perubahan tahun
   const handleYearChange = (value: string) => {
-    console.log("[PeriodFilter] Year changed to:", value, "Month:", month);
     router.push(
       pathname + "?" + createQueryString({ year: value, month: month || null })
     )

@@ -118,9 +118,6 @@ export function DoaLingkunganContent({
                 getRekapitulasiBulanan(currentYear)
             ]);
             
-            // Log jumlah keluarga yang didapat (untuk debugging)
-            console.log(`Data keluarga diperbarui: ${keluargaData.length} keluarga tersedia`);
-            
             // Urutkan jadwal berdasarkan tanggal terbaru dulu
             const sortedDolingData = [...dolingData].sort((a, b) => {
                 const dateA = new Date(a.tanggal);
@@ -301,7 +298,6 @@ export function DoaLingkunganContent({
         temaIbadat?: string | null;
     }) => {
         try {
-            console.log("DoaLingkunganContent menerima nilai form:", values);
             
             if (editingJadwal) {
                 // Edit existing - tidak ada fungsi update jadwal, akan menggunakan deleteDoling dan addDoling

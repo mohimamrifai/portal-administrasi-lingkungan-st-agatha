@@ -12,7 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { StatusApproval } from "@prisma/client"
 import { ExtendedApproval } from "../types"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -44,7 +43,6 @@ export function ConfirmationDialog({
     )
   }
 
-  // Reset reason when dialog closes
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       setRejectionReason("")
@@ -55,7 +53,6 @@ export function ConfirmationDialog({
     }
   }
 
-  // Fungsi untuk mendapatkan tanggal
   const getItemDate = (item: ExtendedApproval): Date => {
     if (item.doaLingkungan) {
       return new Date(item.doaLingkungan.tanggal);
@@ -65,12 +62,10 @@ export function ConfirmationDialog({
     return new Date(item.createdAt);
   };
 
-  // Fungsi untuk mendapatkan jumlah hadir
   const getJumlahHadir = (item: ExtendedApproval): number => {
     return item.doaLingkungan?.jumlahKKHadir || 0;
   };
 
-  // Fungsi untuk mendapatkan total
   const getTotal = (item: ExtendedApproval): number => {
     if (item.doaLingkungan) {
       return item.doaLingkungan.kolekteI + item.doaLingkungan.kolekteII + item.doaLingkungan.ucapanSyukur;
@@ -80,7 +75,6 @@ export function ConfirmationDialog({
     return 0;
   };
 
-  // Fungsi untuk mendapatkan keterangan
   const getKeterangan = (item: ExtendedApproval): string => {
     if (item.doaLingkungan) {
       return item.doaLingkungan.tuanRumah.namaKepalaKeluarga;

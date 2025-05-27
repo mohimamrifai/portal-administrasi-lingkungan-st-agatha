@@ -177,7 +177,6 @@ export function DetilDolingFormDialog({
   // Reset state dan set default values setiap kali dialog dibuka
   useEffect(() => {
     if (open && detil) {
-      console.log("Dialog dibuka dengan data:", detil);
       setSelectedJadwal(detil.id);
     }
   }, [open, detil]);
@@ -190,7 +189,6 @@ export function DetilDolingFormDialog({
   // Update all values when detil changes
   useEffect(() => {
     if (detil) {
-      console.log("Menerima data detil untuk edit:", detil);
       setSelectedJadwal(detil.id);
       setTanggalValue(format(new Date(detil.tanggal), 'yyyy-MM-dd'));
       setTuanRumahValue(detil.tuanRumahId);
@@ -364,8 +362,6 @@ export function DetilDolingFormDialog({
       toast.error("Pilih jadwal doling terlebih dahulu");
       return;
     }
-    
-    console.log("Mengirim data dengan customSubIbadat:", customSubIbadat);
     
     // Prepare data untuk dikirim ke server
     const submitData: SubmitDataType = {

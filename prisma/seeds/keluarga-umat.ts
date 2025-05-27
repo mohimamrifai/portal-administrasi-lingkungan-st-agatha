@@ -464,5 +464,4 @@ export async function seedKeluargaUmat(prisma: PrismaClient) {
     });
   }
 
-  console.log('Keluarga umat data seeded successfully');
 } 

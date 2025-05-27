@@ -15,8 +15,6 @@ export async function createTransaction(data: {
   totalIuran?: number;
 }) {
   try {
-    console.log("[createTransaction] Processing request:", data);
-    
     // Tentukan debit dan kredit berdasarkan jenis transaksi
     const debit = data.jenisTranasksi === JenisTransaksi.UANG_MASUK ? data.jumlah : 0;
     const kredit = data.jenisTranasksi === JenisTransaksi.UANG_KELUAR ? data.jumlah : 0;
@@ -32,8 +30,6 @@ export async function createTransaction(data: {
       keluargaId: data.keluargaId,
       totalIuran: data.totalIuran
     });
-    
-    console.log("[createTransaction] Transaction created:", transaction);
     
     return transaction;
   } catch (error) {

@@ -163,9 +163,6 @@ export function ApprovalTable({ items, onApprove, onReject, onReset, userRole, k
     if (!selectedItem || !selectedItem.doaLingkungan) return;
     
     setIsEditLoading(true);
-    
-    // Update server-side dan refresh data (implementasi di komponen parent)
-    console.log('Save edit data', selectedItem.id, values);
     setEditDialogOpen(false);
     setIsEditLoading(false);
   };

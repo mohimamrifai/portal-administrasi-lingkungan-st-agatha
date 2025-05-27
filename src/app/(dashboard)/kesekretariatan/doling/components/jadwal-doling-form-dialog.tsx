@@ -154,8 +154,6 @@ export function JadwalDolingFormDialog({
   // Memastikan daftar kepala keluarga selalu diperbarui saat dialog dibuka
   useEffect(() => {
     if (open) {
-      // Log untuk debugging
-      console.log("Dialog dibuka, jumlah kepala keluarga tersedia:", kepalaKeluarga.length);
       
       // Verifikasi data kepala keluarga
       if (kepalaKeluarga.length === 0) {
@@ -163,7 +161,6 @@ export function JadwalDolingFormDialog({
       } else {
         // Cek apakah ada data yang sudahTerpilih = true
         const anySelected = kepalaKeluarga.some(k => k.sudahTerpilih);
-        console.log("Apakah ada kepala keluarga yang sudahTerpilih:", anySelected);
       }
     }
   }, [open, kepalaKeluarga]);
@@ -198,16 +195,6 @@ export function JadwalDolingFormDialog({
       customSubIbadat: manualSubIbadat ? customSubIbadat : null,
       temaIbadat
     };
-    
-    console.log("Form data yang akan dikirim:", {
-      tanggal: formData.tanggal,
-      tuanRumahId: formData.tuanRumahId,
-      jenisIbadat: formData.jenisIbadat,
-      subIbadat: formData.subIbadat,
-      customSubIbadat: formData.customSubIbadat,
-      temaIbadat: formData.temaIbadat,
-      manualSubIbadat
-    });
     
     onSubmit(formData);
   }
@@ -332,10 +319,6 @@ export function JadwalDolingFormDialog({
                   <Command>
                     <CommandInput 
                       placeholder="Cari Tuan Rumah..." 
-                      onValueChange={(value) => {
-                        // Memastikan pencarian berfungsi dengan baik
-                        console.log("Searching for:", value);
-                      }}
                     />
                     <CommandEmpty>
                       <div className="p-2 text-center">

@@ -90,16 +90,11 @@ export async function getKeuanganIkataData(bulan?: number, tahun?: number): Prom
   noStore(); // Menonaktifkan caching
 
   try {
-    console.log("[getKeuanganIkataData] Called with params:", { bulan, tahun });
-    
     // Import fungsi getKasIkataSummary langsung
     const { getKasIkataSummary } = await import("@/app/(dashboard)/ikata/kas/utils/kas-ikata-service");
     
     // Gunakan hasil dari getKasIkataSummary langsung
     const summary = await getKasIkataSummary();
-    
-    console.log("[getKeuanganIkataData] Using summary from getKasIkataSummary:", summary);
-    
     // Kembalikan data yang persis sama
     return summary;
   } catch (error) {
@@ -127,7 +122,6 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
       ? new Date(tahun, bulan, 0, 23, 59, 59)
       : yearEnd;
     
-    console.log("[getKesekretariatanData] Filter period:", { monthStart, monthEnd, bulan, tahun });
 
     // Impor fungsi utilitas untuk perhitungan keluarga
     const { hitungJumlahKepalaKeluarga, hitungTotalJiwa } = await import('./utils/family-utils');
@@ -463,14 +457,10 @@ export async function debugIkataTransactions(bulan?: number, tahun?: number) {
   noStore();
   
   try {
-    console.log("[debugIkataTransactions] Checking transactions for", { bulan, tahun });
-    
     // Gunakan bulan dan tahun saat ini, bukan parameter input
     const currentDate = new Date();
     const month = currentDate.getMonth() + 1; // Januari = 1
     const year = currentDate.getFullYear();
-    
-    console.log("[debugIkataTransactions] Using current month/year:", { month, year });
     
     // Dapatkan semua transaksi saldo awal
     const saldoAwalTransactions = await prisma.kasIkata.findMany({
@@ -483,13 +473,9 @@ export async function debugIkataTransactions(bulan?: number, tahun?: number) {
       }
     });
     
-    console.log("[debugIkataTransactions] Saldo Awal transactions:", saldoAwalTransactions);
-    
     // Filter berdasarkan bulan dan tahun saat ini
     const dateStart = new Date(year, month - 1, 1);
     const dateEnd = new Date(year, month, 0, 23, 59, 59);
-    
-    console.log("[debugIkataTransactions] Date range:", { dateStart, dateEnd });
     
     // Ambil semua transaksi pemasukan
     const incomeTransactions = await prisma.kasIkata.findMany({
@@ -505,8 +491,6 @@ export async function debugIkataTransactions(bulan?: number, tahun?: number) {
       }
     });
     
-    console.log("[debugIkataTransactions] Income transactions:", incomeTransactions);
-    
     // Ambil semua transaksi pengeluaran
     const expenseTransactions = await prisma.kasIkata.findMany({
       where: {
@@ -518,18 +502,10 @@ export async function debugIkataTransactions(bulan?: number, tahun?: number) {
       }
     });
     
-    console.log("[debugIkataTransactions] Expense transactions:", expenseTransactions);
     
     // Hitung total
     const totalIncome = incomeTransactions.reduce((sum, tx) => sum + tx.debit, 0);
     const totalExpense = expenseTransactions.reduce((sum, tx) => sum + tx.kredit, 0);
-    
-    console.log("[debugIkataTransactions] Totals:", { 
-      totalIncome, 
-      totalExpense, 
-      incomeCount: incomeTransactions.length,
-      expenseCount: expenseTransactions.length
-    });
     
     return {
       saldoAwalTransactions,
@@ -541,7 +517,6 @@ export async function debugIkataTransactions(bulan?: number, tahun?: number) {
       }
     };
   } catch (error) {
-    console.error("[debugIkataTransactions] Error:", error);
     return null;
   }
 }

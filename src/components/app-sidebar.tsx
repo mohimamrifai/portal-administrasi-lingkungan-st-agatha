@@ -41,8 +41,6 @@ export function AppSidebar({
   const sessionRole = session?.user?.role as string | undefined
   const effectiveRole = sessionRole || userRole || "UMAT"
   
-  console.log("AppSidebar: Using role", effectiveRole)
-  
   // Pastikan role yang digunakan ada dalam navMain
   const validRole = navMain[effectiveRole] ? effectiveRole : "UMAT"
   const menuItems = navMain[validRole] || []

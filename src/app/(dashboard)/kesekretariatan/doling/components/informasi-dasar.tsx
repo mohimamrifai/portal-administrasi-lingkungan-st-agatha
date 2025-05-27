@@ -68,13 +68,6 @@ export function InformasiDasarSection({
   const [manualSubIbadat, setManualSubIbadat] = useState<boolean>(customSubIbadat ? true : false);
   const [open, setOpen] = useState(false);
 
-  // Debug informasi
-  useEffect(() => {
-    console.log("InformasiDasarSection - selectedJadwal:", selectedJadwal);
-    console.log("InformasiDasarSection - customSubIbadat:", customSubIbadat);
-    console.log("InformasiDasarSection - manualSubIbadat:", manualSubIbadat);
-  }, [selectedJadwal, customSubIbadat, manualSubIbadat]);
-
   // Set manualSubIbadat ke true jika customSubIbadat ada
   useEffect(() => {
     if (customSubIbadat) {

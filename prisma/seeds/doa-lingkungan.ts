@@ -6,7 +6,6 @@ export async function seedDoaLingkungan(prisma: PrismaClient) {
   const keluargaUmatList = await prisma.keluargaUmat.findMany();
   
   if (keluargaUmatList.length === 0) {
-    console.log('No keluarga umat found, skipping doa lingkungan seeding');
     return;
   }
 
@@ -272,6 +271,4 @@ export async function seedDoaLingkungan(prisma: PrismaClient) {
       }
     }
   }
-
-  console.log('Doa lingkungan data seeded successfully');
 } 
