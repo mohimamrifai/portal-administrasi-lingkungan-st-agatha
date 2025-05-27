@@ -31,20 +31,22 @@ import {
   updateTransaction,
   deleteTransaction,
   approveTransaction,
-  saveInitialBalance
+  saveInitialBalance,
+  checkInitialBalanceExists
 } from "../utils/actions"
 
 // Import utilities
 import {
   getMonthDateRange,
   filterTransactionsByMonth,
+  calculatePeriodSummary,
 } from "../utils/date-utils"
 
 // Import components
 import { SummaryCards } from "./summary-cards"
 import { PeriodFilter } from "./period-filter"
 import { PrintPdfDialog } from "./print-pdf-dialog"
-import { CreateTransactionDialog, EditTransactionDialog } from "./transaction-form-dialog"
+import { EditTransactionDialog } from "./transaction-form-dialog"
 import { TransactionsTable } from "./transactions-table"
 import { InitialBalanceDialog } from "./initial-balance-dialog"
 
@@ -67,10 +69,23 @@ export default function KasLingkunganContent({
   const router = useRouter()
   const [transactions, setTransactions] = useState<TransactionData[]>(initialTransactions)
   const [isEditing, setIsEditing] = useState<string | null>(null)
-  const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>(undefined)
   const [summary, setSummary] = useState(initialSummary)
+  const [isInitialBalanceSet, setIsInitialBalanceSet] = useState(false)
+  const [initialBalanceDate, setInitialBalanceDate] = useState<Date | undefined>(undefined)
+
+  // Cek status saldo awal saat komponen dimount
+  useEffect(() => {
+    const checkInitialBalance = async () => {
+      const result = await checkInitialBalanceExists()
+      setIsInitialBalanceSet(result.exists)
+      if (result.date) {
+        setInitialBalanceDate(result.date)
+      }
+    }
+    checkInitialBalance()
+  }, [])
 
   // Memoize filteredTransactions untuk mencegah re-renders yang tidak perlu
   const filteredTransactions = useMemo(() => {
@@ -89,31 +104,14 @@ export default function KasLingkunganContent({
 
   // Memoize summary untuk mencegah re-renders
   useEffect(() => {
-    // Jika ada filter rentang tanggal aktif, hitung summary berdasarkan transaksi terfilter
-    if (dateRange?.from && dateRange?.to) {
-      const totalIncome = filteredTransactions.reduce((sum, tx) => sum + tx.debit, 0);
-      const totalExpense = filteredTransactions.reduce((sum, tx) => sum + tx.kredit, 0);
-      const finalBalance = initialSummary.initialBalance + totalIncome - totalExpense;
-      
-      setSummary({
-        initialBalance: initialSummary.initialBalance,
-        totalIncome,
-        totalExpense,
-        finalBalance
-      });
-    } else {
-      // Jika tidak ada filter aktif, gunakan summary dari semua transaksi
-      const totalIncome = transactions.reduce((sum, tx) => sum + tx.debit, 0);
-      const totalExpense = transactions.reduce((sum, tx) => sum + tx.kredit, 0);
-      const finalBalance = initialSummary.initialBalance + totalIncome - totalExpense;
-      
-      setSummary({
-        initialBalance: initialSummary.initialBalance,
-        totalIncome,
-        totalExpense,
-        finalBalance
-      });
-    }
+    // Gunakan fungsi calculatePeriodSummary untuk perhitungan yang benar
+    const calculatedSummary = calculatePeriodSummary(
+      transactions,
+      dateRange,
+      initialSummary.initialBalance
+    );
+    
+    setSummary(calculatedSummary);
   }, [filteredTransactions, transactions, initialSummary.initialBalance, dateRange]);
 
   // Cek apakah pengguna memiliki hak akses ke halaman
@@ -138,18 +136,6 @@ export default function KasLingkunganContent({
       router.push("/dashboard")
     }
   }, [hasAccess, router])
-
-  // Form untuk transaksi baru
-  const createForm = useForm<TransactionFormValues>({
-    resolver: zodResolver(transactionFormSchema),
-    defaultValues: {
-      tanggal: new Date(),
-      keterangan: "",
-      jenisTransaksi: JenisTransaksi.UANG_MASUK,
-      tipeTransaksi: TipeTransaksiLingkungan.KOLEKTE_I,
-      jumlah: 0,
-    },
-  })
 
   // Form untuk transaksi yang diedit
   const editForm = useForm<TransactionFormValues>({
@@ -176,50 +162,9 @@ export default function KasLingkunganContent({
     resolver: zodResolver(initialBalanceFormSchema),
     defaultValues: {
       saldoAwal: initialSummary.initialBalance,
+      tanggal: new Date(),
     },
   })
-
-  // Submit transaksi baru
-  async function onCreateTransactionSubmit(values: TransactionFormValues) {
-    // Validasi hak akses modifikasi
-    if (!canModifyData) {
-      toast.error("Anda tidak memiliki izin untuk melakukan perubahan data")
-      return
-    }
-
-    try {
-      // Panggil server action untuk membuat transaksi
-      const result = await createTransaction({
-        tanggal: values.tanggal,
-        jenisTranasksi: values.jenisTransaksi,
-        tipeTransaksi: values.tipeTransaksi,
-        keterangan: values.keterangan,
-        jumlah: values.jumlah
-      });
-
-      if (result.success) {
-        toast.success("Transaksi berhasil ditambahkan");
-        setCreateDialogOpen(false);
-        
-        // Refresh data dari server (dengan cara sederhana merefresh halaman)
-        router.refresh();
-        
-        // Reset form
-        createForm.reset({
-          tanggal: new Date(),
-          keterangan: "",
-          jenisTransaksi: JenisTransaksi.UANG_MASUK,
-          tipeTransaksi: TipeTransaksiLingkungan.KOLEKTE_I,
-          jumlah: 0,
-        });
-      } else {
-        toast.error(result.error || "Gagal menambahkan transaksi");
-      }
-    } catch (error) {
-      console.error("Error submitting transaction:", error);
-      toast.error("Terjadi kesalahan saat menambahkan transaksi");
-    }
-  }
 
   // Submit edit transaksi
   async function onEditTransactionSubmit(values: TransactionFormValues) {
@@ -273,19 +218,21 @@ export default function KasLingkunganContent({
 
     try {
       // Panggil server action untuk menyimpan saldo awal
-      const result = await saveInitialBalance(values.saldoAwal);
+      const result = await saveInitialBalance(values.saldoAwal, values.tanggal);
 
       if (result.success) {
-        toast.success("Saldo awal berhasil diperbarui");
+        toast.success("Saldo awal berhasil diset");
+        setIsInitialBalanceSet(true);
+        setInitialBalanceDate(values.tanggal);
         
         // Refresh data dari server
         router.refresh();
       } else {
-        toast.error(result.error || "Gagal memperbarui saldo awal");
+        toast.error(result.error || "Gagal menyimpan saldo awal");
       }
     } catch (error) {
       console.error("Error saving initial balance:", error);
-      toast.error("Terjadi kesalahan saat memperbarui saldo awal");
+      toast.error("Terjadi kesalahan saat menyimpan saldo awal");
     }
   }
 
@@ -442,17 +389,12 @@ export default function KasLingkunganContent({
           
           {canModifyData && (
             <>
-              <CreateTransactionDialog
-                form={createForm}
-                onSubmit={onCreateTransactionSubmit}
-                open={createDialogOpen}
-                onOpenChange={setCreateDialogOpen}
-              />
-              
               <InitialBalanceDialog
                 form={initialBalanceForm}
                 onSubmit={onInitialBalanceSubmit}
                 currentBalance={summary.initialBalance}
+                isInitialBalanceSet={isInitialBalanceSet}
+                initialBalanceDate={initialBalanceDate}
               />
             </>
           )}

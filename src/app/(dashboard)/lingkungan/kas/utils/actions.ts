@@ -63,6 +63,53 @@ export async function fetchKeluargaOptions(): Promise<{ success: boolean; data: 
   }
 }
 
+// Fungsi untuk mengecek apakah saldo awal sudah diset
+export async function checkInitialBalanceExists(): Promise<{ exists: boolean; amount?: number; date?: Date }> {
+  try {
+    const existingConfig = await prisma.kasLingkungan.findFirst({
+      where: {
+        tipeTransaksi: TipeTransaksiLingkungan.LAIN_LAIN,
+        keterangan: "SALDO AWAL"
+      }
+    });
+
+    if (existingConfig) {
+      return {
+        exists: true,
+        amount: existingConfig.debit,
+        date: existingConfig.tanggal
+      };
+    }
+
+    return { exists: false };
+  } catch (error) {
+    console.error('Failed to check initial balance:', error);
+    return { exists: false };
+  }
+}
+
+// Fungsi untuk validasi transaksi baru (memastikan saldo awal sudah diset)
+export async function validateTransactionPrerequisites(): Promise<{ valid: boolean; error?: string }> {
+  try {
+    const initialBalanceCheck = await checkInitialBalanceExists();
+    
+    if (!initialBalanceCheck.exists) {
+      return {
+        valid: false,
+        error: 'Saldo awal harus diset terlebih dahulu sebelum dapat melakukan transaksi baru.'
+      };
+    }
+
+    return { valid: true };
+  } catch (error) {
+    console.error('Failed to validate transaction prerequisites:', error);
+    return {
+      valid: false,
+      error: 'Terjadi kesalahan saat validasi prasyarat transaksi.'
+    };
+  }
+}
+
 // Create transaction
 export async function createTransaction(data: {
   tanggal: Date;
@@ -73,6 +120,15 @@ export async function createTransaction(data: {
   keluargaId?: string;
 }) {
   try {
+    // Validasi prasyarat: saldo awal harus sudah diset
+    const prerequisiteCheck = await validateTransactionPrerequisites();
+    if (!prerequisiteCheck.valid) {
+      return {
+        success: false,
+        error: prerequisiteCheck.error
+      };
+    }
+
     // Tentukan debit dan kredit berdasarkan jenis transaksi
     const debit = data.jenisTranasksi === JenisTransaksi.UANG_MASUK ? data.jumlah : 0;
     const kredit = data.jenisTranasksi === JenisTransaksi.UANG_KELUAR ? data.jumlah : 0;
@@ -219,7 +275,7 @@ export async function approveTransaction(id: string, status: 'APPROVED' | 'REJEC
 }
 
 // Menyimpan saldo awal
-export async function saveInitialBalance(amount: number) {
+export async function saveInitialBalance(amount: number, tanggal: Date) {
   try {
     // Cari konfigurasi saldo awal jika sudah ada
     const existingConfig = await prisma.kasLingkungan.findFirst({
@@ -229,37 +285,33 @@ export async function saveInitialBalance(amount: number) {
       }
     });
 
-    // Jika sudah ada, update nilai
+    // Jika sudah ada, tolak perubahan (saldo awal hanya bisa diset sekali)
     if (existingConfig) {
-      await prisma.kasLingkungan.update({
-        where: { id: existingConfig.id },
-        data: {
-          debit: amount,
-          kredit: 0,
-          tanggal: new Date()
-        }
-      });
-    } else {
-      // Jika belum ada, buat baru
-      await prisma.kasLingkungan.create({
-        data: {
-          tanggal: new Date(),
-          jenisTranasksi: JenisTransaksi.UANG_MASUK,
-          tipeTransaksi: TipeTransaksiLingkungan.LAIN_LAIN,
-          keterangan: "SALDO AWAL",
-          debit: amount,
-          kredit: 0,
-          approval: {
-            create: {
-              status: 'APPROVED'
-            }
-          }
-        }
-      });
+      return { 
+        success: false, 
+        error: 'Saldo awal sudah pernah diset dan tidak dapat diubah lagi. Saldo awal hanya dapat diinput satu kali saja.' 
+      };
     }
 
+    // Jika belum ada, buat baru
+    await prisma.kasLingkungan.create({
+      data: {
+        tanggal: tanggal,
+        jenisTranasksi: JenisTransaksi.UANG_MASUK,
+        tipeTransaksi: TipeTransaksiLingkungan.LAIN_LAIN,
+        keterangan: "SALDO AWAL",
+        debit: amount,
+        kredit: 0,
+        approval: {
+          create: {
+            status: 'APPROVED'
+          }
+        }
+      }
+    });
+
     // Buat notifikasi
-    const notificationMessage = `Saldo awal kas lingkungan telah diperbarui menjadi Rp ${amount.toLocaleString('id-ID')}.`;
+    const notificationMessage = `Saldo awal kas lingkungan telah diset sebesar Rp ${amount.toLocaleString('id-ID')} pada tanggal ${tanggal.toLocaleDateString('id-ID')}.`;
     await createNotification(notificationMessage, [Role.SUPER_USER, Role.KETUA, Role.BENDAHARA, Role.WAKIL_BENDAHARA]);
     
     // Revalidasi path

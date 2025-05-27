@@ -19,6 +19,13 @@ import { toast } from 'sonner';
 import { setSaldoAwalIkata } from '../utils/kas-ikata-service';
 import { createTransaction, updateTransaction, deleteTransaction, setIkataDues, getIkataSetting } from '../utils/actions';
 import { JenisTransaksi, TipeTransaksiIkata } from '@prisma/client';
+import {
+  createKasIkataTransaction,
+  updateKasIkataTransaction,
+  deleteKasIkataTransaction,
+  lockKasIkataTransactions,
+  checkInitialBalanceIkataExists
+} from '../utils/kas-ikata-service';
 
 interface KasIKATAContentProps {
   summary: IKATASummary;
@@ -29,7 +36,7 @@ interface KasIKATAContentProps {
 
 // Helper untuk mengkonversi hasil transaksi dari database ke format UI
 const mapDbToUITransaction = (
-  dbTransaction: any, 
+  dbTransaction: any,
   uiData: {
     tanggal: string;
     keterangan: string;
@@ -56,11 +63,11 @@ const mapDbToUITransaction = (
     statusPembayaran: uiData.statusPembayaran as any,
     periodeBayar: uiData.periodeBayar,
     totalIuran: uiData.totalIuran,
-    createdAt: dbTransaction.createdAt 
-      ? new Date(dbTransaction.createdAt).toISOString() 
+    createdAt: dbTransaction.createdAt
+      ? new Date(dbTransaction.createdAt).toISOString()
       : new Date().toISOString(),
-    updatedAt: dbTransaction.updatedAt 
-      ? new Date(dbTransaction.updatedAt).toISOString() 
+    updatedAt: dbTransaction.updatedAt
+      ? new Date(dbTransaction.updatedAt).toISOString()
       : new Date().toISOString(),
     createdBy: userRole || 'Guest',
     updatedBy: userRole || 'Guest',
@@ -83,10 +90,12 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
   const [transactions, setTransactions] = useState<IKATATransaction[]>(initialTransactions);
   const [filteredTransactions, setFilteredTransactions] = useState<IKATATransaction[]>(initialTransactions);
   const [currentDuesAmount, setCurrentDuesAmount] = useState<number>(0);
-  
+
   // State untuk saldo saat ini
   const [currentBalance, setCurrentBalance] = useState<number>(summary.saldoAwal || 0);
-  
+  const [isInitialBalanceSet, setIsInitialBalanceSet] = useState(false);
+  const [initialBalanceDate, setInitialBalanceDate] = useState<Date | undefined>(undefined);
+
   // Role definition
   const isAdmin = userRole === 'SUPER_USER' || userRole === 'KETUA';
   const isTreasurer = userRole === 'WAKIL_BENDAHARA';
@@ -99,7 +108,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
       const dateParts = tx.tanggal.split('-');
       const txYear = parseInt(dateParts[0], 10);
       const txMonth = parseInt(dateParts[1], 10);
-      
+
       return txMonth === period.bulan && txYear === period.tahun;
     });
     setFilteredTransactions(filtered);
@@ -133,13 +142,25 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       const keluargaId = urlParams.get('keluargaId');
-      
+
       if (keluargaId) {
         // Auto-open transaction form dialog with pre-filled data
         setIsAddTransactionOpen(true);
       }
     }
   }, []);
+
+  // Cek status saldo awal saat komponen dimount
+  useEffect(() => {
+    const checkInitialBalance = async () => {
+      const result = await checkInitialBalanceIkataExists()
+      setIsInitialBalanceSet(result.exists)
+      if (result.date) {
+        setInitialBalanceDate(result.date)
+      }
+    }
+    checkInitialBalance()
+  }, [])
 
   if (!hasAccess) {
     return <div className="flex justify-center items-center h-64">Memeriksa akses...</div>;
@@ -150,20 +171,20 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
       toast.error("Anda tidak memiliki izin untuk menambah data");
       return;
     }
-    
+
     try {
       // Parse tanggal dengan benar
       const tanggalParts = data.tanggal.split('-');
       const tanggalObj = new Date(
-        parseInt(tanggalParts[0]), 
-        parseInt(tanggalParts[1]) - 1, 
+        parseInt(tanggalParts[0]),
+        parseInt(tanggalParts[1]) - 1,
         parseInt(tanggalParts[2])
       );
-      
+
       // Tentukan jenis dan tipe transaksi dalam format yang sesuai dengan server
-      const jenisTranasksi: JenisTransaksi = 
+      const jenisTranasksi: JenisTransaksi =
         data.jenis === 'uang_masuk' ? JenisTransaksi.UANG_MASUK : JenisTransaksi.UANG_KELUAR;
-      
+
       // Map tipe transaksi dari UI ke enum database
       const tipeTransaksiMap: Record<string, TipeTransaksiIkata> = {
         'iuran_anggota': TipeTransaksiIkata.IURAN_ANGGOTA,
@@ -178,9 +199,9 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         'pembelian': TipeTransaksiIkata.PEMBELIAN,
         'lain_lain': TipeTransaksiIkata.LAIN_LAIN
       };
-      
+
       const tipeTransaksi = tipeTransaksiMap[data.tipeTransaksi];
-      
+
       // Kirim ke server action
       const result = await createTransaction({
         tanggal: tanggalObj,
@@ -191,23 +212,23 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         keluargaId: data.anggotaId,
         totalIuran: data.totalIuran
       });
-      
+
       // Buat transaksi UI baru dari hasil
       const newTransaction = mapDbToUITransaction(
         result,
         data,
         userRole
       );
-      
+
       // Update state dengan transaksi baru
       setTransactions(prev => [...prev, newTransaction]);
-      
+
       // Tampilkan notifikasi sukses
       toast.success("Transaksi berhasil ditambahkan");
-      
+
       // Tutup dialog
       setIsAddTransactionOpen(false);
-      
+
       // Jika ini adalah untuk iuran anggota, tampilkan notifikasi tambahan
       if (data.tipeTransaksi === 'iuran_anggota' && data.anggotaId) {
         const anggota = keluargaUmatList.find(a => a.id === data.anggotaId);
@@ -218,8 +239,8 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         }
       }
     } catch (error: any) {
-      toast.error("Gagal menyimpan transaksi", { 
-        description: error.message || "Terjadi kesalahan saat menyimpan transaksi" 
+      toast.error("Gagal menyimpan transaksi", {
+        description: error.message || "Terjadi kesalahan saat menyimpan transaksi"
       });
     }
   };
@@ -229,19 +250,19 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
       toast.error("Anda tidak memiliki izin untuk mengubah data");
       return;
     }
-    
+
     // Cari transaksi yang akan diedit
     const transaction = transactions.find(tx => tx.id === id);
-    
+
     if (transaction) {
       if (transaction.locked) {
         toast.error("Transaksi terkunci tidak dapat diedit");
         return;
       }
-      
+
       // Set transaksi yang sedang diedit
       setEditingTransaction(transaction);
-      
+
       // Buka dialog edit
       setIsAddTransactionOpen(true);
     }
@@ -249,20 +270,20 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
 
   const handleUpdateTransaction = async (data: TransactionFormData) => {
     if (!editingTransaction) return;
-    
+
     try {
       // Parse tanggal dengan benar
       const tanggalParts = data.tanggal.split('-');
       const tanggalObj = new Date(
-        parseInt(tanggalParts[0]), 
-        parseInt(tanggalParts[1]) - 1, 
+        parseInt(tanggalParts[0]),
+        parseInt(tanggalParts[1]) - 1,
         parseInt(tanggalParts[2])
       );
-      
+
       // Tentukan jenis dan tipe transaksi dalam format yang sesuai dengan server
-      const jenisTranasksi: JenisTransaksi = 
+      const jenisTranasksi: JenisTransaksi =
         data.jenis === 'uang_masuk' ? JenisTransaksi.UANG_MASUK : JenisTransaksi.UANG_KELUAR;
-      
+
       // Map tipe transaksi dari UI ke enum database
       const tipeTransaksiMap: Record<string, TipeTransaksiIkata> = {
         'iuran_anggota': TipeTransaksiIkata.IURAN_ANGGOTA,
@@ -277,9 +298,9 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         'pembelian': TipeTransaksiIkata.PEMBELIAN,
         'lain_lain': TipeTransaksiIkata.LAIN_LAIN
       };
-      
+
       const tipeTransaksi = tipeTransaksiMap[data.tipeTransaksi];
-      
+
       // Kirim ke server action
       const result = await updateTransaction(editingTransaction.id, {
         tanggal: tanggalObj,
@@ -290,7 +311,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         keluargaId: data.anggotaId,
         totalIuran: data.totalIuran
       });
-      
+
       // Update state dengan data yang diperbarui
       const updatedTransactions: IKATATransaction[] = transactions.map(tx => {
         if (tx.id === editingTransaction.id) {
@@ -302,14 +323,14 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         }
         return tx;
       });
-      
+
       setTransactions(updatedTransactions);
       setEditingTransaction(null);
       toast.success("Transaksi berhasil diperbarui");
       setIsAddTransactionOpen(false);
     } catch (error: any) {
-      toast.error("Gagal memperbarui transaksi", { 
-        description: error.message || "Terjadi kesalahan saat memperbarui transaksi" 
+      toast.error("Gagal memperbarui transaksi", {
+        description: error.message || "Terjadi kesalahan saat memperbarui transaksi"
       });
     }
   };
@@ -319,23 +340,23 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
       toast.error("Anda tidak memiliki izin untuk menghapus data");
       return;
     }
-    
+
     // Cari transaksi yang akan dihapus
     const transaction = transactions.find(tx => tx.id === id);
-    
+
     if (transaction) {
       if (transaction.locked) {
         toast.error("Transaksi terkunci tidak dapat dihapus");
         return;
       }
-      
+
       try {
         // Hapus transaksi dari server
         await deleteTransaction(id);
-        
+
         // Hapus transaksi dari state
         setTransactions(prev => prev.filter(tx => tx.id !== id));
-        
+
         // Tampilkan notifikasi sukses
         toast.success("Transaksi berhasil dihapus");
       } catch (error: any) {
@@ -351,7 +372,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
       toast.error("Anda tidak memiliki izin untuk mengunci/membuka data");
       return;
     }
-    
+
     // Update status lock pada transaksi
     const updatedTransactions: IKATATransaction[] = transactions.map(tx => {
       if (tx.id === id) {
@@ -364,9 +385,9 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
       }
       return tx;
     });
-    
+
     setTransactions(updatedTransactions);
-    
+
     // Tampilkan notifikasi sukses
     const transaction = updatedTransactions.find(tx => tx.id === id);
     if (transaction) {
@@ -395,14 +416,14 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         }
         return tx;
       });
-      
+
       setTransactions(updatedTransactions);
       toast.success("Transaksi berhasil dikunci");
     }
-    
+
     // Reset konfirmasi
     setSkipConfirmation(false);
-    
+
     // Tutup dialog setelah unduh selesai jika transaksi dikunci
     if (data.lockTransactions) {
       setIsPrintDialogOpen(false);
@@ -420,13 +441,15 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
       toast.error("Anda tidak memiliki izin untuk mengubah saldo awal");
       return;
     }
-    
+
     try {
-      const result = await setSaldoAwalIkata(data.saldoAwal);
-      
+      const result = await setSaldoAwalIkata(data.saldoAwal, data.tanggal);
+
       if (result.success) {
         toast.success("Saldo awal berhasil disimpan");
         setCurrentBalance(data.saldoAwal);
+        setIsInitialBalanceSet(true);
+        setInitialBalanceDate(data.tanggal);
         router.refresh();
       } else {
         toast.error(result.error || "Gagal menyimpan saldo awal");
@@ -450,7 +473,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
       formData.append("amount", values.amount.toString());
 
       const result = await setIkataDues(formData);
-      
+
       if (result.success) {
         toast.success(`Iuran IKATA tahun ${values.year} berhasil diatur: Rp ${values.amount.toLocaleString('id-ID')}`);
         setCurrentDuesAmount(values.amount);
@@ -496,36 +519,29 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         <h1 className="text-2xl font-bold">Kas IKATA</h1>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
           <PeriodFilter period={period} onPeriodChange={handlePeriodChange} />
-          
+
           {/* Tombol Aksi */}
           <div className="flex flex-wrap gap-2">
-            {canModifyData && (
-              <Button 
-                onClick={() => setIsAddTransactionOpen(true)} 
-                disabled={isLoading}
-              >
-                Tambah Transaksi
-              </Button>
-            )}
-            
-            <Button 
-              onClick={handleOpenPrintDialog} 
+            <Button
+              onClick={handleOpenPrintDialog}
               variant="outline"
               disabled={isLoading}
             >
               <Printer className="h-4 w-4 mr-2" />
               Print PDF
             </Button>
-            
+
             {canModifyData && (
               <>
                 <SaldoAwalFormDialog
                   onSubmit={handleSaveSaldoAwal}
                   currentBalance={currentBalance}
+                  isInitialBalanceSet={isInitialBalanceSet}
+                  initialBalanceDate={initialBalanceDate}
                 />
-                
-                <Button 
-                  onClick={() => setIsSetDuesDialogOpen(true)} 
+
+                <Button
+                  onClick={() => setIsSetDuesDialogOpen(true)}
                   variant="outline"
                   disabled={isLoading}
                 >
@@ -540,12 +556,20 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
 
       <SummaryCards summary={summaryData} />
 
+      {canModifyData && (
+        <Button
+          onClick={() => setIsAddTransactionOpen(true)}
+          disabled={isLoading}
+        >
+          Tambah Transaksi
+        </Button>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>Daftar Transaksi</CardTitle>
         </CardHeader>
         <CardContent>
-          <TransactionsTable 
+          <TransactionsTable
             transactions={filteredTransactions}
             onEdit={handleEditTransaction}
             onDelete={handleDeleteTransaction}
@@ -566,7 +590,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
             toast.error("Anda tidak memiliki izin untuk menambah data");
             return;
           }
-          
+
           if (editingTransaction) {
             handleUpdateTransaction(data);
           } else {

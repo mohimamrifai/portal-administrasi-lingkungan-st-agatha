@@ -57,4 +57,87 @@ export function filterTransactionsByDateRange(transactions: TransactionData[], f
   return transactions.filter(tx => 
     tx.tanggal >= from && tx.tanggal <= to
   )
+}
+
+/**
+ * Calculates the initial balance for a specific period based on previous transactions
+ * @param transactions All transactions
+ * @param periodStart Start date of the period
+ * @param globalInitialBalance The global initial balance from database
+ * @returns Initial balance for the period
+ */
+export function calculatePeriodInitialBalance(
+  transactions: TransactionData[], 
+  periodStart: Date, 
+  globalInitialBalance: number
+): number {
+  // Filter transaksi sebelum periode yang diminta (tidak termasuk saldo awal global)
+  const transactionsBeforePeriod = transactions.filter(tx => {
+    // Exclude global initial balance transaction
+    const isGlobalInitialBalance = tx.tipeTransaksi === 'LAIN_LAIN' && tx.keterangan === 'SALDO AWAL';
+    return !isGlobalInitialBalance && tx.tanggal < periodStart;
+  });
+
+  // Hitung total pemasukan dan pengeluaran sebelum periode
+  const totalIncomeBeforePeriod = transactionsBeforePeriod.reduce((sum, tx) => sum + tx.debit, 0);
+  const totalExpenseBeforePeriod = transactionsBeforePeriod.reduce((sum, tx) => sum + tx.kredit, 0);
+
+  // Saldo awal periode = saldo awal global + semua transaksi sebelum periode
+  return globalInitialBalance + totalIncomeBeforePeriod - totalExpenseBeforePeriod;
+}
+
+/**
+ * Calculates summary for a specific period with correct initial balance
+ * @param transactions All transactions
+ * @param dateRange Period range (optional, if null calculates for all time)
+ * @param globalInitialBalance The global initial balance from database
+ * @returns Summary with correct period-based calculations
+ */
+export function calculatePeriodSummary(
+  transactions: TransactionData[],
+  dateRange: DateRange | undefined,
+  globalInitialBalance: number
+) {
+  if (!dateRange?.from || !dateRange?.to) {
+    // Jika tidak ada filter, gunakan perhitungan global
+    const filteredTransactions = transactions.filter(tx => 
+      !(tx.tipeTransaksi === 'LAIN_LAIN' && tx.keterangan === 'SALDO AWAL')
+    );
+    
+    const totalIncome = filteredTransactions.reduce((sum, tx) => sum + tx.debit, 0);
+    const totalExpense = filteredTransactions.reduce((sum, tx) => sum + tx.kredit, 0);
+    const finalBalance = globalInitialBalance + totalIncome - totalExpense;
+    
+    return {
+      initialBalance: globalInitialBalance,
+      totalIncome,
+      totalExpense,
+      finalBalance
+    };
+  }
+
+  // Hitung saldo awal untuk periode ini
+  const periodInitialBalance = calculatePeriodInitialBalance(
+    transactions, 
+    dateRange.from, 
+    globalInitialBalance
+  );
+
+  // Filter transaksi dalam periode (tidak termasuk saldo awal global)
+  const periodTransactions = transactions.filter(tx => {
+    const isGlobalInitialBalance = tx.tipeTransaksi === 'LAIN_LAIN' && tx.keterangan === 'SALDO AWAL';
+    return !isGlobalInitialBalance && tx.tanggal >= dateRange.from! && tx.tanggal <= dateRange.to!;
+  });
+
+  // Hitung pemasukan dan pengeluaran dalam periode
+  const totalIncome = periodTransactions.reduce((sum, tx) => sum + tx.debit, 0);
+  const totalExpense = periodTransactions.reduce((sum, tx) => sum + tx.kredit, 0);
+  const finalBalance = periodInitialBalance + totalIncome - totalExpense;
+
+  return {
+    initialBalance: periodInitialBalance,
+    totalIncome,
+    totalExpense,
+    finalBalance
+  };
 } 

@@ -150,6 +150,15 @@ export async function createKasIkataTransaction(data: {
   totalIuran?: number;
 }) {
   try {
+    // Validasi prasyarat: saldo awal harus sudah diset
+    const prerequisiteCheck = await validateIkataTransactionPrerequisites();
+    if (!prerequisiteCheck.valid) {
+      return {
+        success: false,
+        error: prerequisiteCheck.error
+      };
+    }
+
     // Pastikan tanggal valid dengan membuat objek Date baru
     const validDate = new Date(data.tanggal);
     
@@ -322,7 +331,7 @@ export async function getSaldoAwalIkata(bulan: number, tahun: number) {
 }
 
 // Fungsi untuk menyimpan saldo awal IKATA
-export async function setSaldoAwalIkata(saldoAwal: number) {
+export async function setSaldoAwalIkata(saldoAwal: number, tanggal: Date) {
   try {
     // Cari konfigurasi saldo awal jika sudah ada
     const existingConfig = await prisma.kasIkata.findFirst({
@@ -332,33 +341,27 @@ export async function setSaldoAwalIkata(saldoAwal: number) {
       }
     });
 
-    let result;
-    
-    // Jika sudah ada, update nilai
+    // Jika sudah ada, tolak perubahan (saldo awal hanya bisa diset sekali)
     if (existingConfig) {
-      result = await prisma.kasIkata.update({
-        where: { id: existingConfig.id },
-        data: {
-          debit: saldoAwal,
-          kredit: 0,
-          tanggal: new Date(),
-          updatedAt: new Date()
-        }
-      });
-    } else {
-      // Jika belum ada, buat baru
-      result = await prisma.kasIkata.create({
-        data: {
-          tanggal: new Date(),
-          jenisTranasksi: JenisTransaksi.UANG_MASUK,
-          tipeTransaksi: TipeTransaksiIkata.LAIN_LAIN,
-          keterangan: "SALDO AWAL",
-          debit: saldoAwal,
-          kredit: 0,
-          locked: true
-        }
-      });
+      return { 
+        success: false, 
+        error: 'Saldo awal sudah pernah diset dan tidak dapat diubah lagi. Saldo awal hanya dapat diinput satu kali saja.',
+        message: "Saldo awal IKATA sudah diset sebelumnya"
+      };
     }
+
+    // Jika belum ada, buat baru
+    const result = await prisma.kasIkata.create({
+      data: {
+        tanggal: tanggal,
+        jenisTranasksi: JenisTransaksi.UANG_MASUK,
+        tipeTransaksi: TipeTransaksiIkata.LAIN_LAIN,
+        keterangan: "SALDO AWAL",
+        debit: saldoAwal,
+        kredit: 0,
+        locked: true
+      }
+    });
     
     // Hapus data dari tabel saldoAwalIkata jika ada (untuk bersihkan data lama)
     try {
@@ -384,6 +387,53 @@ export async function setSaldoAwalIkata(saldoAwal: number) {
       success: false, 
       error: "Gagal menyimpan saldo awal IKATA",
       message: "Terjadi kesalahan saat menyimpan saldo awal"
+    };
+  }
+}
+
+// Fungsi untuk mengecek apakah saldo awal IKATA sudah diset
+export async function checkInitialBalanceIkataExists(): Promise<{ exists: boolean; amount?: number; date?: Date }> {
+  try {
+    const existingConfig = await prisma.kasIkata.findFirst({
+      where: {
+        tipeTransaksi: TipeTransaksiIkata.LAIN_LAIN,
+        keterangan: "SALDO AWAL"
+      }
+    });
+
+    if (existingConfig) {
+      return {
+        exists: true,
+        amount: existingConfig.debit,
+        date: existingConfig.tanggal
+      };
+    }
+
+    return { exists: false };
+  } catch (error) {
+    console.error('Failed to check initial balance IKATA:', error);
+    return { exists: false };
+  }
+}
+
+// Fungsi untuk validasi transaksi baru IKATA (memastikan saldo awal sudah diset)
+export async function validateIkataTransactionPrerequisites(): Promise<{ valid: boolean; error?: string }> {
+  try {
+    const initialBalanceCheck = await checkInitialBalanceIkataExists();
+    
+    if (!initialBalanceCheck.exists) {
+      return {
+        valid: false,
+        error: 'Saldo awal IKATA harus diset terlebih dahulu sebelum dapat melakukan transaksi baru.'
+      };
+    }
+
+    return { valid: true };
+  } catch (error) {
+    console.error('Failed to validate IKATA transaction prerequisites:', error);
+    return {
+      valid: false,
+      error: 'Terjadi kesalahan saat validasi prasyarat transaksi IKATA.'
     };
   }
 } 

@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { unstable_noStore as noStore } from "next/cache";
+import { DateRange } from "react-day-picker";
 import { KesekretariatanSummary, KeuanganIkataSummary, KeuanganLingkunganSummary } from "./types";
 import { TipeTransaksiLingkungan, TipeTransaksiIkata } from "@prisma/client";
 import { calculateDanaMandiriArrears, calculateIkataArrears } from "./utils/arrears-utils";
@@ -11,69 +12,39 @@ export async function getKeuanganLingkunganData(bulan?: number, tahun?: number):
   noStore(); // Menonaktifkan caching
 
   try {
-    // Filter berdasarkan bulan dan tahun jika diberikan
-    const dateStart = bulan !== undefined && tahun !== undefined 
-      ? new Date(tahun, bulan, 1) 
-      : undefined;
-    const dateEnd = bulan !== undefined && tahun !== undefined
-      ? new Date(tahun, bulan + 1, 0)
-      : undefined;
+    // Import fungsi dari kas lingkungan untuk konsistensi
+    const { getTransactionsData, getTransactionSummary } = await import("@/app/(dashboard)/lingkungan/kas/components/providers");
+    const { calculatePeriodSummary } = await import("@/app/(dashboard)/lingkungan/kas/utils/date-utils");
 
+    // Ambil semua data transaksi
+    const transactions = await getTransactionsData();
+    
     // Cek apakah ada transaksi saldo awal
-    const initialBalanceTransaction = await prisma.kasLingkungan.findFirst({
-      where: {
-        tipeTransaksi: TipeTransaksiLingkungan.LAIN_LAIN,
-        keterangan: 'SALDO AWAL'
-      },
-      orderBy: {
-        tanggal: 'desc'
-      }
-    });
+    const initialBalanceTransaction = transactions.find(tx => 
+      tx.tipeTransaksi === 'LAIN_LAIN' && 
+      tx.keterangan === 'SALDO AWAL'
+    );
     
-    // Gunakan saldo awal dari transaksi jika ada
-    const saldoAwal = initialBalanceTransaction ? initialBalanceTransaction.debit : 0;
+    // Gunakan saldo awal dari database jika ada, atau default ke 0
+    const globalInitialBalance = initialBalanceTransaction ? initialBalanceTransaction.debit : 0;
 
-    // Mengambil total pemasukan (debit) untuk periode
-    const pemasukan = await prisma.kasLingkungan.aggregate({
-      _sum: {
-        debit: true,
-      },
-      where: {
-        ...(dateStart && dateEnd ? { tanggal: { gte: dateStart, lte: dateEnd } } : {}),
-        jenisTranasksi: "UANG_MASUK",
-        NOT: {
-          keterangan: 'SALDO AWAL'
-        }
-      },
-    });
+    // Jika ada filter bulan dan tahun, buat dateRange
+    let dateRange: DateRange | undefined = undefined;
+    if (bulan !== undefined && tahun !== undefined) {
+      dateRange = {
+        from: new Date(tahun, bulan, 1),
+        to: new Date(tahun, bulan + 1, 0)
+      };
+    }
 
-    // Mengambil total pengeluaran (kredit) untuk periode
-    const pengeluaran = await prisma.kasLingkungan.aggregate({
-      _sum: {
-        kredit: true,
-      },
-      where: {
-        ...(dateStart && dateEnd ? { tanggal: { gte: dateStart, lte: dateEnd } } : {}),
-        jenisTranasksi: "UANG_KELUAR",
-        NOT: {
-          keterangan: 'SALDO AWAL'
-        }
-      },
-    });
-
-    // Menghitung saldo akhir (dengan null check)
-    const totalPemasukan = pemasukan._sum?.debit || 0;
-    const totalPengeluaran = pengeluaran._sum?.kredit || 0;
-    
-    // Menyesuaikan perhitungan untuk konsisten dengan halaman kas lingkungan
-    const adjustedTotalPemasukan = saldoAwal + totalPemasukan;
-    const saldoAkhir = saldoAwal + totalPemasukan - totalPengeluaran;
+    // Gunakan calculatePeriodSummary untuk perhitungan yang konsisten
+    const summary = calculatePeriodSummary(transactions, dateRange, globalInitialBalance);
 
     return {
-      saldoAwal,
-      totalPemasukan: adjustedTotalPemasukan, // Termasuk saldo awal dalam total pemasukan
-      totalPengeluaran,
-      saldoAkhir,
+      saldoAwal: summary.initialBalance,
+      totalPemasukan: summary.totalIncome,
+      totalPengeluaran: summary.totalExpense,
+      saldoAkhir: summary.finalBalance,
     };
   } catch (error) {
     console.error("Error getting keuangan lingkungan data:", error);
