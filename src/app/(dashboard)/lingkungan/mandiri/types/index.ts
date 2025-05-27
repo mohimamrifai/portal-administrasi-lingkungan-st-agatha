@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+// Status pembayaran untuk dana mandiri
+export type StatusPembayaran = 'lunas' | 'sebagian_bulan' | 'belum_ada_pembayaran';
+
 // Dana Mandiri Transaction interface
 export interface DanaMandiriTransaction {
   id: string;
@@ -10,6 +13,9 @@ export interface DanaMandiriTransaction {
   statusSetor: boolean;
   tanggalSetor?: Date;
   tanggal: Date;
+  statusPembayaran: StatusPembayaran;
+  periodeBayar?: number;
+  totalIuran?: number;
   keluarga?: {
     namaKepalaKeluarga: string;
     alamat?: string;
@@ -30,12 +36,6 @@ export interface DanaMandiriArrears {
   updatedAt?: Date;
 }
 
-// Payment Status options
-export const paymentStatusOptions = [
-  { value: "Lunas", label: "Lunas" },
-  { value: "Belum Lunas", label: "Belum Lunas" },
-];
-
 // Form schemas
 export const transactionFormSchema = z.object({
   familyHeadId: z.string({
@@ -47,13 +47,10 @@ export const transactionFormSchema = z.object({
   amount: z.coerce.number().positive({
     message: "Jumlah harus lebih dari 0",
   }),
-  paymentDate: z.date({
-    required_error: "Tanggal pembayaran wajib diisi",
-  }),
-  notes: z.string().optional(),
-  paymentStatus: z.enum(["Lunas", "Belum Lunas"], {
+  statusPembayaran: z.enum(['lunas', 'sebagian_bulan', 'belum_ada_pembayaran'], {
     required_error: "Status pembayaran wajib dipilih",
   }),
+  periodeBayar: z.coerce.number().min(1).max(12).optional(),
 });
 
 export const printPdfSchema = z.object({

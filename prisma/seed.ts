@@ -17,23 +17,25 @@ async function main() {
   // Seed keluarga umat
   await seedKeluargaUmat(prisma);
   
-  // Seed kas lingkungan
-  await seedKasLingkungan(prisma);
+  // // Seed kas lingkungan
+  // await seedKasLingkungan(prisma);
   
-  // Seed dana mandiri
-  await seedDanaMandiri(prisma);
+  // // Seed dana mandiri
+  // await seedDanaMandiri(prisma);
   
-  // Seed kas ikata
-  await seedKasIkata(prisma);
+  // // Seed kas ikata
+  // await seedKasIkata(prisma);
   
-  // Seed doa lingkungan
-  await seedDoaLingkungan(prisma);
+  // // Seed doa lingkungan
+  // await seedDoaLingkungan(prisma);
   
-  // Seed pengajuan
-  await seedPengajuan(prisma);
+  // // Seed pengajuan
+  // await seedPengajuan(prisma);
   
-  // Seed publikasi
-  await seedPublikasi(prisma);
+  // // Seed publikasi
+  // await seedPublikasi(prisma);
+
+  console.log("Seed completed");
 }
 
 main()

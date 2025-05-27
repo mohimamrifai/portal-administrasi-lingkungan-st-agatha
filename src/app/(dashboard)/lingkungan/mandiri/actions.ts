@@ -13,6 +13,7 @@ import {
   DanaMandiriArrears
 } from "./types"
 import { z } from "zod"
+import { calculateDanaMandiriArrearsDetailed } from "../../dashboard/utils/arrears-utils"
 
 // Mendapatkan data transaksi dana mandiri
 export async function getDanaMandiriTransactions(year?: number) {
@@ -28,8 +29,26 @@ export async function getDanaMandiriTransactions(year?: number) {
     // Dapatkan transaksi dari database
     const transactions = await prisma.danaMandiri.findMany({
       where: filter,
-      include: {
-        keluarga: true
+      select: {
+        id: true,
+        keluargaId: true,
+        tahun: true,
+        jumlahDibayar: true,
+        tanggal: true,
+        bulan: true,
+        statusSetor: true,
+        tanggalSetor: true,
+        statusPembayaran: true,
+        periodeBayar: true,
+        totalIuran: true,
+        keluarga: {
+          select: {
+            id: true,
+            namaKepalaKeluarga: true,
+            alamat: true,
+            nomorTelepon: true,
+          }
+        }
       },
       orderBy: {
         tanggal: 'desc'
@@ -49,14 +68,46 @@ export async function getDanaMandiriSummary(year: number) {
     // Dapatkan tahun saat ini jika tidak disediakan
     const targetYear = year || new Date().getFullYear()
 
-    // Dapatkan semua keluarga
-    const totalKeluarga = await prisma.keluargaUmat.count()
+    // Dapatkan pengaturan iuran untuk tahun tersebut
+    const setting = await prisma.danaMandiriSetting.findFirst({
+      where: { tahun: targetYear }
+    })
 
-    // Dapatkan keluarga yang sudah membayar dana mandiri untuk tahun tersebut
-    const keluargaBayar = await prisma.danaMandiri.groupBy({
-      by: ['keluargaId'],
+    if (!setting) {
+      return { 
+        success: true, 
+        data: {
+          totalTerkumpul: 0,
+          jumlahKKLunas: 0,
+          jumlahKKBelumLunas: 0
+        } 
+      }
+    }
+
+    // Dapatkan semua keluarga aktif
+    const totalKeluarga = await prisma.keluargaUmat.count({
       where: {
-        tahun: targetYear,
+        tanggalKeluar: null,
+        status: "HIDUP"
+      }
+    })
+
+    // Dapatkan keluarga dengan data pembayaran dana mandiri
+    const keluargaWithPayments = await prisma.keluargaUmat.findMany({
+      where: {
+        tanggalKeluar: null,
+        status: "HIDUP"
+      },
+      select: {
+        id: true,
+        danaMandiri: {
+          where: { tahun: targetYear },
+          select: {
+            jumlahDibayar: true,
+            statusPembayaran: true,
+            totalIuran: true,
+          }
+        }
       }
     })
 
@@ -70,12 +121,49 @@ export async function getDanaMandiriSummary(year: number) {
       }
     })
 
+    // Hitung keluarga lunas dan belum lunas
+    let jumlahKKLunas = 0
+    let jumlahKKBelumLunas = 0
+
+    for (const keluarga of keluargaWithPayments) {
+      if (keluarga.danaMandiri.length === 0) {
+        // Belum ada pembayaran sama sekali
+        jumlahKKBelumLunas++
+      } else {
+        const pembayaran = keluarga.danaMandiri[0]
+        
+        if (pembayaran.statusPembayaran === "lunas") {
+          jumlahKKLunas++
+        } else if (pembayaran.statusPembayaran === "sebagian_bulan") {
+          const totalExpected = pembayaran.totalIuran || setting.jumlahIuran
+          const sisaTunggakan = totalExpected - pembayaran.jumlahDibayar
+          
+          if (sisaTunggakan <= 0) {
+            jumlahKKLunas++
+          } else {
+            jumlahKKBelumLunas++
+          }
+        } else if (pembayaran.statusPembayaran === "belum_ada_pembayaran") {
+          jumlahKKBelumLunas++
+        } else {
+          // Fallback: hitung berdasarkan total yang sudah dibayar vs yang seharusnya
+          const totalDibayar = keluarga.danaMandiri.reduce((sum, payment) => sum + payment.jumlahDibayar, 0)
+          
+          if (totalDibayar >= setting.jumlahIuran) {
+            jumlahKKLunas++
+          } else {
+            jumlahKKBelumLunas++
+          }
+        }
+      }
+    }
+
     return { 
       success: true, 
       data: {
         totalTerkumpul: totalTerkumpul._sum.jumlahDibayar || 0,
-        jumlahKKLunas: keluargaBayar.length,
-        jumlahKKBelumLunas: totalKeluarga - keluargaBayar.length
+        jumlahKKLunas,
+        jumlahKKBelumLunas
       } 
     }
   } catch (error) {
@@ -119,10 +207,16 @@ export async function addDanaMandiriTransaction(formData: FormData) {
       familyHeadId: formData.get("familyHeadId"),
       year: parseInt(formData.get("year") as string),
       amount: parseFloat(formData.get("amount") as string),
-      paymentDate: new Date(formData.get("paymentDate") as string),
-      notes: formData.get("notes") || undefined,
-      paymentStatus: formData.get("paymentStatus")
+      statusPembayaran: formData.get("statusPembayaran") || "lunas",
+      periodeBayar: formData.get("periodeBayar") ? parseInt(formData.get("periodeBayar") as string) : undefined,
     })
+
+    // Ambil setting iuran untuk tahun tersebut
+    const setting = await prisma.danaMandiriSetting.findUnique({
+      where: { tahun: validatedData.year }
+    })
+
+    const currentDate = new Date()
 
     // Buat transaksi baru di database
     const transaction = await prisma.danaMandiri.create({
@@ -130,9 +224,12 @@ export async function addDanaMandiriTransaction(formData: FormData) {
         keluargaId: validatedData.familyHeadId as string,
         tahun: validatedData.year,
         jumlahDibayar: validatedData.amount,
-        tanggal: validatedData.paymentDate,
-        bulan: validatedData.paymentDate.getMonth() + 1, // Bulan dari 1-12
-        statusSetor: false
+        tanggal: currentDate,
+        bulan: currentDate.getMonth() + 1, // Bulan dari 1-12
+        statusSetor: false,
+        statusPembayaran: validatedData.statusPembayaran,
+        periodeBayar: validatedData.periodeBayar,
+        totalIuran: setting?.jumlahIuran || 0,
       }
     })
 
@@ -200,9 +297,13 @@ export async function updateDanaMandiriTransaction(formData: FormData) {
       familyHeadId: formData.get("familyHeadId"),
       year: parseInt(formData.get("year") as string),
       amount: parseFloat(formData.get("amount") as string),
-      paymentDate: new Date(formData.get("paymentDate") as string),
-      notes: formData.get("notes") || undefined,
-      paymentStatus: formData.get("paymentStatus")
+      statusPembayaran: formData.get("statusPembayaran") || "lunas",
+      periodeBayar: formData.get("periodeBayar") ? parseInt(formData.get("periodeBayar") as string) : undefined,
+    })
+
+    // Ambil setting iuran untuk tahun tersebut
+    const setting = await prisma.danaMandiriSetting.findUnique({
+      where: { tahun: validatedData.year }
     })
 
     // Update transaksi di database
@@ -212,8 +313,12 @@ export async function updateDanaMandiriTransaction(formData: FormData) {
         keluargaId: validatedData.familyHeadId as string,
         tahun: validatedData.year,
         jumlahDibayar: validatedData.amount,
-        tanggal: validatedData.paymentDate,
-        bulan: validatedData.paymentDate.getMonth() + 1 // Bulan dari 1-12
+        tanggal: new Date(),
+        bulan: new Date().getMonth() + 1, // Bulan dari 1-12
+        statusSetor: false,
+        statusPembayaran: validatedData.statusPembayaran,
+        periodeBayar: validatedData.periodeBayar,
+        totalIuran: setting?.jumlahIuran || 0,
       }
     })
 
@@ -328,62 +433,15 @@ export async function submitToParoki(formData: FormData) {
 // Mendapatkan data tunggakan dana mandiri
 export async function getDanaMandiriArrears() {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
-      throw new Error("Anda harus login untuk mengakses data ini")
-    }
-
-    // Dapatkan data tunggakan dari database
-    const arrears = await prisma.danaMandiriArrears.findMany({
-      orderBy: {
-        namaKepalaKeluarga: 'asc'
-      }
-    })
-
-    // Jika data tunggakan belum ada, gunakan metode lama untuk menghitungnya
-    if (arrears.length === 0) {
-      const currentYear = new Date().getFullYear()
-      const currentMonth = new Date().getMonth()
-       
-      // Dapatkan semua keluarga
-      const keluarga = await prisma.keluargaUmat.findMany({
-        select: {
-          id: true,
-          namaKepalaKeluarga: true,
-          alamat: true,
-          nomorTelepon: true,
-          danaMandiri: {
-            where: {
-              tahun: currentYear
-            }
-          }
-        }
-      })
-
-      // Filter keluarga yang belum bayar untuk tahun ini
-      const arrearsData = keluarga
-        .filter(k => k.danaMandiri.length === 0)
-        .map(k => {
-          // Ambil jumlah iuran dari setting atau gunakan default 50.000 per bulan
-          const jumlahTunggakan = (currentMonth + 1) * 50000;
-          
-          return {
-            keluargaId: k.id,
-            namaKepalaKeluarga: k.namaKepalaKeluarga,
-            alamat: k.alamat || "",
-            nomorTelepon: k.nomorTelepon || "",
-            tahunTertunggak: [currentYear],
-            totalTunggakan: jumlahTunggakan
-          };
-       })
-      
-      return { success: true, data: arrearsData }
-    }
-
-    return { success: true, data: arrears }
+    const currentYear = new Date().getFullYear();
+    
+    // Gunakan utilitas untuk menghitung tunggakan dengan format detail
+    const arrearsData = await calculateDanaMandiriArrearsDetailed(currentYear);
+    
+    return arrearsData;
   } catch (error) {
-    console.error("Error saat mengambil data tunggakan:", error)
-    return { success: false, error: "Gagal mengambil data tunggakan" }
+    console.error("Error getting dana mandiri arrears:", error);
+    return [];
   }
 }
 

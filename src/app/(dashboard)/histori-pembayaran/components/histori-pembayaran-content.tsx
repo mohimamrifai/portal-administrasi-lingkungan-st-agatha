@@ -31,7 +31,8 @@ import {
   getIkataByKeluargaId,
   updateIkata,
   deleteIkata,
-  getTotalIkataByYear
+  getTotalIkataByYear,
+  fixIkataMonthData
 } from "../actions/ikata"
 import { getCurrentUserKeluarga, getCurrentUserRole } from "../actions/user"
 
@@ -462,6 +463,26 @@ export default function HistoriPembayaranContent() {
     }
   }
   
+  // Handler untuk memperbaiki data bulan IKATA
+  const handleFixIkataMonthData = async () => {
+    try {
+      setIsLoading(true)
+      const result = await fixIkataMonthData()
+      
+      if (result.success) {
+        toast.success(`Berhasil memperbaiki ${result.fixed} data bulan IKATA`)
+        
+        // Refresh data setelah perbaikan
+        await handlePaymentAdded()
+      }
+    } catch (error) {
+      console.error("Error fixing IKATA month data:", error)
+      toast.error("Gagal memperbaiki data bulan IKATA")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+  
   // Jika masih loading, tampilkan pesan loading
   if (isLoading) {
     return <LoadingSkeleton />
@@ -471,6 +492,17 @@ export default function HistoriPembayaranContent() {
     <div className="space-y-6 p-2">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold">Histori Pembayaran</h2>
+        {/* Tombol perbaikan data hanya untuk super user */}
+        {isSuperUser && (
+          <Button
+            variant="outline"
+            onClick={handleFixIkataMonthData}
+            disabled={isLoading}
+            className="text-sm"
+          >
+            Perbaiki Data Bulan IKATA
+          </Button>
+        )}
       </div>
       
       {/* Summary Cards */}

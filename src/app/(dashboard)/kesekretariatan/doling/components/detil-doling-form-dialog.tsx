@@ -33,6 +33,40 @@ const mapPrismaJenisIbadatToForm = (jenisIbadat: JenisIbadat): FormJenisIbadat =
   return mapping[jenisIbadat];
 };
 
+// Fungsi mapping dari enum SubIbadat backend ke string frontend
+const mapSubIbadatEnumToString = (subIbadat: SubIbadat): string => {
+  const mapping: Record<SubIbadat, string> = {
+    [SubIbadat.IBADAT_SABDA]: "ibadat-sabda",
+    [SubIbadat.IBADAT_SABDA_TEMATIK]: "ibadat-sabda-tematik",
+    [SubIbadat.PRAPASKAH]: "prapaskah-app",
+    [SubIbadat.BKSN]: "bksn",
+    [SubIbadat.BULAN_ROSARIO]: "bulan-rosario",
+    [SubIbadat.NOVENA_NATAL]: "novena-natal",
+    [SubIbadat.MISA_SYUKUR]: "misa-syukur",
+    [SubIbadat.MISA_REQUEM]: "misa-requem",
+    [SubIbadat.MISA_ARWAH]: "misa-arwah",
+    [SubIbadat.MISA_PELINDUNG]: "misa-pelindung"
+  };
+  return mapping[subIbadat];
+};
+
+// Fungsi mapping dari string frontend ke enum SubIbadat backend
+const mapStringToSubIbadatEnum = (value: string): SubIbadat | null => {
+  const mapping: Record<string, SubIbadat> = {
+    "ibadat-sabda": SubIbadat.IBADAT_SABDA,
+    "ibadat-sabda-tematik": SubIbadat.IBADAT_SABDA_TEMATIK,
+    "prapaskah-app": SubIbadat.PRAPASKAH,
+    "bksn": SubIbadat.BKSN,
+    "bulan-rosario": SubIbadat.BULAN_ROSARIO,
+    "novena-natal": SubIbadat.NOVENA_NATAL,
+    "misa-syukur": SubIbadat.MISA_SYUKUR,
+    "misa-requem": SubIbadat.MISA_REQUEM,
+    "misa-arwah": SubIbadat.MISA_ARWAH,
+    "misa-pelindung": SubIbadat.MISA_PELINDUNG
+  };
+  return mapping[value] || null;
+};
+
 interface DetilDolingFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -110,6 +144,7 @@ interface SubmitDataType {
   jumlahPeserta: number;
   status: string;
   customSubIbadat?: string | null;
+  subIbadat?: SubIbadat | null;
 }
 
 export function DetilDolingFormDialog({
@@ -127,8 +162,16 @@ export function DetilDolingFormDialog({
   const [formJenisIbadat, setFormJenisIbadat] = useState<FormJenisIbadat>(
     mapPrismaJenisIbadatToForm(detil?.jenisIbadat || JenisIbadat.DOA_LINGKUNGAN)
   )
-  const [subIbadat, setSubIbadat] = useState<SubIbadat | null>(detil?.subIbadat || null)
-  const [customSubIbadat, setCustomSubIbadat] = useState<string | null>(detil?.customSubIbadat || null)
+  
+  // Perbaikan: Inisialisasi subIbadat dengan mapping yang benar
+  const [subIbadat, setSubIbadat] = useState<string>(() => {
+    if (detil?.subIbadat) {
+      return mapSubIbadatEnumToString(detil.subIbadat);
+    }
+    return "";
+  })
+  
+  const [customSubIbadat, setCustomSubIbadat] = useState<string>(detil?.customSubIbadat || "")
   const [temaIbadat, setTemaIbadat] = useState<string | null>(detil?.temaIbadat || null)
   const [keterangan, setKeterangan] = useState<string>("")
   const [status, setStatus] = useState<string>(detil?.status === "selesai" || detil?.status === "dibatalkan" ? detil.status : "selesai")
@@ -194,9 +237,9 @@ export function DetilDolingFormDialog({
       setTuanRumahValue(detil.tuanRumahId);
       setJenisIbadat(detil.jenisIbadat);
       setFormJenisIbadat(mapPrismaJenisIbadatToForm(detil.jenisIbadat));
-      setSubIbadat(detil.subIbadat);
-      setCustomSubIbadat(detil.customSubIbadat);
-      setTemaIbadat(detil.temaIbadat);
+      setSubIbadat(detil.subIbadat ? mapSubIbadatEnumToString(detil.subIbadat) : "");
+      setCustomSubIbadat(detil.customSubIbadat || "");
+      setTemaIbadat(detil.temaIbadat || null);
       setStatus(detil.status === "selesai" || detil.status === "dibatalkan" ? detil.status : "selesai");
       
       setJumlahKehadiran({
@@ -251,9 +294,9 @@ export function DetilDolingFormDialog({
         setTuanRumahValue(jadwal.tuanRumahId);
         setJenisIbadat(jadwal.jenisIbadat);
         setFormJenisIbadat(mapPrismaJenisIbadatToForm(jadwal.jenisIbadat));
-        setSubIbadat(jadwal.subIbadat);
-        setCustomSubIbadat(jadwal.customSubIbadat);
-        setTemaIbadat(jadwal.temaIbadat);
+        setSubIbadat(jadwal.subIbadat ? mapSubIbadatEnumToString(jadwal.subIbadat) : "");
+        setCustomSubIbadat(jadwal.customSubIbadat || "");
+        setTemaIbadat(jadwal.temaIbadat || null);
         setStatus(jadwal.status === "dibatalkan" ? "dibatalkan" : "selesai");
         
         // Jika jadwal telah memiliki data kehadiran dan kolekte, gunakan data tersebut
@@ -386,7 +429,9 @@ export function DetilDolingFormDialog({
       pemazmur: petugasMisa.pemazmur,
       jumlahPeserta: petugasMisa.jumlahPeserta,
       status: status,
-      customSubIbadat: customSubIbadat
+      customSubIbadat: customSubIbadat || null,
+      // Tambahkan subIbadat yang sudah dimapping kembali ke enum
+      subIbadat: subIbadat ? mapStringToSubIbadatEnum(subIbadat) : null
     };
     
     onSubmit(submitData);
@@ -482,8 +527,8 @@ export function DetilDolingFormDialog({
             tanggalValue={tanggalValue}
             tuanRumahValue={tuanRumahValue}
             jenisIbadat={formJenisIbadat}
-            subIbadat={subIbadat ? subIbadat.toString() : ""}
-            customSubIbadat={customSubIbadat || ""}
+            subIbadat={subIbadat}
+            customSubIbadat={customSubIbadat}
             temaIbadat={temaIbadat || ""}
             jadwalDoling={jadwalDoling}
             keluargaList={keluargaList}
@@ -491,8 +536,8 @@ export function DetilDolingFormDialog({
             onTanggalValueChange={setTanggalValue}
             onTuanRumahValueChange={setTuanRumahValue}
             onJenisIbadatChange={handleJenisIbadatChange}
-            onSubIbadatChange={(value: string) => setSubIbadat(value ? value as unknown as SubIbadat : null)}
-            onCustomSubIbadatChange={(value: string) => setCustomSubIbadat(value || null)}
+            onSubIbadatChange={(value: string) => setSubIbadat(value)}
+            onCustomSubIbadatChange={(value: string) => setCustomSubIbadat(value)}
             onTemaIbadatChange={(value: string) => setTemaIbadat(value || null)}
           />
           

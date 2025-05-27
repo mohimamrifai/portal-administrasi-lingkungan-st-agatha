@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { unstable_noStore as noStore } from "next/cache";
 import { KesekretariatanSummary, KeuanganIkataSummary, KeuanganLingkunganSummary } from "./types";
 import { TipeTransaksiLingkungan, TipeTransaksiIkata } from "@prisma/client";
+import { calculateDanaMandiriArrears, calculateIkataArrears } from "./utils/arrears-utils";
 
 // Fungsi untuk mendapatkan data Keuangan Lingkungan
 export async function getKeuanganLingkunganData(bulan?: number, tahun?: number): Promise<KeuanganLingkunganSummary> {
@@ -332,59 +333,13 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
 
 // Fungsi untuk mendapatkan data penunggak Dana Mandiri
 export async function getPenunggakDanaMandiriData() {
-  noStore();
-
   try {
-    // Dapatkan tahun saat ini
     const currentYear = new Date().getFullYear();
     
-    // Ambil data keluarga umat yang masih aktif (belum keluar dan hidup)
-    const keluargaList = await prisma.keluargaUmat.findMany({
-      where: {
-        tanggalKeluar: null,
-        status: "HIDUP",
-      },
-      select: {
-        id: true,
-        namaKepalaKeluarga: true,
-        alamat: true,
-        nomorTelepon: true,
-        danaMandiri: {
-          where: {
-            tahun: currentYear
-          }
-        }
-      },
-    });
+    // Gunakan utilitas untuk menghitung tunggakan
+    const arrearsData = await calculateDanaMandiriArrears(currentYear);
     
-    // Filter keluarga yang belum bayar untuk tahun ini
-    const penunggakList = keluargaList
-      .filter(k => k.danaMandiri.length === 0)
-      .map(k => {
-        // Hitung jumlah tunggakan (asumsikan 50.000 per bulan)
-        const currentMonth = new Date().getMonth();
-        const jumlahTunggakan = (currentMonth + 1) * 50000;
-        
-        // Format periode tunggakan
-        const getBulanIndonesia = (bulan: number) => {
-          const namaBulan = [
-            "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-            "Juli", "Agustus", "September", "Oktober", "November", "Desember"
-          ];
-          return namaBulan[bulan];
-        };
-        
-        const periodeTunggakan = `${getBulanIndonesia(0)}-${getBulanIndonesia(currentMonth)} ${currentYear}`;
-        
-        return {
-          id: k.id,
-          nama: k.namaKepalaKeluarga,
-          periodeTunggakan,
-          jumlahTunggakan,
-        };
-      });
-    
-    return penunggakList;
+    return arrearsData;
   } catch (error) {
     console.error("Error getting penunggak dana mandiri data:", error);
     return [];
@@ -393,59 +348,13 @@ export async function getPenunggakDanaMandiriData() {
 
 // Fungsi untuk mendapatkan data penunggak Ikata
 export async function getPenunggakIkataData() {
-  noStore();
-
   try {
-    // Dapatkan tahun saat ini
     const currentYear = new Date().getFullYear();
     
-    // Ambil data keluarga umat yang masih aktif (belum keluar dan hidup)
-    const keluargaList = await prisma.keluargaUmat.findMany({
-      where: {
-        tanggalKeluar: null,
-        status: "HIDUP",
-      },
-      select: {
-        id: true,
-        namaKepalaKeluarga: true,
-        alamat: true,
-        nomorTelepon: true,
-        iurataIkata: {
-          where: {
-            tahun: currentYear,
-          },
-        }
-      },
-    });
+    // Gunakan utilitas untuk menghitung tunggakan
+    const arrearsData = await calculateIkataArrears(currentYear);
     
-    // Filter keluarga yang belum bayar untuk tahun ini
-    const penunggakList = keluargaList
-      .filter(k => k.iurataIkata.length === 0 || k.iurataIkata.every(i => i.status === "BELUM_BAYAR"))
-      .map(k => {
-        // Hitung jumlah tunggakan (asumsikan 10.000 per bulan)
-        const currentMonth = new Date().getMonth();
-        const jumlahTunggakan = (currentMonth + 1) * 10000;
-        
-        // Format periode tunggakan
-        const getBulanIndonesia = (bulan: number) => {
-          const namaBulan = [
-            "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-            "Juli", "Agustus", "September", "Oktober", "November", "Desember"
-          ];
-          return namaBulan[bulan];
-        };
-        
-        const periodeTunggakan = `${getBulanIndonesia(0)}-${getBulanIndonesia(currentMonth)} ${currentYear}`;
-        
-        return {
-          id: k.id,
-          nama: k.namaKepalaKeluarga,
-          periodeTunggakan,
-          jumlahTunggakan,
-        };
-      });
-    
-    return penunggakList;
+    return arrearsData;
   } catch (error) {
     console.error("Error getting penunggak IKATA data:", error);
     return [];

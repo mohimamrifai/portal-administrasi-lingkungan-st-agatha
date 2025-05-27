@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { JenisTransaksi, StatusIuran, TipeTransaksiIkata } from "@prisma/client";
 import { DelinquentPayment } from "../types";
 import { revalidatePath } from "next/cache";
+import { calculateIkataArrearsDetailed, formatPeriodeTunggakanIkata } from "../../../dashboard/utils/arrears-utils";
 
 // Fungsi untuk mendapatkan data penunggak iuran IKATA
 export async function getDelinquentPayments(year?: number): Promise<DelinquentPayment[]> {
@@ -11,64 +12,43 @@ export async function getDelinquentPayments(year?: number): Promise<DelinquentPa
     // Gunakan tahun saat ini jika tidak ada yang diberikan
     const currentYear = year || new Date().getFullYear();
     
-    // Ambil semua keluarga yang terdaftar
-    const allFamilies = await prisma.keluargaUmat.findMany({
-      where: {
-        tanggalKeluar: null // Hanya keluarga yang masih aktif
-      },
-      select: {
-        id: true,
-        namaKepalaKeluarga: true,
-        nomorTelepon: true,
-        alamat: true,
-        iurataIkata: {
-          where: {
-            tahun: currentYear
+    // Gunakan utility function untuk menghitung tunggakan
+    const arrearsData = await calculateIkataArrearsDetailed(currentYear);
+    
+    // Konversi ke format DelinquentPayment
+    const delinquentPayments: DelinquentPayment[] = arrearsData.map(arrear => {
+      // Hitung periode tunggakan berdasarkan data pembayaran
+      const periodeTunggakan = formatPeriodeTunggakanIkata(currentYear, arrear.iuranData);
+      
+      // Tentukan periode awal dan akhir berdasarkan status pembayaran
+      let periodeAwal = `${currentYear}-01`;
+      let periodeAkhir = `${currentYear}-12`;
+      
+      if (arrear.iuranData && arrear.iuranData.length > 0) {
+        const iuran = arrear.iuranData[0];
+        if (iuran.status === "SEBAGIAN_BULAN" && iuran.bulanAkhir) {
+          // Jika sebagian bulan, periode awal dimulai dari bulan setelah bulan terakhir yang dibayar
+          const bulanMulai = iuran.bulanAkhir + 1;
+          if (bulanMulai <= 12) {
+            periodeAwal = `${currentYear}-${bulanMulai.toString().padStart(2, '0')}`;
           }
         }
       }
-    });
-    
-    const delinquentPayments: DelinquentPayment[] = [];
-    
-    // Loop melalui semua keluarga
-    for (const family of allFamilies) {
-      const iuranRecord = family.iurataIkata[0];
       
-      // Jika tidak ada record iuran atau statusnya BELUM_BAYAR atau SEBAGIAN_BULAN
-      if (!iuranRecord || iuranRecord.status !== StatusIuran.LUNAS) {
-        let status: 'belum_lunas' | 'sebagian_bulan' = 'belum_lunas';
-        let bulanAwal = 1;
-        
-        if (iuranRecord && iuranRecord.status === StatusIuran.SEBAGIAN_BULAN && iuranRecord.bulanAkhir) {
-          status = 'sebagian_bulan';
-          bulanAwal = iuranRecord.bulanAkhir + 1;
-        }
-        
-        // Hitung periode tunggakan
-        const periodeAwal = `${currentYear}-${bulanAwal.toString().padStart(2, '0')}`;
-        const periodeAkhir = `${currentYear}-12`;
-        
-        // Hitung jumlah tunggakan berdasarkan total iuran per bulan
-        const bulanPerTahun = 12;
-        const iuranPerBulan = (iuranRecord?.totalIuran || 120000) / bulanPerTahun;
-        const jumlahBulanTunggakan = 13 - bulanAwal;
-        const jumlahTunggakan = jumlahBulanTunggakan * iuranPerBulan;
-        
-        delinquentPayments.push({
-          id: iuranRecord?.id || `temp-${family.id}`,
-          kepalaKeluarga: family.namaKepalaKeluarga,
-          keluargaId: family.id,
-          periodeAwal,
-          periodeAkhir,
-          jumlahTunggakan,
-          status,
-          totalIuran: iuranRecord?.totalIuran || 120000,
-          createdAt: iuranRecord?.createdAt.toISOString() || new Date().toISOString(),
-          updatedAt: iuranRecord?.updatedAt.toISOString() || new Date().toISOString()
-        });
-      }
-    }
+      return {
+        id: arrear.keluargaId,
+        kepalaKeluarga: arrear.namaKepalaKeluarga,
+        keluargaId: arrear.keluargaId,
+        periodeAwal,
+        periodeAkhir,
+        jumlahTunggakan: arrear.totalTunggakan,
+        status: arrear.totalTunggakan > 0 ? 'belum_lunas' : 'belum_lunas',
+        totalIuran: arrear.totalTunggakan,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        periodeTunggakan // Tambahkan field untuk menampilkan periode yang sudah diformat
+      };
+    });
     
     return delinquentPayments;
   } catch (error) {
@@ -157,7 +137,8 @@ export async function setIuranIkata(
       status,
       jumlahDibayar,
       totalIuran,
-      ...(status === StatusIuran.SEBAGIAN_BULAN && bulanAkhir ? { bulanAkhir } : {})
+      bulanAwal: 1, // Selalu mulai dari Januari
+      ...(status === StatusIuran.SEBAGIAN_BULAN && bulanAkhir ? { bulanAkhir } : { bulanAkhir: 12 })
     };
     
     if (existingIuran) {
@@ -200,6 +181,7 @@ export async function setIuranIkata(
     // Revalidasi jalur untuk memperbarui UI
     revalidatePath('/ikata/monitoring');
     revalidatePath('/ikata/kas');
+    revalidatePath('/dashboard');
     
     return updatedIuran;
   } catch (error) {
@@ -211,9 +193,21 @@ export async function setIuranIkata(
 // Fungsi untuk mendapatkan pengaturan nilai iuran IKATA
 export async function getIuranSetting() {
   try {
-    // Di sini bisa diimplementasikan untuk mendapatkan pengaturan nilai iuran IKATA dari database
-    // Misalnya dari tabel konfigurasi
-    // Untuk saat ini, kita kembalikan nilai default
+    // Ambil pengaturan iuran IKATA dari database
+    const setting = await prisma.ikataSetting.findFirst({
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+    
+    if (setting) {
+      return {
+        bulanan: setting.jumlahIuran / 12,
+        tahunan: setting.jumlahIuran
+      };
+    }
+    
+    // Jika tidak ada pengaturan, kembalikan nilai default
     return {
       bulanan: 10000,
       tahunan: 120000

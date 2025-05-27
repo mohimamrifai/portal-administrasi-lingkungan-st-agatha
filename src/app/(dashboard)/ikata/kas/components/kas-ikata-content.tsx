@@ -9,6 +9,7 @@ import { TransactionsTable } from './transactions-table';
 import { TransactionFormDialog } from './transaction-form-dialog';
 import { PrintPDFDialog } from './print-pdf-dialog';
 import { SaldoAwalFormDialog } from './saldo-awal-form-dialog';
+import { SetIkataDuesDialog, SetIkataDuesValues } from './set-ikata-dues-dialog';
 import { IKATASummary, IKATATransaction, PeriodFilter as PeriodFilterType, TransactionFormData, SaldoAwalFormData, JenisTransaksi as UIJenisTransaksi, TipeTransaksi as UITipeTransaksi } from '../types';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
@@ -16,7 +17,7 @@ import { AlertCircle, Printer, Settings } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { setSaldoAwalIkata } from '../utils/kas-ikata-service';
-import { createTransaction, updateTransaction, deleteTransaction } from '../utils/actions';
+import { createTransaction, updateTransaction, deleteTransaction, setIkataDues, getIkataSetting } from '../utils/actions';
 import { JenisTransaksi, TipeTransaksiIkata } from '@prisma/client';
 
 interface KasIKATAContentProps {
@@ -76,10 +77,15 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
   });
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
+  const [isSetDuesDialogOpen, setIsSetDuesDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<IKATATransaction | null>(null);
   const [skipConfirmation, setSkipConfirmation] = useState(false);
   const [transactions, setTransactions] = useState<IKATATransaction[]>(initialTransactions);
   const [filteredTransactions, setFilteredTransactions] = useState<IKATATransaction[]>(initialTransactions);
+  const [currentDuesAmount, setCurrentDuesAmount] = useState<number>(0);
+  
+  // State untuk saldo saat ini
+  const [currentBalance, setCurrentBalance] = useState<number>(summary.saldoAwal || 0);
   
   // Role definition
   const isAdmin = userRole === 'SUPER_USER' || userRole === 'KETUA';
@@ -410,30 +416,69 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
 
   // Fungsi untuk menangani pengaturan saldo awal
   const handleSaveSaldoAwal = async (data: SaldoAwalFormData) => {
+    if (!canModifyData) {
+      toast.error("Anda tidak memiliki izin untuk mengubah saldo awal");
+      return;
+    }
+    
     try {
-      // Panggil API untuk menyimpan saldo awal
       const result = await setSaldoAwalIkata(data.saldoAwal);
       
       if (result.success) {
-        // Update local state
-        setSummaryData({
-          ...summaryData,
-          saldoAwal: data.saldoAwal,
-          saldoAkhir: data.saldoAwal + summaryData.pemasukan - summaryData.pengeluaran
-        });
-        
-        // Tampilkan notifikasi sukses
-        toast.success(result.message || "Saldo awal berhasil disimpan");
-        
-        // Refresh data dengan router.refresh
+        toast.success("Saldo awal berhasil disimpan");
+        setCurrentBalance(data.saldoAwal);
         router.refresh();
       } else {
-        toast.error(result.message || "Gagal menyimpan saldo awal");
+        toast.error(result.error || "Gagal menyimpan saldo awal");
       }
     } catch (error) {
-      toast.error("Gagal menyimpan saldo awal");
+      console.error("Error saving saldo awal:", error);
+      toast.error("Terjadi kesalahan saat menyimpan saldo awal");
     }
   };
+
+  // Handler untuk pengaturan iuran IKATA
+  const handleSetDues = async (values: SetIkataDuesValues) => {
+    if (!canModifyData) {
+      toast.error("Anda tidak memiliki izin untuk mengatur iuran");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("year", values.year.toString());
+      formData.append("amount", values.amount.toString());
+
+      const result = await setIkataDues(formData);
+      
+      if (result.success) {
+        toast.success(`Iuran IKATA tahun ${values.year} berhasil diatur: Rp ${values.amount.toLocaleString('id-ID')}`);
+        setCurrentDuesAmount(values.amount);
+        router.refresh();
+      } else {
+        toast.error(result.error || "Gagal mengatur iuran IKATA");
+      }
+    } catch (error) {
+      console.error("Error setting IKATA dues:", error);
+      toast.error("Terjadi kesalahan saat mengatur iuran IKATA");
+    }
+  };
+
+  // Ambil pengaturan iuran saat ini
+  useEffect(() => {
+    const fetchCurrentDues = async () => {
+      try {
+        const result = await getIkataSetting(period.tahun);
+        if (result.success && result.data) {
+          setCurrentDuesAmount((result.data as { year: number; amount: number }).amount);
+        }
+      } catch (error) {
+        console.error("Error fetching current dues:", error);
+      }
+    };
+
+    fetchCurrentDues();
+  }, [period.tahun]);
 
   return (
     <div className="space-y-6">
@@ -451,6 +496,45 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         <h1 className="text-2xl font-bold">Kas IKATA</h1>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
           <PeriodFilter period={period} onPeriodChange={handlePeriodChange} />
+          
+          {/* Tombol Aksi */}
+          <div className="flex flex-wrap gap-2">
+            {canModifyData && (
+              <Button 
+                onClick={() => setIsAddTransactionOpen(true)} 
+                disabled={isLoading}
+              >
+                Tambah Transaksi
+              </Button>
+            )}
+            
+            <Button 
+              onClick={handleOpenPrintDialog} 
+              variant="outline"
+              disabled={isLoading}
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Print PDF
+            </Button>
+            
+            {canModifyData && (
+              <>
+                <SaldoAwalFormDialog
+                  onSubmit={handleSaveSaldoAwal}
+                  currentBalance={currentBalance}
+                />
+                
+                <Button 
+                  onClick={() => setIsSetDuesDialogOpen(true)} 
+                  variant="outline"
+                  disabled={isLoading}
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Atur Iuran
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -501,6 +585,13 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         skipConfirmation={skipConfirmation}
         transactions={filteredTransactions}
         onPrint={handlePrintPDF}
+      />
+
+      <SetIkataDuesDialog
+        open={isSetDuesDialogOpen}
+        onOpenChange={setIsSetDuesDialogOpen}
+        onSubmit={handleSetDues}
+        currentAmount={currentDuesAmount}
       />
     </div>
   );

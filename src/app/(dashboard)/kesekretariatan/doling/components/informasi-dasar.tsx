@@ -63,31 +63,50 @@ export function InformasiDasarSection({
   shouldShowSubIbadat = true,
   shouldShowTemaIbadat = true,
   shouldShowTuanRumah = true,
-  hideJadwalSelect = false,
 }: InformasiDasarSectionProps) {
-  const [manualSubIbadat, setManualSubIbadat] = useState<boolean>(customSubIbadat ? true : false);
+  // Perbaikan: Tentukan mode berdasarkan data yang ada
+  const [manualSubIbadat, setManualSubIbadat] = useState<boolean>(() => {
+    // Jika ada customSubIbadat dan tidak ada subIbadat, maka mode manual
+    if (customSubIbadat && !subIbadat) {
+      return true;
+    }
+    // Jika ada customSubIbadat meskipun ada subIbadat, prioritaskan manual
+    if (customSubIbadat) {
+      return true;
+    }
+    return false;
+  });
+  
   const [open, setOpen] = useState(false);
 
-  // Set manualSubIbadat ke true jika customSubIbadat ada
+  // Update manualSubIbadat berdasarkan perubahan props
   useEffect(() => {
-    if (customSubIbadat) {
+    if (customSubIbadat && !subIbadat) {
       setManualSubIbadat(true);
-    }
-  }, [customSubIbadat]);
-
-  // Reset manualSubIbadat when subIbadat changes
-  useEffect(() => {
-    if (subIbadat !== "") {
+    } else if (!customSubIbadat && subIbadat) {
       setManualSubIbadat(false);
     }
-  }, [subIbadat]);
+  }, [customSubIbadat, subIbadat]);
 
-  // Sync with parent when manualSubIbadat changes
-  useEffect(() => {
-    if (manualSubIbadat) {
+  // Handle perubahan checkbox manual
+  const handleManualSubIbadatChange = (checked: boolean) => {
+    setManualSubIbadat(checked);
+    
+    if (checked) {
+      // Jika switch ke manual, kosongkan dropdown dan isi manual dengan nilai dropdown jika ada
+      if (subIbadat && onCustomSubIbadatChange) {
+        // Cari label dari value yang dipilih di dropdown
+        const selectedOption = subIbadatOptions[jenisIbadat]?.find(option => option.value === subIbadat);
+        onCustomSubIbadatChange(selectedOption?.label || "");
+      }
       onSubIbadatChange("");
+    } else {
+      // Jika switch ke dropdown, kosongkan manual
+      if (onCustomSubIbadatChange) {
+        onCustomSubIbadatChange("");
+      }
     }
-  }, [manualSubIbadat, onSubIbadatChange]);
+  };
 
   return (
     <div className="space-y-2 rounded-lg border p-4">
@@ -181,7 +200,7 @@ export function InformasiDasarSection({
                 <Checkbox
                   id="manualSubIbadat"
                   checked={manualSubIbadat}
-                  onCheckedChange={(checked) => setManualSubIbadat(checked === true)}
+                  onCheckedChange={handleManualSubIbadatChange}
                 />
                 <Label htmlFor="manualSubIbadat" className="text-sm cursor-pointer">
                   Input Manual untuk Sub Ibadat

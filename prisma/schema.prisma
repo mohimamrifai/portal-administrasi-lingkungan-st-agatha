@@ -156,17 +156,20 @@ enum TipeTransaksiLingkungan {
 
 // Model untuk manajemen dana mandiri
 model DanaMandiri {
-  id            String       @id @default(uuid())
-  tanggal       DateTime
-  keluarga      KeluargaUmat @relation(fields: [keluargaId], references: [id])
-  keluargaId    String
-  jumlahDibayar Float
-  statusSetor   Boolean      @default(false)
-  tanggalSetor  DateTime?
-  tahun         Int
-  bulan         Int
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id                String       @id @default(uuid())
+  tanggal           DateTime
+  keluarga          KeluargaUmat @relation(fields: [keluargaId], references: [id])
+  keluargaId        String
+  jumlahDibayar     Float
+  statusSetor       Boolean      @default(false)
+  tanggalSetor      DateTime?
+  tahun             Int
+  bulan             Int
+  statusPembayaran  String?      // "lunas", "sebagian_bulan", "belum_ada_pembayaran"
+  periodeBayar      Int?         // Bulan yang dibayar (1-12)
+  totalIuran        Float?       // Total iuran yang seharusnya dibayar
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 }
 
 // Model untuk pengaturan dana mandiri
@@ -244,9 +247,31 @@ model IuranIkata {
   bulanAkhir    Int?
   tahun         Int
   jumlahDibayar Float
-  totalIuran    Float        @default(120000)
+  totalIuran    Float        @default(0)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+}
+
+// Model untuk pengaturan iuran IKATA
+model IkataSetting {
+  id           String   @id @default(uuid())
+  tahun        Int      @unique
+  jumlahIuran  Float    @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Model untuk tunggakan IKATA
+model IkataArrears {
+  id                String   @id @default(uuid())
+  keluargaId        String   @unique
+  namaKepalaKeluarga String
+  alamat            String?
+  nomorTelepon      String?
+  tahunTertunggak   Int[]    @default([])
+  totalTunggakan    Float    @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 enum StatusIuran {

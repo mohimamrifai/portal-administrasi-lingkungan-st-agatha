@@ -158,11 +158,7 @@ export default function DanaMandiriContent() {
       
       // Dapatkan data tunggakan
       const arrearsResult = await getDanaMandiriArrears()
-      if (arrearsResult.success && arrearsResult.data) {
-        setArrears(arrearsResult.data)
-      } else {
-        toast.error(arrearsResult.error || "Gagal mengambil data tunggakan")
-      }
+      setArrears(arrearsResult)
       
       // Dapatkan data keluarga
       const keluargaResult = await getKeluargaList()
@@ -245,9 +241,8 @@ export default function DanaMandiriContent() {
       formData.append("familyHeadId", values.familyHeadId)
       formData.append("year", values.year.toString())
       formData.append("amount", values.amount.toString())
-      formData.append("paymentDate", values.paymentDate.toISOString())
-      if (values.notes) formData.append("notes", values.notes)
-      formData.append("paymentStatus", values.paymentStatus)
+      formData.append("statusPembayaran", values.statusPembayaran)
+      if (values.periodeBayar) formData.append("periodeBayar", values.periodeBayar.toString())
       
       // Tambahkan transaksi
       const result = await addDanaMandiriTransaction(formData)
@@ -286,9 +281,8 @@ export default function DanaMandiriContent() {
       formData.append("familyHeadId", values.familyHeadId)
       formData.append("year", values.year.toString())
       formData.append("amount", values.amount.toString())
-      formData.append("paymentDate", values.paymentDate.toISOString())
-      if (values.notes) formData.append("notes", values.notes)
-      formData.append("paymentStatus", values.paymentStatus)
+      formData.append("statusPembayaran", values.statusPembayaran)
+      if (values.periodeBayar) formData.append("periodeBayar", values.periodeBayar.toString())
       
       // Update transaksi
       const result = await updateDanaMandiriTransaction(formData)
@@ -332,25 +326,23 @@ export default function DanaMandiriContent() {
       return
     }
     
-    if (window.confirm("Apakah Anda yakin ingin menghapus transaksi ini?")) {
-      setIsMutating(true)
+    setIsMutating(true)
+    
+    try {
+      // Hapus transaksi
+      const result = await deleteDanaMandiriTransaction(id)
       
-      try {
-        // Hapus transaksi
-        const result = await deleteDanaMandiriTransaction(id)
-        
-        if (result.success) {
-          toast.success("Transaksi berhasil dihapus")
-          loadData() // Muat ulang data
-        } else {
-          toast.error(result.error || "Gagal menghapus transaksi")
-        }
-      } catch (error) {
-        console.error("Error saat menghapus transaksi:", error)
-        toast.error("Terjadi kesalahan saat menghapus transaksi")
-      } finally {
-        setIsMutating(false)
+      if (result.success) {
+        toast.success("Transaksi berhasil dihapus")
+        loadData() // Muat ulang data
+      } else {
+        toast.error(result.error || "Gagal menghapus transaksi")
       }
+    } catch (error) {
+      console.error("Error saat menghapus transaksi:", error)
+      toast.error("Terjadi kesalahan saat menghapus transaksi")
+    } finally {
+      setIsMutating(false)
     }
   }
   
@@ -635,8 +627,8 @@ export default function DanaMandiriContent() {
             familyHeadId: editingTransaction.keluargaId,
             year: editingTransaction.tahun,
             amount: editingTransaction.jumlahDibayar,
-            paymentDate: editingTransaction.tanggal,
-            paymentStatus: editingTransaction.statusSetor ? "Lunas" : "Belum Lunas"
+            statusPembayaran: editingTransaction.statusPembayaran || "lunas",
+            periodeBayar: editingTransaction.periodeBayar,
           }}
           keluargaList={keluargaList}
         />
