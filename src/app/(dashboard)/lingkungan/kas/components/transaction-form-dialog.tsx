@@ -71,6 +71,7 @@ interface CommonProps {
 interface CreateTransactionProps extends CommonProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  disabled?: boolean;
 }
 
 interface EditTransactionProps extends CommonProps {
@@ -83,7 +84,8 @@ export function CreateTransactionDialog({
   form, 
   onSubmit, 
   open, 
-  onOpenChange 
+  onOpenChange,
+  disabled = false
 }: CreateTransactionProps) {
   const [keluargaOptions, setKeluargaOptions] = useState<KeluargaOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -117,7 +119,11 @@ export function CreateTransactionDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button className="h-10">
+        <Button 
+          className="h-10" 
+          disabled={disabled}
+          title={disabled ? "Saldo awal harus diset terlebih dahulu" : "Input Transaksi"}
+        >
           <PlusCircle className="mr-2 h-4 w-4" />
           Input Transaksi
         </Button>

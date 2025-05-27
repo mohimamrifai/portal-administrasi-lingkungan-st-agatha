@@ -36,6 +36,9 @@ export const printPdfSchema = z.object({
 // Schema untuk form saldo awal
 export const initialBalanceFormSchema = z.object({
   saldoAwal: z.coerce.number().min(0, "Saldo awal tidak boleh negatif"),
+  tanggal: z.date({
+    required_error: "Tanggal saldo awal wajib diisi",
+  }),
 });
 
 // Tipe untuk form transaksi

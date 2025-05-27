@@ -52,4 +52,5 @@ export interface TransactionFormData {
 
 export interface SaldoAwalFormData {
   saldoAwal: number;
+  tanggal: Date;
 } 

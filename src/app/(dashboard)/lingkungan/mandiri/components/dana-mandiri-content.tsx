@@ -41,6 +41,7 @@ import {
   getKeluargaList,
   getDanaMandiriSetting
 } from "../actions"
+import { checkInitialBalanceExists } from "../../kas/utils/actions"
 
 interface KeluargaListItem {
   id: string;
@@ -122,6 +123,9 @@ export default function DanaMandiriContent() {
   // State untuk iuran saat ini
   const [currentDuesAmount, setCurrentDuesAmount] = useState<number>(0)
   
+  // State untuk mengecek saldo awal kas lingkungan
+  const [isInitialBalanceSet, setIsInitialBalanceSet] = useState(false)
+  
   // Redirect jika tidak memiliki akses
   useEffect(() => {
     if (!hasAccess) {
@@ -129,6 +133,15 @@ export default function DanaMandiriContent() {
       router.push("/dashboard")
     }
   }, [hasAccess, router])
+  
+  // Cek status saldo awal saat komponen dimount
+  useEffect(() => {
+    const checkInitialBalance = async () => {
+      const result = await checkInitialBalanceExists()
+      setIsInitialBalanceSet(result.exists)
+    }
+    checkInitialBalance()
+  }, [])
   
   // Fungsi untuk memuat data
   const loadData = async () => {
@@ -539,7 +552,8 @@ export default function DanaMandiriContent() {
             {(canModifyData || userRole === 'SUPER_USER') && (
               <Button 
                 onClick={() => setAddDialogOpen(true)} 
-                disabled={isMutating}
+                disabled={isMutating || !isInitialBalanceSet}
+                title={!isInitialBalanceSet ? "Saldo awal kas lingkungan harus diset terlebih dahulu" : "Input Transaksi"}
               >
                 Input Transaksi
               </Button>

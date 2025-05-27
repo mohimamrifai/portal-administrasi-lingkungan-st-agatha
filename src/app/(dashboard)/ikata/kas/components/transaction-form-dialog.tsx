@@ -403,7 +403,7 @@ export function TransactionFormDialog({
                         selected={field.value}
                         onSelect={field.onChange}
                         disabled={(date) =>
-                          date > new Date(new Date().setHours(23, 59, 59, 999)) || date < new Date("1900-01-01")
+                          date > new Date() || date < new Date("1900-01-01")
                         }
                         locale={id}
                       />
