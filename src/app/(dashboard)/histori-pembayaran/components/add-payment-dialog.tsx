@@ -168,6 +168,10 @@ export function AddPaymentDialog({
       ikataForm.setValue("bulanAwal", null)
       ikataForm.setValue("bulanAkhir", null)
       ikataForm.setValue("jumlahDibayar", 0)
+    } else if (value === "SEBAGIAN_BULAN") {
+      // Set default bulan untuk sebagian bulan (Januari saja)
+      ikataForm.setValue("bulanAwal", 1)
+      ikataForm.setValue("bulanAkhir", 1)
     }
   }
   

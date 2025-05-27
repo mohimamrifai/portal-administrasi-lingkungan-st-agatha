@@ -13,7 +13,8 @@ import {
   ChevronsLeftIcon,
   ChevronsRightIcon,
   X,
-  CreditCard
+  CreditCard,
+  FilterIcon
 } from "lucide-react";
 import {
   Select,
@@ -28,6 +29,7 @@ import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
 import { DelinquentPayment } from "../types";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 
 // Tipe data untuk props komponen
 interface MonitoringClientProps {
@@ -35,6 +37,8 @@ interface MonitoringClientProps {
 }
 
 export default function MonitoringClient({ delinquentPayments }: MonitoringClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPayment, setSelectedPayment] = useState<DelinquentPayment | null>(null);
   const [showSetIuranDialog, setShowSetIuranDialog] = useState(false);
@@ -43,6 +47,19 @@ export default function MonitoringClient({ delinquentPayments }: MonitoringClien
   // State untuk paginasi
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // Ambil tahun saat ini dari searchParams atau gunakan tahun sekarang
+  const currentYear = searchParams.get('year') ? parseInt(searchParams.get('year')!) : new Date().getFullYear();
+
+  // Generate opsi tahun (5 tahun terakhir sampai tahun sekarang)
+  const yearOptions = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - 5 + i);
+
+  // Handler untuk mengubah tahun
+  const handleYearChange = (year: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('year', year);
+    router.push(`?${params.toString()}`);
+  };
 
   // Filter data berdasarkan pencarian
   const filteredData = delinquentPayments.filter(payment =>
@@ -101,16 +118,24 @@ export default function MonitoringClient({ delinquentPayments }: MonitoringClien
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
-      currency: "IDR"
+      currency: "IDR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
-  const formatPeriod = (awal: string, akhir: string) => {
+  const formatPeriod = (payment: DelinquentPayment) => {
+    // Gunakan periodeTunggakan yang sudah diformat jika tersedia
+    if (payment.periodeTunggakan) {
+      return payment.periodeTunggakan;
+    }
+    
+    // Fallback ke format lama jika periodeTunggakan tidak tersedia
     const formatDate = (dateStr: string) => {
       const [year, month] = dateStr.split("-");
       return format(new Date(parseInt(year), parseInt(month) - 1), 'MMMM yyyy', { locale: id });
     };
-    return `${formatDate(awal)} - ${formatDate(akhir)}`;
+    return `${formatDate(payment.periodeAwal)} - ${formatDate(payment.periodeAkhir)}`;
   };
 
   // Fungsi untuk membuat link ke Kas IKATA dengan parameter kepala keluarga
@@ -121,7 +146,22 @@ export default function MonitoringClient({ delinquentPayments }: MonitoringClien
   return (
     <div className="container mx-auto py-6 space-y-6 px-4">
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-2">
-        <h1 className="text-2xl font-bold">Monitoring Penunggak</h1>
+        <h1 className="text-2xl font-bold">Monitoring Penunggak IKATA</h1>
+        <div className="flex items-center gap-2">
+          <FilterIcon className="h-4 w-4 text-muted-foreground" />
+          <Select value={currentYear.toString()} onValueChange={handleYearChange}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Tahun" />
+            </SelectTrigger>
+            <SelectContent>
+              {yearOptions.map((year) => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="flex justify-between">
@@ -167,7 +207,7 @@ export default function MonitoringClient({ delinquentPayments }: MonitoringClien
               currentPageData.map((payment) => (
                 <TableRow key={payment.id}>
                   <TableCell>{payment.kepalaKeluarga}</TableCell>
-                  <TableCell>{formatPeriod(payment.periodeAwal, payment.periodeAkhir)}</TableCell>
+                  <TableCell>{formatPeriod(payment)}</TableCell>
                   <TableCell>{formatCurrency(payment.jumlahTunggakan)}</TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 rounded-full text-xs ${payment.status === "belum_lunas"
@@ -179,12 +219,6 @@ export default function MonitoringClient({ delinquentPayments }: MonitoringClien
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
-                      <Link href={getKasIkataLink(payment)} passHref>
-                        <Button variant="outline" size="sm">
-                          <CreditCard className="mr-2 h-4 w-4" />
-                          Bayar di Kas IKATA
-                        </Button>
-                      </Link>
                       <Button
                         variant="ghost"
                         size="sm"

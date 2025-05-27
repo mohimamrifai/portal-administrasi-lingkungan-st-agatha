@@ -198,6 +198,32 @@ export function TransactionsTable({
     }
   }
   
+  // Get payment status badge
+  const getPaymentStatusBadge = (statusPembayaran?: string) => {
+    switch (statusPembayaran) {
+      case "lunas":
+        return <Badge className="bg-green-100 text-green-700 border-green-300">Lunas</Badge>
+      case "sebagian_bulan":
+        return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-300">Sebagian Bulan</Badge>
+      case "belum_ada_pembayaran":
+        return <Badge className="bg-red-100 text-red-700 border-red-300">Belum Bayar</Badge>
+      default:
+        return <Badge className="bg-gray-100 text-gray-700 border-gray-300">-</Badge>
+    }
+  }
+  
+  // Format payment period
+  const formatPaymentPeriod = (periodeBayar?: number) => {
+    if (!periodeBayar) return "-"
+    
+    const monthNames = [
+      "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+      "Jul", "Agu", "Sep", "Okt", "Nov", "Des"
+    ]
+    
+    return monthNames[periodeBayar - 1] || "-"
+  }
+  
   // Pagination functions
   const goToPage = (page: number) => {
     setCurrentPage(page)
@@ -386,9 +412,11 @@ export function TransactionsTable({
               </TableHead>
               <TableHead>Nama Kepala Keluarga</TableHead>
               <TableHead>Tahun</TableHead>
-              <TableHead>Tanggal Bayar</TableHead>
-              <TableHead>Jumlah</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Jumlah Dibayar</TableHead>
+              <TableHead>Status Pembayaran</TableHead>
+              <TableHead>Periode Bayar</TableHead>
+              <TableHead>Total Iuran</TableHead>
+              <TableHead>Status Setor</TableHead>
               <TableHead>Tanggal Setor</TableHead>
               <TableHead className="w-[100px] text-right sticky right-0 bg-white z-10 shadow-[-4px_0_10px_rgba(0,0,0,0.1)]">Aksi</TableHead>
             </TableRow>
@@ -396,7 +424,7 @@ export function TransactionsTable({
           <TableBody>
             {currentTransactions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
                   Tidak ada data transaksi
                 </TableCell>
               </TableRow>
@@ -415,10 +443,16 @@ export function TransactionsTable({
                   </TableCell>
                   <TableCell>{transaction.tahun}</TableCell>
                   <TableCell>
-                    {format(new Date(transaction.tanggal), "dd MMM yyyy")}
+                    {formatCurrency(transaction.jumlahDibayar)}
                   </TableCell>
                   <TableCell>
-                    {formatCurrency(transaction.jumlahDibayar)}
+                    {getPaymentStatusBadge(transaction.statusPembayaran)}
+                  </TableCell>
+                  <TableCell>
+                    {formatPaymentPeriod(transaction.periodeBayar)}
+                  </TableCell>
+                  <TableCell>
+                    {transaction.totalIuran ? formatCurrency(transaction.totalIuran) : "-"}
                   </TableCell>
                   <TableCell>
                     {getStatusBadge(transaction)}

@@ -374,7 +374,6 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete, onSelectDoling }: 
                             size="icon"
                             onClick={(e) => {
                               e.stopPropagation(); // Hindari trigger onClick pada TableRow
-                              onDelete(item.id);
                             }}
                           >
                             <TrashIcon className="h-4 w-4" />

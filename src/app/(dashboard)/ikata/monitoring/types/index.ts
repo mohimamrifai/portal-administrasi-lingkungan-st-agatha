@@ -9,6 +9,7 @@ export interface DelinquentPayment {
   totalIuran?: number; // Total iuran tahunan
   createdAt: string;
   updatedAt: string;
+  periodeTunggakan?: string; // Periode tunggakan yang sudah diformat
 }
 
 export interface NotificationData {

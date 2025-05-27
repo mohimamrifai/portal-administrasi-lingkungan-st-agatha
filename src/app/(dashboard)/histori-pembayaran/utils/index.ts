@@ -68,15 +68,24 @@ export function getMonthName(month: number): string {
 
 // Fungsi untuk mendapatkan rentang bulan (untuk IKATA)
 export function getMonthRange(bulanAwal: number | null, bulanAkhir: number | null): string {
-  if (bulanAwal === null || bulanAkhir === null) {
-    return "Tidak ada data bulan";
+  // Jika kedua bulan null, kembalikan pesan yang lebih informatif
+  if (bulanAwal === null && bulanAkhir === null) {
+    return "Belum ada data bulan";
   }
   
-  if (bulanAwal === bulanAkhir) {
-    return getMonthName(bulanAwal);
+  // Jika salah satu null, gunakan nilai default
+  const startMonth = bulanAwal || 1; // Default ke Januari jika null
+  const endMonth = bulanAkhir || 12; // Default ke Desember jika null
+  
+  // Validasi bulan (1-12)
+  const validStartMonth = Math.max(1, Math.min(12, startMonth));
+  const validEndMonth = Math.max(1, Math.min(12, endMonth));
+  
+  if (validStartMonth === validEndMonth) {
+    return getMonthName(validStartMonth);
   }
   
-  return `${getMonthName(bulanAwal)} - ${getMonthName(bulanAkhir)}`;
+  return `${getMonthName(validStartMonth)} - ${getMonthName(validEndMonth)}`;
 }
 
 // Fungsi untuk memfilter data Dana Mandiri berdasarkan tahun
