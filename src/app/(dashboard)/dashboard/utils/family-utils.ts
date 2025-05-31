@@ -54,9 +54,10 @@ export async function hitungTotalJiwa(): Promise<number> {
         jumlahJiwa += 1;
       }
       
-      // Tambahkan semua tanggungan (anak dan kerabat)
+      // Tambahkan tanggungan yang masih hidup
       if (keluarga.tanggungan && keluarga.tanggungan.length > 0) {
-        jumlahJiwa += keluarga.tanggungan.length;
+        const tanggunganHidup = keluarga.tanggungan.filter(t => t.status === StatusKehidupan.HIDUP);
+        jumlahJiwa += tanggunganHidup.length;
       }
     }
     
@@ -97,9 +98,10 @@ export async function updateJumlahAnggotaKeluarga(keluargaId: string): Promise<b
       jumlahAnggota += 1;
     }
     
-    // Tambahkan tanggungan
+    // Tambahkan tanggungan yang masih hidup
     if (keluarga.tanggungan && keluarga.tanggungan.length > 0) {
-      jumlahAnggota += keluarga.tanggungan.length;
+      const tanggunganHidup = keluarga.tanggungan.filter(t => t.status === StatusKehidupan.HIDUP);
+      jumlahAnggota += tanggunganHidup.length;
     }
     
     // Update jumlah anggota di database

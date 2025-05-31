@@ -79,7 +79,65 @@ interface EditTransactionProps extends CommonProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// Dialog untuk membuat transaksi baru
+// Dialog untuk menambahkan transaksi baru (tanpa trigger bawaan)
+export function AddTransactionDialog({ 
+  form, 
+  onSubmit, 
+  open, 
+  onOpenChange,
+  disabled = false
+}: CreateTransactionProps) {
+  const [keluargaOptions, setKeluargaOptions] = useState<KeluargaOption[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  useEffect(() => {
+    // Ambil data keluarga saat komponen dimuat
+    async function getKeluargaData() {
+      try {
+        setIsLoading(true);
+        // Menggunakan server action untuk mengambil data
+        const data = await fetchKeluargaOptions();
+        if (data.success) {
+          setKeluargaOptions(data.data);
+        }
+      } catch (error) {
+        console.error("Error fetching keluarga options:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    if (open) {
+      getKeluargaData();
+    }
+  }, [open]);
+  
+  const handleSubmit = (values: TransactionFormValues) => {
+    onSubmit(values);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[525px]">
+        <DialogHeader>
+          <DialogTitle>Input Transaksi Baru</DialogTitle>
+          <DialogDescription>
+            Tambahkan transaksi baru untuk Kas Lingkungan.
+          </DialogDescription>
+        </DialogHeader>
+        <TransactionForm 
+          form={form} 
+          onSubmit={handleSubmit} 
+          isEditing={false}
+          keluargaOptions={keluargaOptions}
+          isLoadingKeluarga={isLoading}
+        />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// Dialog untuk membuat transaksi baru (dengan trigger bawaan)
 export function CreateTransactionDialog({ 
   form, 
   onSubmit, 

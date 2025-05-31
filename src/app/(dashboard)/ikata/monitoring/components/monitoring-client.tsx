@@ -75,11 +75,6 @@ export default function MonitoringClient({ delinquentPayments }: MonitoringClien
   // Data untuk halaman saat ini
   const currentPageData = filteredData.slice(startIndex, endIndex);
 
-  // Fungsi navigasi paginasi
-  const goToPage = (page: number) => {
-    setCurrentPage(page);
-  };
-
   const goToFirstPage = () => {
     setCurrentPage(1);
   };
@@ -129,18 +124,13 @@ export default function MonitoringClient({ delinquentPayments }: MonitoringClien
     if (payment.periodeTunggakan) {
       return payment.periodeTunggakan;
     }
-    
+
     // Fallback ke format lama jika periodeTunggakan tidak tersedia
     const formatDate = (dateStr: string) => {
       const [year, month] = dateStr.split("-");
       return format(new Date(parseInt(year), parseInt(month) - 1), 'MMMM yyyy', { locale: id });
     };
     return `${formatDate(payment.periodeAwal)} - ${formatDate(payment.periodeAkhir)}`;
-  };
-
-  // Fungsi untuk membuat link ke Kas IKATA dengan parameter kepala keluarga
-  const getKasIkataLink = (payment: DelinquentPayment) => {
-    return `/ikata/kas?keluargaId=${payment.keluargaId}&kepalaKeluarga=${encodeURIComponent(payment.kepalaKeluarga)}`;
   };
 
   return (
@@ -211,8 +201,8 @@ export default function MonitoringClient({ delinquentPayments }: MonitoringClien
                   <TableCell>{formatCurrency(payment.jumlahTunggakan)}</TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 rounded-full text-xs ${payment.status === "belum_lunas"
-                        ? "bg-red-100 text-red-800"
-                        : "bg-yellow-100 text-yellow-800"
+                      ? "bg-red-100 text-red-800"
+                      : "bg-yellow-100 text-yellow-800"
                       }`}>
                       {payment.status === "belum_lunas" ? "Belum Lunas" : "Sebagian Bulan"}
                     </span>
@@ -225,7 +215,7 @@ export default function MonitoringClient({ delinquentPayments }: MonitoringClien
                         onClick={() => handleSetIuran(payment)}
                       >
                         <Plus className="mr-2 h-4 w-4" />
-                        Set Iuran
+                        Update Pembayaran
                       </Button>
                     </div>
                   </TableCell>

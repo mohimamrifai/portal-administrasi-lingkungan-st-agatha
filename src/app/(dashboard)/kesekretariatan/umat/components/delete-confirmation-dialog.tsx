@@ -32,7 +32,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Check, ChevronsUpDown, RefreshCw } from "lucide-react";
-import { FamilyHead } from "../types";
+import { FamilyHeadWithDetails } from "../types";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { getFamilyMembers, syncFamilyDependents } from "../actions";
 import { cn } from "@/lib/utils";
@@ -47,7 +47,7 @@ interface FamilyMember {
 interface DeleteConfirmationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  familyHead: FamilyHead | null;
+  familyHead: FamilyHeadWithDetails | null;
   onConfirm: (id: string, reason: "moved" | "deceased" | "member_deceased", memberName?: string) => Promise<void>;
 }
 

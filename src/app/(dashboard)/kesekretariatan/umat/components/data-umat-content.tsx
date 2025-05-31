@@ -6,18 +6,18 @@ import { useState, useEffect } from "react"
 import { FamilyHeadFormDialog } from "./family-head-form-dialog"
 import { FamilyHeadsTable } from "./family-heads-table"
 import { ImportDialog } from "./import-dialog"
-import { FamilyHead, FamilyHeadFormValues } from "../types"
+import { FamilyHead, FamilyHeadWithDetails, FamilyHeadFormValues } from "../types"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
 import { useRouter } from "next/navigation"
 import { AlertCircle, PlusIcon } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { exportFamilyHeadTemplate } from "../utils/export-template"
-import { addFamilyHead, getAllFamilyHeads, markFamilyAsDeceased, markFamilyAsMoved, markFamilyMemberAsDeceased, updateFamilyHead } from "../actions"
+import { addFamilyHead, getAllFamilyHeadsWithDetails, markFamilyAsDeceased, markFamilyAsMoved, markFamilyMemberAsDeceased, updateFamilyHead } from "../actions"
 import { StatusKehidupan } from "@prisma/client"
 
 interface DataUmatContentProps {
-    initialFamilyHeads?: FamilyHead[];
+    initialFamilyHeads?: FamilyHeadWithDetails[];
 }
 
 export default function DataUmatContent({ initialFamilyHeads = [] }: DataUmatContentProps) {
@@ -26,8 +26,8 @@ export default function DataUmatContent({ initialFamilyHeads = [] }: DataUmatCon
     const [searchQuery, setSearchQuery] = useState("")
     const [isFormDialogOpen, setIsFormDialogOpen] = useState(false)
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
-    const [selectedFamilyHead, setSelectedFamilyHead] = useState<FamilyHead | undefined>()
-    const [familyHeads, setFamilyHeads] = useState<FamilyHead[]>(initialFamilyHeads)
+    const [selectedFamilyHead, setSelectedFamilyHead] = useState<FamilyHeadWithDetails | undefined>()
+    const [familyHeads, setFamilyHeads] = useState<FamilyHeadWithDetails[]>(initialFamilyHeads)
     const [isLoading, setIsLoading] = useState(initialFamilyHeads.length === 0)
 
     // Cek apakah pengguna memiliki hak akses
@@ -59,7 +59,7 @@ export default function DataUmatContent({ initialFamilyHeads = [] }: DataUmatCon
         async function fetchData() {
             try {
                 setIsLoading(true)
-                const data = await getAllFamilyHeads();
+                const data = await getAllFamilyHeadsWithDetails();
                 setFamilyHeads(data);
             } catch (error) {
                 console.error("Error fetching family heads:", error);
@@ -93,7 +93,7 @@ export default function DataUmatContent({ initialFamilyHeads = [] }: DataUmatCon
             await addFamilyHead(formattedValues);
             
             // Refresh data
-            const data = await getAllFamilyHeads();
+            const data = await getAllFamilyHeadsWithDetails();
             setFamilyHeads(data);
             toast.success("Berhasil menambahkan data keluarga baru");
             setIsFormDialogOpen(false);
@@ -121,7 +121,7 @@ export default function DataUmatContent({ initialFamilyHeads = [] }: DataUmatCon
             await updateFamilyHead(selectedFamilyHead.id, formattedValues);
             
             // Refresh data
-            const data = await getAllFamilyHeads();
+            const data = await getAllFamilyHeadsWithDetails();
             setFamilyHeads(data);
             toast.success("Berhasil mengupdate data keluarga");
             setIsFormDialogOpen(false);
@@ -150,7 +150,7 @@ export default function DataUmatContent({ initialFamilyHeads = [] }: DataUmatCon
             }
             
             // Refresh data
-            const data = await getAllFamilyHeads();
+            const data = await getAllFamilyHeadsWithDetails();
             setFamilyHeads(data);
         } catch (error) {
             console.error("Error deleting family head:", error);
@@ -179,7 +179,7 @@ export default function DataUmatContent({ initialFamilyHeads = [] }: DataUmatCon
     const handleImportComplete = async (newFamilyHeads: FamilyHead[]) => {
         // Refresh data setelah import
         try {
-            const data = await getAllFamilyHeads();
+            const data = await getAllFamilyHeadsWithDetails();
             setFamilyHeads(data);
             toast.success(`Berhasil mengimpor ${newFamilyHeads.length} data keluarga`);
         } catch (error) {

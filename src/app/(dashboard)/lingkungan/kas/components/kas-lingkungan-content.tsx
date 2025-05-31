@@ -15,12 +15,12 @@ import { JenisTransaksi, TipeTransaksiLingkungan } from "@prisma/client"
 import { Button } from "@/components/ui/button"
 
 // Import types dan schemas baru
-import { 
+import {
   TransactionData,
   TransactionFormValues,
-  InitialBalanceFormValues, 
+  InitialBalanceFormValues,
   PrintPdfFormValues,
-  transactionFormSchema, 
+  transactionFormSchema,
   printPdfSchema,
   initialBalanceFormSchema,
 } from "../types"
@@ -46,7 +46,7 @@ import {
 import { SummaryCards } from "./summary-cards"
 import { PeriodFilter } from "./period-filter"
 import { PrintPdfDialog } from "./print-pdf-dialog"
-import { EditTransactionDialog } from "./transaction-form-dialog"
+import { EditTransactionDialog, AddTransactionDialog } from "./transaction-form-dialog"
 import { TransactionsTable } from "./transactions-table"
 import { InitialBalanceDialog } from "./initial-balance-dialog"
 
@@ -61,19 +61,21 @@ interface KasLingkunganContentProps {
   };
 }
 
-export default function KasLingkunganContent({ 
-  initialTransactions, 
-  initialSummary 
+export default function KasLingkunganContent({
+  initialTransactions,
+  initialSummary
 }: KasLingkunganContentProps) {
   const { userRole } = useAuth()
   const router = useRouter()
   const [transactions, setTransactions] = useState<TransactionData[]>(initialTransactions)
   const [isEditing, setIsEditing] = useState<string | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>(undefined)
   const [summary, setSummary] = useState(initialSummary)
   const [isInitialBalanceSet, setIsInitialBalanceSet] = useState(false)
   const [initialBalanceDate, setInitialBalanceDate] = useState<Date | undefined>(undefined)
+  const [isMutating, setIsMutating] = useState(false)
 
   // Cek status saldo awal saat komponen dimount
   useEffect(() => {
@@ -92,9 +94,9 @@ export default function KasLingkunganContent({
     if (dateRange?.from && dateRange?.to) {
       const from = dateRange.from;
       const to = dateRange.to;
-      
-      return transactions.filter(tx => 
-        tx.tanggal >= from && 
+
+      return transactions.filter(tx =>
+        tx.tanggal >= from &&
         tx.tanggal <= to
       );
     }
@@ -110,7 +112,7 @@ export default function KasLingkunganContent({
       dateRange,
       initialSummary.initialBalance
     );
-    
+
     setSummary(calculatedSummary);
   }, [filteredTransactions, transactions, initialSummary.initialBalance, dateRange]);
 
@@ -166,6 +168,18 @@ export default function KasLingkunganContent({
     },
   })
 
+  // Form untuk transaksi baru
+  const addForm = useForm<TransactionFormValues>({
+    resolver: zodResolver(transactionFormSchema),
+    defaultValues: {
+      tanggal: new Date(),
+      keterangan: "",
+      jenisTransaksi: JenisTransaksi.UANG_MASUK,
+      tipeTransaksi: TipeTransaksiLingkungan.KOLEKTE_I,
+      jumlah: 0,
+    },
+  })
+
   // Submit edit transaksi
   async function onEditTransactionSubmit(values: TransactionFormValues) {
     // Validasi hak akses modifikasi
@@ -190,7 +204,7 @@ export default function KasLingkunganContent({
         toast.success("Transaksi berhasil diperbarui");
         setEditDialogOpen(false);
         setIsEditing(null);
-        
+
         // Refresh data dari server
         router.refresh();
       } else {
@@ -224,7 +238,7 @@ export default function KasLingkunganContent({
         toast.success("Saldo awal berhasil diset");
         setIsInitialBalanceSet(true);
         setInitialBalanceDate(values.tanggal);
-        
+
         // Refresh data dari server
         router.refresh();
       } else {
@@ -233,6 +247,51 @@ export default function KasLingkunganContent({
     } catch (error) {
       console.error("Error saving initial balance:", error);
       toast.error("Terjadi kesalahan saat menyimpan saldo awal");
+    }
+  }
+
+  // Submit transaksi baru
+  async function onAddTransactionSubmit(values: TransactionFormValues) {
+    // Validasi hak akses modifikasi
+    if (!canModifyData) {
+      toast.error("Anda tidak memiliki izin untuk melakukan perubahan data")
+      return
+    }
+
+    try {
+      setIsMutating(true)
+      // Panggil server action untuk create transaksi
+      const result = await createTransaction({
+        tanggal: values.tanggal,
+        jenisTranasksi: values.jenisTransaksi,
+        tipeTransaksi: values.tipeTransaksi,
+        keterangan: values.keterangan,
+        jumlah: values.jumlah
+      });
+
+      if (result.success) {
+        toast.success("Transaksi berhasil ditambahkan");
+        setAddDialogOpen(false);
+        
+        // Reset form
+        addForm.reset({
+          tanggal: new Date(),
+          keterangan: "",
+          jenisTransaksi: JenisTransaksi.UANG_MASUK,
+          tipeTransaksi: TipeTransaksiLingkungan.KOLEKTE_I,
+          jumlah: 0,
+        });
+
+        // Refresh data dari server
+        router.refresh();
+      } else {
+        toast.error(result.error || "Gagal menambahkan transaksi");
+      }
+    } catch (error) {
+      console.error("Error creating transaction:", error);
+      toast.error("Terjadi kesalahan saat menambahkan transaksi");
+    } finally {
+      setIsMutating(false)
     }
   }
 
@@ -247,18 +306,18 @@ export default function KasLingkunganContent({
 
     // Atur isEditing dan set form values
     setIsEditing(id);
-    
+
     // Set form values
     editForm.reset({
       tanggal: transaction.tanggal,
       keterangan: transaction.keterangan || "",
       jenisTransaksi: transaction.jenisTransaksi,
       tipeTransaksi: transaction.tipeTransaksi,
-      jumlah: transaction.jenisTransaksi === JenisTransaksi.UANG_MASUK 
-        ? transaction.debit 
+      jumlah: transaction.jenisTransaksi === JenisTransaksi.UANG_MASUK
+        ? transaction.debit
         : transaction.kredit,
     });
-    
+
     setEditDialogOpen(true);
   }, [transactions, editForm]);
 
@@ -271,10 +330,10 @@ export default function KasLingkunganContent({
 
     try {
       const result = await deleteTransaction(id);
-      
+
       if (result.success) {
         toast.success("Transaksi berhasil dihapus");
-        
+
         // Refresh data dari server
         router.refresh();
       } else {
@@ -289,10 +348,10 @@ export default function KasLingkunganContent({
   const handleApproveTransaction = useCallback(async (id: string) => {
     try {
       const result = await approveTransaction(id, 'APPROVED');
-      
+
       if (result.success) {
         toast.success("Transaksi berhasil disetujui");
-        
+
         // Refresh data dari server
         router.refresh();
       } else {
@@ -307,10 +366,10 @@ export default function KasLingkunganContent({
   const handleRejectTransaction = useCallback(async (id: string) => {
     try {
       const result = await approveTransaction(id, 'REJECTED');
-      
+
       if (result.success) {
         toast.success("Transaksi berhasil ditolak");
-        
+
         // Refresh data dari server
         router.refresh();
       } else {
@@ -326,10 +385,10 @@ export default function KasLingkunganContent({
   const handleUnlockTransaction = useCallback(async (id: string) => {
     try {
       const result = await approveTransaction(id, 'PENDING');
-      
+
       if (result.success) {
         toast.success("Transaksi berhasil dibuka kuncinya");
-        
+
         // Refresh data dari server
         router.refresh();
       } else {
@@ -359,22 +418,22 @@ export default function KasLingkunganContent({
       )}
 
       {/* Summary Cards */}
-      <SummaryCards 
+      <SummaryCards
         initialBalance={summary.initialBalance}
         totalIncome={summary.totalIncome}
         totalExpense={summary.totalExpense}
         finalBalance={summary.finalBalance}
       />
-      
+
       {/* Filter dan Actions */}
       <div className="flex flex-col md:flex-row gap-4 justify-between">
         <div className="w-full md:w-auto">
-          <PeriodFilter 
+          <PeriodFilter
             dateRange={dateRange}
             onDateRangeChange={handleDateRangeChange}
           />
         </div>
-        
+
         <div className="flex flex-col md:flex-row gap-2">
           {dateRange && (
             <Button
@@ -386,7 +445,9 @@ export default function KasLingkunganContent({
               Tampilkan Semua Data
             </Button>
           )}
+
           
+
           {canModifyData && (
             <>
               <InitialBalanceDialog
@@ -396,9 +457,19 @@ export default function KasLingkunganContent({
                 isInitialBalanceSet={isInitialBalanceSet}
                 initialBalanceDate={initialBalanceDate}
               />
+              
+              <Button 
+                onClick={() => setAddDialogOpen(true)} 
+                disabled={isMutating || !isInitialBalanceSet}
+                title={!isInitialBalanceSet ? "Saldo awal kas lingkungan harus diset terlebih dahulu" : "Input Transaksi"}
+                className="h-10"
+              >
+                <BanknoteIcon className="mr-2 h-4 w-4" />
+                Input Transaksi
+              </Button>
             </>
           )}
-          
+
           <PrintPdfDialog
             form={pdfForm}
             onSubmit={onPrintPdf}
@@ -407,7 +478,7 @@ export default function KasLingkunganContent({
           />
         </div>
       </div>
-      
+
       {/* Transactions Table */}
       <div className="mt-6">
         <TransactionsTable
@@ -422,7 +493,7 @@ export default function KasLingkunganContent({
           showPagination={true}
         />
       </div>
-      
+
       {/* Edit Dialog */}
       {isEditing && (
         <EditTransactionDialog
@@ -432,6 +503,15 @@ export default function KasLingkunganContent({
           onOpenChange={setEditDialogOpen}
         />
       )}
+
+      {/* Add Transaction Dialog */}
+      <AddTransactionDialog
+        form={addForm}
+        onSubmit={onAddTransactionSubmit}
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        disabled={isMutating || !isInitialBalanceSet}
+      />
     </div>
   )
 } 

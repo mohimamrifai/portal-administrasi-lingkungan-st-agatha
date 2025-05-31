@@ -32,8 +32,8 @@ export async function getKeuanganLingkunganData(bulan?: number, tahun?: number):
     let dateRange: DateRange | undefined = undefined;
     if (bulan !== undefined && tahun !== undefined) {
       dateRange = {
-        from: new Date(tahun, bulan, 1),
-        to: new Date(tahun, bulan + 1, 0)
+        from: new Date(tahun, bulan - 1, 1),
+        to: new Date(tahun, bulan, 0)
       };
     }
 
@@ -65,8 +65,8 @@ export async function getKeuanganIkataData(bulan?: number, tahun?: number): Prom
     // Import fungsi getKasIkataSummary langsung
     const { getKasIkataSummary } = await import("@/app/(dashboard)/ikata/kas/utils/kas-ikata-service");
     
-    // Gunakan hasil dari getKasIkataSummary langsung
-    const summary = await getKasIkataSummary();
+    // Gunakan hasil dari getKasIkataSummary dengan parameter filter
+    const summary = await getKasIkataSummary(bulan, tahun);
     // Kembalikan data yang persis sama
     return summary;
   } catch (error) {
@@ -160,7 +160,7 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
       },
     });
 
-    // Umat Meninggal - total KK dan pasangan yang meninggal pada periode yang dipilih
+    // Umat Meninggal - total KK, pasangan, dan tanggungan yang meninggal pada periode yang dipilih
     // 1. KK yang meninggal pada periode tersebut
     const kkMeninggal = await prisma.keluargaUmat.count({
       where: {
@@ -183,7 +183,18 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
       },
     });
     
-    const umatMeninggalDunia = kkMeninggal + pasanganMeninggal;
+    // 3. Tanggungan yang meninggal pada periode tersebut
+    const tanggunganMeninggal = await prisma.tanggungan.count({
+      where: {
+        status: "MENINGGAL",
+        tanggalMeninggal: {
+          gte: monthStart,
+          lte: monthEnd,
+        },
+      },
+    });
+    
+    const umatMeninggalDunia = kkMeninggal + pasanganMeninggal + tanggunganMeninggal;
 
     // Detail KK Meninggal
     const detailKKMeninggal = await prisma.keluargaUmat.findMany({
@@ -223,6 +234,26 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
       },
     });
 
+    // Detail Tanggungan Meninggal
+    const detailTanggunganMeninggal = await prisma.tanggungan.findMany({
+      where: {
+        status: "MENINGGAL",
+        tanggalMeninggal: {
+          gte: monthStart,
+          lte: monthEnd,
+        },
+      },
+      select: {
+        id: true,
+        nama: true,
+        jenisTanggungan: true,
+        tanggalMeninggal: true,
+      },
+      orderBy: {
+        tanggalMeninggal: 'desc',
+      },
+    });
+
     // Gabungkan detail umat meninggal
     const detailUmatMeninggal = [
       ...detailKKMeninggal.map(kk => ({
@@ -236,6 +267,12 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
         nama: p.nama,
         tanggal: p.tanggalMeninggal!,
         statusKeluarga: "Pasangan"
+      })),
+      ...detailTanggunganMeninggal.map(t => ({
+        id: t.id,
+        nama: t.nama,
+        tanggal: t.tanggalMeninggal!,
+        statusKeluarga: t.jenisTanggungan === "ANAK" ? "Anak" : "Kerabat"
       }))
     ].sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
 
@@ -398,5 +435,61 @@ export async function debugIkataTransactions(bulan?: number, tahun?: number) {
     };
   } catch (error) {
     return null;
+  }
+}
+
+// Fungsi untuk menganalisis inkonsistensi data jumlah jiwa
+export async function analyzeJiwaDataConsistency() {
+  noStore();
+  
+  try {
+    const { analyzeFamilyMemberCounts, compareTotalJiwaCalculations } = await import('./utils/fix-family-count');
+    
+    const [analysisResult, comparisonResult] = await Promise.all([
+      analyzeFamilyMemberCounts(),
+      compareTotalJiwaCalculations()
+    ]);
+    
+    return {
+      success: true,
+      analysis: analysisResult,
+      comparison: comparisonResult
+    };
+  } catch (error) {
+    console.error("Error analyzing jiwa data consistency:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+// Fungsi untuk memperbaiki inkonsistensi data jumlah jiwa
+export async function fixJiwaDataInconsistency() {
+  noStore();
+  
+  try {
+    const { fixAllFamilyMemberCounts } = await import('./utils/fix-family-count');
+    
+    const result = await fixAllFamilyMemberCounts();
+    
+    // Revalidate dashboard setelah perbaikan
+    if (result.success) {
+      const { revalidatePath } = await import('next/cache');
+      revalidatePath('/dashboard');
+    }
+    
+    return result;
+  } catch (error) {
+    console.error("Error fixing jiwa data inconsistency:", error);
+    return {
+      success: false,
+      message: `Gagal memperbaiki data: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      details: {
+        totalFamilies: 0,
+        fixedFamilies: 0,
+        inconsistentFamilies: []
+      }
+    };
   }
 }
