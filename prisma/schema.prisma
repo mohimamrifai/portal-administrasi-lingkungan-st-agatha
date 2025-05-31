@@ -103,6 +103,8 @@ model Tanggungan {
   tanggalBaptis      DateTime?
   tanggalKrisma      DateTime?
   statusPernikahan   StatusPernikahan @default(TIDAK_MENIKAH)
+  status             StatusKehidupan  @default(HIDUP)
+  tanggalMeninggal   DateTime?
   keluarga           KeluargaUmat     @relation(fields: [keluargaId], references: [id])
   keluargaId         String
 }

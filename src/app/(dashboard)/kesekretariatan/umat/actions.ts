@@ -36,6 +36,24 @@ export interface FamilyHeadFormData {
   tanggalMeninggal?: Date;
 }
 
+// Tipe untuk data yang ditampilkan di UI dengan detail tanggungan
+export interface FamilyHeadWithDetails extends FamilyHeadData {
+  pasangan?: {
+    id: string;
+    nama: string;
+    status: StatusKehidupan;
+  } | null;
+  tanggungan: {
+    id: string;
+    nama: string;
+    jenisTanggungan: 'ANAK' | 'KERABAT';
+    status: StatusKehidupan;
+  }[];
+  actualMemberCount: number;
+  livingMemberCount: number;
+  deceasedMemberCount: number;
+}
+
 /**
  * Mengambil semua data kepala keluarga
  */
@@ -348,27 +366,14 @@ export async function markFamilyMemberAsDeceased(id: string, memberName: string)
     });
 
     if (tanggungan) {
-      // Hapus tanggungan yang meninggal dari database
-      await prisma.tanggungan.delete({
-        where: { id: tanggungan.id }
+      // Tandai tanggungan sebagai meninggal (jangan dihapus)
+      await prisma.tanggungan.update({
+        where: { id: tanggungan.id },
+        data: {
+          status: StatusKehidupan.MENINGGAL,
+          tanggalMeninggal: tanggalMeninggal
+        }
       });
-      
-      // Update jumlah anak atau kerabat tertanggung
-      if (tanggungan.jenisTanggungan === "ANAK") {
-        await prisma.keluargaUmat.update({
-          where: { id },
-          data: {
-            jumlahAnakTertanggung: Math.max(0, keluarga.jumlahAnakTertanggung - 1)
-          }
-        });
-      } else {
-        await prisma.keluargaUmat.update({
-          where: { id },
-          data: {
-            jumlahKerabatTertanggung: Math.max(0, keluarga.jumlahKerabatTertanggung - 1)
-          }
-        });
-      }
       
       // Update jumlah anggota keluarga menggunakan fungsi utilitas
       await updateJumlahAnggotaKeluarga(id);
@@ -533,5 +538,89 @@ export async function syncFamilyDependents(familyId: string): Promise<{success: 
       success: false, 
       message: "Gagal menyinkronkan data tanggungan" 
     };
+  }
+}
+
+/**
+ * Mengambil semua data kepala keluarga dengan detail tanggungan
+ */
+export async function getAllFamilyHeadsWithDetails(): Promise<FamilyHeadWithDetails[]> {
+  try {
+    const keluargaUmat = await prisma.keluargaUmat.findMany({
+      include: {
+        pasangan: true,
+        tanggungan: true,
+      },
+      orderBy: {
+        namaKepalaKeluarga: 'asc',
+      },
+    });
+
+    return keluargaUmat.map(keluarga => {
+      // Hitung jumlah anggota yang sebenarnya
+      let actualMemberCount = 0;
+      let livingMemberCount = 0;
+      let deceasedMemberCount = 0;
+
+      // Kepala keluarga
+      actualMemberCount += 1;
+      if (keluarga.status === StatusKehidupan.HIDUP) {
+        livingMemberCount += 1;
+      } else {
+        deceasedMemberCount += 1;
+      }
+
+      // Pasangan
+      if (keluarga.pasangan) {
+        actualMemberCount += 1;
+        if (keluarga.pasangan.status === StatusKehidupan.HIDUP) {
+          livingMemberCount += 1;
+        } else {
+          deceasedMemberCount += 1;
+        }
+      }
+
+      // Tanggungan
+      keluarga.tanggungan.forEach(tanggungan => {
+        actualMemberCount += 1;
+        if (tanggungan.status === StatusKehidupan.HIDUP) {
+          livingMemberCount += 1;
+        } else {
+          deceasedMemberCount += 1;
+        }
+      });
+
+      return {
+        id: keluarga.id,
+        nama: keluarga.namaKepalaKeluarga,
+        alamat: keluarga.alamat,
+        nomorTelepon: keluarga.nomorTelepon,
+        tanggalBergabung: keluarga.tanggalBergabung,
+        jumlahAnakTertanggung: keluarga.jumlahAnakTertanggung,
+        jumlahKerabatTertanggung: keluarga.jumlahKerabatTertanggung,
+        jumlahAnggotaKeluarga: keluarga.jumlahAnggotaKeluarga,
+        status: keluarga.status,
+        statusPernikahan: keluarga.statusPernikahan,
+        tanggalKeluar: keluarga.tanggalKeluar,
+        tanggalMeninggal: keluarga.tanggalMeninggal,
+        pasangan: keluarga.pasangan ? {
+          id: keluarga.pasangan.id,
+          nama: keluarga.pasangan.nama,
+          status: keluarga.pasangan.status,
+        } : null,
+        tanggungan: keluarga.tanggungan.map(t => ({
+          id: t.id,
+          nama: t.nama,
+          jenisTanggungan: t.jenisTanggungan,
+          status: t.status,
+        })),
+        actualMemberCount,
+        livingMemberCount,
+        deceasedMemberCount,
+      };
+    });
+  } catch (error) {
+    console.error("Error getting family heads with details:", error);
+    throw new Error("Gagal mengambil data keluarga umat dengan detail");
   }
 } 

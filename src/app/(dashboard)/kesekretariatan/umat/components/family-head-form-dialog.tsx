@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { FamilyHead, FamilyHeadFormValues, familyHeadFormSchema, familyHeadStatuses } from "../types";
+import { FamilyHeadWithDetails, FamilyHeadFormValues, familyHeadFormSchema, familyHeadStatuses } from "../types";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -41,7 +41,7 @@ import { StatusKehidupan, StatusPernikahan } from "@prisma/client";
 interface FamilyHeadFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  familyHead?: FamilyHead;
+  familyHead?: FamilyHeadWithDetails;
   onSubmit: (values: FamilyHeadFormValues) => Promise<void>;
 }
 

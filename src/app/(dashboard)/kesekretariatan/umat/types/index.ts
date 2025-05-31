@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { StatusKehidupan, StatusPernikahan } from "@prisma/client";
-import { FamilyHeadData } from "../actions";
+import { FamilyHeadData, FamilyHeadWithDetails } from "../actions";
 
 // Re-export FamilyHeadData untuk kompatibilitas
-export type { FamilyHeadData } from "../actions";
+export type { FamilyHeadData, FamilyHeadWithDetails } from "../actions";
 
 // Alias untuk FamilyHead (kompatibilitas dengan kode lama)
 export type FamilyHead = FamilyHeadData;

@@ -17,7 +17,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Pencil, Trash2, Download, User, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, Search } from "lucide-react";
-import { FamilyHead } from "../types";
+import { FamilyHeadWithDetails } from "../types";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -47,9 +47,9 @@ import { StatusKehidupan } from "@prisma/client";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface FamilyHeadsTableProps {
-  familyHeads: FamilyHead[];
+  familyHeads: FamilyHeadWithDetails[];
   isLoading?: boolean;
-  onEdit: (familyHead: FamilyHead) => void;
+  onEdit: (familyHead: FamilyHeadWithDetails) => void;
   onDelete: (id: string, reason: "moved" | "deceased" | "member_deceased", memberName?: string) => Promise<void>;
   onExportTemplate: () => void;
   onImportData: () => void;
@@ -67,7 +67,7 @@ export function FamilyHeadsTable({
 }: FamilyHeadsTableProps) {
   // Dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [selectedFamilyHead, setSelectedFamilyHead] = useState<FamilyHead | null>(null);
+  const [selectedFamilyHead, setSelectedFamilyHead] = useState<FamilyHeadWithDetails | null>(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -321,14 +321,25 @@ export function FamilyHeadsTable({
                         : "Tanggal tidak valid"}
                     </TableCell>
                     <TableCell className="min-w-[120px]">
-                      {familyHead.jumlahAnggotaKeluarga} jiwa
+                      {familyHead.livingMemberCount} jiwa
                       <div className="text-xs text-muted-foreground mt-1">
                         <ul className="list-disc pl-4">
                           {familyHead.status === 'HIDUP' && <li>1 Kepala Keluarga</li>}
-                          {familyHead.statusPernikahan === 'MENIKAH' && familyHead.status === 'HIDUP' && <li>1 Pasangan/Istri</li>}
-                          {familyHead.jumlahAnakTertanggung > 0 && familyHead.status === 'HIDUP' && <li>{familyHead.jumlahAnakTertanggung} Anak</li>}
-                          {familyHead.jumlahKerabatTertanggung > 0 && familyHead.status === 'HIDUP' && <li>{familyHead.jumlahKerabatTertanggung} Kerabat</li>}
-                          {familyHead.status === 'MENINGGAL' && <li className="text-red-500">Kepala Keluarga Meninggal</li>}
+                          {familyHead.status === 'MENINGGAL' && <li className="text-red-500">1 Kepala Keluarga (Meninggal)</li>}
+                          
+                          {familyHead.pasangan && familyHead.pasangan.status === 'HIDUP' && <li>1 Pasangan/Istri</li>}
+                          {familyHead.pasangan && familyHead.pasangan.status === 'MENINGGAL' && <li className="text-red-500">1 Pasangan/Istri (Meninggal)</li>}
+                          
+                          {familyHead.tanggungan.filter(t => t.jenisTanggungan === 'ANAK' && t.status === 'HIDUP').length > 0 && 
+                            <li>{familyHead.tanggungan.filter(t => t.jenisTanggungan === 'ANAK' && t.status === 'HIDUP').length} Anak</li>}
+                          {familyHead.tanggungan.filter(t => t.jenisTanggungan === 'ANAK' && t.status === 'MENINGGAL').length > 0 && 
+                            <li className="text-red-500">{familyHead.tanggungan.filter(t => t.jenisTanggungan === 'ANAK' && t.status === 'MENINGGAL').length} Anak (Meninggal)</li>}
+                          
+                          {familyHead.tanggungan.filter(t => t.jenisTanggungan === 'KERABAT' && t.status === 'HIDUP').length > 0 && 
+                            <li>{familyHead.tanggungan.filter(t => t.jenisTanggungan === 'KERABAT' && t.status === 'HIDUP').length} Kerabat</li>}
+                          {familyHead.tanggungan.filter(t => t.jenisTanggungan === 'KERABAT' && t.status === 'MENINGGAL').length > 0 && 
+                            <li className="text-red-500">{familyHead.tanggungan.filter(t => t.jenisTanggungan === 'KERABAT' && t.status === 'MENINGGAL').length} Kerabat (Meninggal)</li>}
+                          
                           {familyHead.tanggalKeluar && <li className="text-orange-500">Keluarga Pindah Domisili</li>}
                         </ul>
                       </div>
