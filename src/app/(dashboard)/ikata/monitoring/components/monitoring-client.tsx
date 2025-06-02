@@ -189,7 +189,6 @@ export default function MonitoringClient({ delinquentPayments }: MonitoringClien
               <TableHead>Periode Tunggakan</TableHead>
               <TableHead>Jumlah Tunggakan</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -206,18 +205,6 @@ export default function MonitoringClient({ delinquentPayments }: MonitoringClien
                       }`}>
                       {payment.status === "belum_lunas" ? "Belum Lunas" : "Sebagian Bulan"}
                     </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleSetIuran(payment)}
-                      >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Update Pembayaran
-                      </Button>
-                    </div>
                   </TableCell>
                 </TableRow>
               ))
