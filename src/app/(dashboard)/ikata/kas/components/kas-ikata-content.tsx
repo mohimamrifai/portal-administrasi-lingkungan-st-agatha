@@ -96,6 +96,9 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
   const [isInitialBalanceSet, setIsInitialBalanceSet] = useState(false);
   const [initialBalanceDate, setInitialBalanceDate] = useState<Date | undefined>(undefined);
 
+  // Menghitung ulang ringkasan keuangan berdasarkan transaksi yang difilter
+  const [summaryData, setSummaryData] = useState<IKATASummary>(summary);
+
   // Role definition
   const isAdmin = userRole === 'SUPER_USER' || userRole === 'KETUA';
   const isTreasurer = userRole === 'WAKIL_BENDAHARA';
@@ -128,9 +131,6 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
       router.push("/dashboard");
     }
   }, [hasAccess, router]);
-
-  // Menghitung ulang ringkasan keuangan berdasarkan transaksi yang difilter
-  const [summaryData, setSummaryData] = useState<IKATASummary>(summary);
 
   useEffect(() => {
     // Gunakan data summary langsung dari server, bukan menghitung ulang di sisi klien
@@ -559,7 +559,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
       {canModifyData && (
         <Button
           onClick={() => setIsAddTransactionOpen(true)}
-          disabled={isLoading}
+          disabled={isLoading || !isInitialBalanceSet}
         >
           Tambah Transaksi
         </Button>

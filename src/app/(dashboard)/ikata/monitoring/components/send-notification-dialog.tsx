@@ -36,14 +36,15 @@ export function SendNotificationDialog({
     setIsLoading(true)
 
     try {
-      // Dapatkan ID dari delinquentPayments
-      const delinquentIds = delinquentPayments.map(payment => payment.id)
+      // Gunakan keluargaId dari delinquentPayments
+      const keluargaIds = delinquentPayments.map(payment => payment.keluargaId)
       
       // Panggil server action untuk mengirim notifikasi
-      const result = await sendNotificationToDelinquents(delinquentIds, message)
+      const result = await sendNotificationToDelinquents(keluargaIds, message)
       
       if (result.success) {
         toast.success(result.message || "Notifikasi pengingat berhasil dikirim")
+        setMessage("") // Reset pesan setelah berhasil
         onOpenChange(false)
       } else {
         toast.error("Gagal mengirim notifikasi")
@@ -56,8 +57,17 @@ export function SendNotificationDialog({
     }
   }
 
+  // Set pesan default saat dialog dibuka
+  const handleOpenChange = (open: boolean) => {
+    if (open && !message) {
+      const currentYear = new Date().getFullYear()
+      setMessage(`Pengingat: Mohon segera melunasi iuran IKATA tahun ${currentYear}. Terima kasih atas perhatiannya.`)
+    }
+    onOpenChange(open)
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Kirim Notifikasi Pengingat</DialogTitle>
