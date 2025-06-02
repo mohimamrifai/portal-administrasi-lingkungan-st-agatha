@@ -60,17 +60,14 @@ export async function getDelinquentPayments(year?: number): Promise<DelinquentPa
 // Fungsi untuk mengirim notifikasi kepada penunggak iuran
 export async function sendNotificationToDelinquents(delinquentIds: string[], message: string) {
   try {
-    // Ambil data penunggak untuk mendapatkan user IDs
-    const delinquents = await prisma.iuranIkata.findMany({
+    // Ambil data keluarga penunggak untuk mendapatkan user IDs
+    // delinquentIds berisi keluargaId, bukan id dari tabel IuranIkata
+    const keluargaWithUsers = await prisma.keluargaUmat.findMany({
       where: {
         id: { in: delinquentIds }
       },
       include: {
-        keluarga: {
-          include: {
-            users: true
-          }
-        }
+        users: true
       }
     });
     
@@ -78,12 +75,12 @@ export async function sendNotificationToDelinquents(delinquentIds: string[], mes
     const notificationData = [];
     
     // Persiapkan data notifikasi untuk setiap user yang terkait dengan keluarga penunggak
-    for (const delinquent of delinquents) {
-      const users = delinquent.keluarga.users;
+    for (const keluarga of keluargaWithUsers) {
+      const users = keluarga.users;
       
       for (const user of users) {
         notificationData.push({
-          pesan: message || `Mohon segera melunasi iuran IKATA untuk tahun ${delinquent.tahun}.`,
+          pesan: message || `Mohon segera melunasi iuran IKATA untuk tahun ${new Date().getFullYear()}.`,
           userId: user.id,
           dibaca: false
         });
