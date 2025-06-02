@@ -46,6 +46,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { EditDialog } from "./edit-dialog"
+import { editApprovalNominal } from "../actions/edit-approval"
+import { toast } from "sonner"
 
 interface ApprovalTableProps {
   items: ExtendedApproval[]
@@ -54,9 +56,10 @@ interface ApprovalTableProps {
   onReset: (item: ExtendedApproval) => void
   userRole: string
   keluargaList: { id: string; namaKepalaKeluarga: string }[]
+  onRefreshData?: () => Promise<void>
 }
 
-export function ApprovalTable({ items, onApprove, onReject, onReset, userRole, keluargaList }: ApprovalTableProps) {
+export function ApprovalTable({ items, onApprove, onReject, onReset, userRole, keluargaList, onRefreshData }: ApprovalTableProps) {
   const [selectedItem, setSelectedItem] = useState<ExtendedApproval | null>(null);
   const [messageDialogOpen, setMessageDialogOpen] = useState(false);
   const [confirmationDialogOpen, setConfirmationDialogOpen] = useState(false);
@@ -67,7 +70,8 @@ export function ApprovalTable({ items, onApprove, onReject, onReset, userRole, k
     kolekteI: 0,
     kolekteII: 0,
     ucapanSyukur: 0,
-    keterangan: ""
+    keterangan: "",
+    namaPenyumbang: ""
   });
   
   // Pagination state
@@ -152,19 +156,49 @@ export function ApprovalTable({ items, onApprove, onReject, onReset, userRole, k
 
   // Fungsi untuk membuka dialog edit
   const handleEditNominal = (item: ExtendedApproval) => {
-    if (!item.doaLingkungan) return;
+    if (!item.doaLingkungan) {
+      toast.error("Data doa lingkungan tidak ditemukan");
+      return;
+    }
     
     setSelectedItem(item);
     setEditDialogOpen(true);
   };
 
   // Fungsi untuk menyimpan hasil edit
-  const handleSaveEdit = (values: any) => {
-    if (!selectedItem || !selectedItem.doaLingkungan) return;
+  const handleSaveEdit = async (values: any) => {
+    if (!selectedItem || !selectedItem.doaLingkungan) {
+      toast.error("Item tidak ditemukan");
+      return;
+    }
     
     setIsEditLoading(true);
-    setEditDialogOpen(false);
-    setIsEditLoading(false);
+    
+    try {
+      const response = await editApprovalNominal(selectedItem.id, {
+        kolekteI: values.kolekteI,
+        kolekteII: values.kolekteII,
+        ucapanSyukur: values.ucapanSyukur,
+        namaPenyumbang: values.namaPenyumbang
+      });
+
+      if (response.success) {
+        toast.success(response.message || "Data berhasil diperbarui");
+        setEditDialogOpen(false);
+        
+        // Gunakan callback refresh data jika tersedia
+        if (onRefreshData) {
+          await onRefreshData();
+        }
+      } else {
+        toast.error(response.error || "Gagal memperbarui data");
+      }
+    } catch (error) {
+      console.error("Error saving edit:", error);
+      toast.error("Terjadi kesalahan saat menyimpan data");
+    } finally {
+      setIsEditLoading(false);
+    }
   };
 
   // Fungsi untuk mendapatkan tanggal
@@ -192,6 +226,11 @@ export function ApprovalTable({ items, onApprove, onReject, onReset, userRole, k
     return item.doaLingkungan?.ucapanSyukur || 0;
   };
 
+  // Fungsi untuk mengecek apakah ada ucapan syukur dalam data
+  const hasUcapanSyukur = (items: ExtendedApproval[]): boolean => {
+    return items.some(item => getUcapanSyukur(item) > 0);
+  };
+
   // Fungsi untuk mendapatkan keterangan
   const getKeterangan = (item: ExtendedApproval): string => {
     if (item.doaLingkungan) {
@@ -217,6 +256,9 @@ export function ApprovalTable({ items, onApprove, onReject, onReset, userRole, k
     return 0;
   };
 
+  // Cek apakah perlu menampilkan kolom ucapan syukur
+  const showUcapanSyukurColumn = hasUcapanSyukur(currentItems);
+
   return (
     <div className="space-y-4">
       <div className="rounded-md border shadow-sm overflow-hidden">
@@ -227,8 +269,10 @@ export function ApprovalTable({ items, onApprove, onReject, onReset, userRole, k
                 <TableHead className="w-[110px]">Tanggal</TableHead>
                 <TableHead className="w-[100px]">Kolekte I</TableHead>
                 <TableHead className="w-[100px]">Kolekte II</TableHead>
-                <TableHead className="w-[120px]">Ucapan Syukur</TableHead>
-                <TableHead className="min-w-[150px]">Keterangan</TableHead>
+                {showUcapanSyukurColumn && (
+                  <TableHead className="w-[120px]">Ucapan Syukur</TableHead>
+                )}
+                <TableHead className="min-w-[150px]">Tuan Rumah</TableHead>
                 <TableHead className="w-[100px]">Jumlah Hadir</TableHead>
                 <TableHead className="w-[100px]">Total</TableHead>
                 <TableHead className="w-[100px]">Status</TableHead>
@@ -242,7 +286,14 @@ export function ApprovalTable({ items, onApprove, onReject, onReset, userRole, k
                     <TableCell>{format(getItemDate(item), "dd/MM/yyyy", { locale: id })}</TableCell>
                     <TableCell>Rp {getKolekteI(item).toLocaleString('id-ID')}</TableCell>
                     <TableCell>Rp {getKolekteII(item).toLocaleString('id-ID')}</TableCell>
-                    <TableCell>Rp {getUcapanSyukur(item).toLocaleString('id-ID')}</TableCell>
+                    {showUcapanSyukurColumn && (
+                      <TableCell>
+                        {getUcapanSyukur(item) > 0 
+                          ? `Rp ${getUcapanSyukur(item).toLocaleString('id-ID')}`
+                          : '-'
+                        }
+                      </TableCell>
+                    )}
                     <TableCell className="max-w-[200px] truncate" title={getKeterangan(item)}>{getKeterangan(item)}</TableCell>
                     <TableCell>{getJumlahHadir(item)} orang</TableCell>
                     <TableCell>Rp {getTotal(item).toLocaleString('id-ID')}</TableCell>
@@ -277,7 +328,9 @@ export function ApprovalTable({ items, onApprove, onReject, onReset, userRole, k
                             <>
                               <DropdownMenuItem onClick={() => handleChangeStatus(item, 'approve')}>
                                 <CheckIcon className="mr-2 h-4 w-4 text-green-600" />
-                                <span>Setujui</span>
+                                <span>
+                                  {getUcapanSyukur(item) > 0 ? 'Setujui' : 'Setujui (Tanpa Ucapan Syukur)'}
+                                </span>
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                             </>
@@ -302,7 +355,7 @@ export function ApprovalTable({ items, onApprove, onReject, onReset, userRole, k
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-10">
+                  <TableCell colSpan={showUcapanSyukurColumn ? 9 : 8} className="text-center py-10">
                     <div className="flex flex-col items-center justify-center space-y-3">
                       <AlertCircleIcon className="h-8 w-8 text-muted-foreground" />
                       <div className="text-muted-foreground">

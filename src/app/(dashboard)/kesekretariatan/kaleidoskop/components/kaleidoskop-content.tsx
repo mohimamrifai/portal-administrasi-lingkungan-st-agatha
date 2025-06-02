@@ -147,7 +147,10 @@ export function KaleidoskopContent({
   };
   
   // Mendapatkan nama yang mudah dibaca untuk sub ibadat
-  const getReadableSubIbadat = (subIbadat: SubIbadat | null): string => {
+  const getReadableSubIbadat = (subIbadat: SubIbadat | null, customNama?: string | null): string => {
+    // Prioritaskan customNama jika ada
+    if (customNama) return customNama;
+    
     if (!subIbadat) return "Umum";
     
     const names: Record<SubIbadat, string> = {
@@ -328,7 +331,7 @@ export function KaleidoskopContent({
                                 {stat.persentase.toFixed(1)}%
                               </span>
                             </div>
-                            <Progress value={stat.persentase} className={getBgColor(getColor(stat.jenisIbadat))} />
+                            <Progress value={stat.persentase} className="h-2" />
                             
                             {/* Sub ibadat breakdown */}
                             {stat.subIbadat.length > 0 && (
@@ -340,7 +343,7 @@ export function KaleidoskopContent({
                                       variant="outline"
                                       className="text-xs font-normal"
                                     >
-                                      {getReadableSubIbadat(sub.nama)}: {sub.jumlah}
+                                      {getReadableSubIbadat(sub.nama, sub.customNama)}: {sub.jumlah}
                             </Badge>
                                   ))}
                                 </div>
@@ -407,9 +410,9 @@ export function KaleidoskopContent({
                                 <Badge className={getColor(activity.jenisIbadat)}>
                                   {getReadableJenisIbadat(activity.jenisIbadat)}
                                 </Badge>
-                                {activity.subIbadat && (
+                                {(activity.subIbadat || activity.customSubIbadat) && (
                                   <Badge variant="outline">
-                                    {getReadableSubIbadat(activity.subIbadat)}
+                                    {getReadableSubIbadat(activity.subIbadat, activity.customSubIbadat)}
                                   </Badge>
                                 )}
                               </div>

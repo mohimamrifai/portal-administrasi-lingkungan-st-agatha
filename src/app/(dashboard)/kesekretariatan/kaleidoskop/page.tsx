@@ -15,10 +15,9 @@ function LoadingSkeleton() {
 }
 
 export default async function KaleidoskopPage() {
-  // Tentukan rentang waktu (defaultnya 1 tahun terakhir)
+  // Tentukan rentang waktu (defaultnya tahun berjalan)
   const endDate = new Date();
-  const startDate = new Date();
-  startDate.setFullYear(startDate.getFullYear() - 1);
+  const startDate = new Date(endDate.getFullYear(), 0, 1); // 1 Januari tahun berjalan
 
   // Mengambil data dari server actions
   const activityData = await getKaleidoskopData(startDate, endDate);

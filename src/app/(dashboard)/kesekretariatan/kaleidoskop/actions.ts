@@ -8,6 +8,7 @@ export interface KaleidoskopActivityData {
   tanggal: Date;
   jenisIbadat: JenisIbadat;
   subIbadat: SubIbadat | null;
+  customSubIbadat: string | null;
   temaIbadat: string | null;
   tuanRumah: string;
   jumlahKKHadir: number;
@@ -20,6 +21,7 @@ export interface StatistikPerJenisIbadat {
   persentase: number;
   subIbadat: {
     nama: SubIbadat | null;
+    customNama?: string | null;
     jumlah: number;
   }[];
 }
@@ -61,6 +63,7 @@ export async function getKaleidoskopData(
       tanggal: activity.tanggal,
       jenisIbadat: activity.jenisIbadat,
       subIbadat: activity.subIbadat,
+      customSubIbadat: activity.customSubIbadat,
       temaIbadat: activity.temaIbadat,
       tuanRumah: activity.tuanRumah.namaKepalaKeluarga,
       jumlahKKHadir: activity.jumlahKKHadir,
@@ -91,6 +94,7 @@ export async function getStatistikPerJenisIbadat(
       select: {
         jenisIbadat: true,
         subIbadat: true,
+        customSubIbadat: true,
       },
     });
 
@@ -99,7 +103,7 @@ export async function getStatistikPerJenisIbadat(
 
     // Hitung jumlah per jenis ibadat
     const jenisIbadatCount: Record<JenisIbadat, number> = {} as any;
-    const subIbadatPerJenis: Record<JenisIbadat, Record<string, number>> = {} as any;
+    const subIbadatPerJenis: Record<JenisIbadat, Record<string, { count: number; isCustom: boolean; customName?: string }>> = {} as any;
 
     activities.forEach((activity) => {
       // Count jenis ibadat
@@ -109,12 +113,31 @@ export async function getStatistikPerJenisIbadat(
       }
       jenisIbadatCount[activity.jenisIbadat]++;
 
-      // Count sub ibadat
-      const subKey = activity.subIbadat || "NULL";
-      if (!subIbadatPerJenis[activity.jenisIbadat][subKey]) {
-        subIbadatPerJenis[activity.jenisIbadat][subKey] = 0;
+      // Count sub ibadat - prioritaskan customSubIbadat
+      let subKey: string;
+      let isCustom = false;
+      let customName: string | undefined;
+
+      if (activity.customSubIbadat) {
+        subKey = `custom_${activity.customSubIbadat}`;
+        isCustom = true;
+        customName = activity.customSubIbadat;
+      } else if (activity.subIbadat) {
+        subKey = activity.subIbadat;
+        isCustom = false;
+      } else {
+        subKey = "NULL";
+        isCustom = false;
       }
-      subIbadatPerJenis[activity.jenisIbadat][subKey]++;
+
+      if (!subIbadatPerJenis[activity.jenisIbadat][subKey]) {
+        subIbadatPerJenis[activity.jenisIbadat][subKey] = {
+          count: 0,
+          isCustom,
+          customName
+        };
+      }
+      subIbadatPerJenis[activity.jenisIbadat][subKey].count++;
     });
 
     // Transform ke format hasil
@@ -126,10 +149,23 @@ export async function getStatistikPerJenisIbadat(
 
         // Transform sub ibadat
         const subIbadatStats = Object.keys(subIbadatPerJenis[jenis]).map(
-          (subKey) => ({
-            nama: subKey === "NULL" ? null : (subKey as SubIbadat),
-            jumlah: subIbadatPerJenis[jenis][subKey],
-          })
+          (subKey) => {
+            const subData = subIbadatPerJenis[jenis][subKey];
+            
+            if (subData.isCustom) {
+              return {
+                nama: null,
+                customNama: subData.customName || null,
+                jumlah: subData.count,
+              };
+            } else {
+              return {
+                nama: subKey === "NULL" ? null : (subKey as SubIbadat),
+                customNama: null,
+                jumlah: subData.count,
+              };
+            }
+          }
         );
 
         return {

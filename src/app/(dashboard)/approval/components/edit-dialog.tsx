@@ -54,16 +54,31 @@ export function EditDialog({
         ucapanSyukur: selectedItem.doaLingkungan.ucapanSyukur,
         keterangan: selectedItem.doaLingkungan.tuanRumah.namaKepalaKeluarga || "",
         namaPenyumbang: "", // Default empty, will be populated if needed
-      })
+      });
     }
-  }, [selectedItem])
-
-  const handleSave = () => {
-    onSave(editValues)
-  }
+  }, [selectedItem, open])
 
   // Check if we should show the Nama Penyumbang field
   const showNamaPenyumbang = editValues.ucapanSyukur > 0
+
+  const handleSave = () => {
+    // Validasi input
+    if (editValues.kolekteI < 0 || editValues.kolekteII < 0 || editValues.ucapanSyukur < 0) {
+      return;
+    }
+    
+    // Validasi: jika ada ucapan syukur tapi tidak ada nama penyumbang
+    if (editValues.ucapanSyukur > 0 && !editValues.namaPenyumbang) {
+      // Set nama penyumbang ke tuan rumah sebagai default
+      const updatedValues = {
+        ...editValues,
+        namaPenyumbang: selectedItem?.doaLingkungan?.tuanRumah.namaKepalaKeluarga || ""
+      };
+      onSave(updatedValues);
+    } else {
+      onSave(editValues);
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -71,7 +86,8 @@ export function EditDialog({
         <DialogHeader>
           <DialogTitle>Edit Data Doa Lingkungan</DialogTitle>
           <DialogDescription>
-            Perbarui nilai kolekte dan ucapan syukur
+            Perbarui nilai kolekte dan ucapan syukur. 
+            {showNamaPenyumbang && " Nama penyumbang diperlukan untuk ucapan syukur."}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -83,10 +99,13 @@ export function EditDialog({
               <Input
                 id="kolekte1"
                 type="number"
+                min="0"
+                step="1000"
                 value={editValues.kolekteI}
-                onChange={(e) =>
-                  setEditValues({ ...editValues, kolekteI: Number(e.target.value) })
-                }
+                onChange={(e) => {
+                  const value = e.target.value === '' ? 0 : Number(e.target.value);
+                  setEditValues({ ...editValues, kolekteI: isNaN(value) ? 0 : value });
+                }}
                 className="col-span-3"
               />
             </div>
@@ -97,10 +116,13 @@ export function EditDialog({
               <Input
                 id="kolekte2"
                 type="number"
+                min="0"
+                step="1000"
                 value={editValues.kolekteII}
-                onChange={(e) =>
-                  setEditValues({ ...editValues, kolekteII: Number(e.target.value) })
-                }
+                onChange={(e) => {
+                  const value = e.target.value === '' ? 0 : Number(e.target.value);
+                  setEditValues({ ...editValues, kolekteII: isNaN(value) ? 0 : value });
+                }}
                 className="col-span-3"
               />
             </div>
@@ -112,18 +134,26 @@ export function EditDialog({
             <Input
               id="ucapanSyukur"
               type="number"
+              min="0"
+              step="1000"
               value={editValues.ucapanSyukur}
-              onChange={(e) =>
-                setEditValues({ ...editValues, ucapanSyukur: Number(e.target.value) })
-              }
+              onChange={(e) => {
+                const value = e.target.value === '' ? 0 : Number(e.target.value);
+                setEditValues({ ...editValues, ucapanSyukur: isNaN(value) ? 0 : value });
+              }}
             />
+            {editValues.ucapanSyukur > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Nama penyumbang akan diatur otomatis jika tidak dipilih
+              </p>
+            )}
           </div>
           
           {/* Tambahkan field Nama Penyumbang jika ucapan syukur > 0 */}
           {showNamaPenyumbang && (
             <div className="space-y-2">
               <label htmlFor="namaPenyumbang" className="text-sm font-medium">
-                Nama Penyumbang
+                Nama Penyumbang <span className="text-red-500">*</span>
               </label>
               <Select
                 value={editValues.namaPenyumbang}
@@ -136,7 +166,7 @@ export function EditDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {keluargaList.map((keluarga) => (
-                    <SelectItem key={keluarga.id} value={keluarga.id}>
+                    <SelectItem key={keluarga.id} value={keluarga.namaKepalaKeluarga}>
                       {keluarga.namaKepalaKeluarga}
                     </SelectItem>
                   ))}
@@ -147,7 +177,7 @@ export function EditDialog({
           
           <div className="space-y-2">
             <label htmlFor="keterangan" className="text-sm font-medium">
-              Keterangan
+              Tuan Rumah
             </label>
             <Input
               id="keterangan"
@@ -160,10 +190,24 @@ export function EditDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button 
+            type="button"
+            variant="outline" 
+            onClick={() => {
+              onOpenChange(false);
+            }}
+          >
             Batal
           </Button>
-          <Button onClick={handleSave} disabled={isLoading}>
+          <Button 
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleSave();
+            }} 
+            disabled={isLoading}
+          >
             {isLoading ? "Menyimpan..." : "Simpan Perubahan"}
           </Button>
         </DialogFooter>
