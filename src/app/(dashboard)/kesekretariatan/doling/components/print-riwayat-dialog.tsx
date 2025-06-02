@@ -82,8 +82,26 @@ export function PrintRiwayatDialog({
     const kepalaKeluarga = relevantAbsensi.map((absensi) => {
       let status: 'hadir' | 'tidak_hadir' | 'hanya_suami' | 'hanya_istri' = 'tidak_hadir';
       
-      if (absensi.hadir) {
-        status = 'hadir';
+      // Gunakan statusKehadiran yang sebenarnya dari data absensi
+      if (absensi.statusKehadiran) {
+        switch (absensi.statusKehadiran) {
+          case 'SUAMI_ISTRI_HADIR':
+            status = 'hadir';
+            break;
+          case 'SUAMI_SAJA':
+            status = 'hanya_suami';
+            break;
+          case 'ISTRI_SAJA':
+            status = 'hanya_istri';
+            break;
+          case 'TIDAK_HADIR':
+          default:
+            status = 'tidak_hadir';
+            break;
+        }
+      } else {
+        // Fallback ke field hadir jika statusKehadiran tidak ada
+        status = absensi.hadir ? 'hadir' : 'tidak_hadir';
       }
       
       return {
