@@ -409,7 +409,7 @@ export async function updateDolingDetail(id: string, data: {
       let approvalStatus: StatusApproval;
       
       if (data.status === 'selesai') {
-        approvalStatus = StatusApproval.APPROVED;
+        approvalStatus = StatusApproval.PENDING; // Ubah ke PENDING agar masuk ke queue approval
       } else if (data.status === 'dibatalkan') {
         approvalStatus = StatusApproval.REJECTED;
       } else {
@@ -420,8 +420,8 @@ export async function updateDolingDetail(id: string, data: {
       await updateApprovalStatus(id, approvalStatus);
     }
     
-    // Jika belum ada approval, buat approval baru dengan status PENDING
-    if (!updatedDoling.approval) {
+    // Jika belum ada approval dan status adalah 'selesai', buat approval baru dengan status PENDING
+    if (!updatedDoling.approval && data.status === 'selesai') {
       await prisma.approval.create({
         data: {
           doaLingkungan: {
@@ -475,7 +475,9 @@ export async function updateDolingDetail(id: string, data: {
       updatedAt: updatedDoling.updatedAt
     };
 
+    // Revalidate paths untuk memastikan sinkronisasi data
     revalidatePath("/kesekretariatan/doling");
+    revalidatePath("/approval"); // Tambahkan revalidation untuk halaman approval
 
     return result;
   } catch (error) {
@@ -666,7 +668,9 @@ export async function updateApprovalStatus(dolingId: string, status: StatusAppro
       });
     }
 
+    // Revalidate paths untuk memastikan sinkronisasi data
     revalidatePath("/kesekretariatan/doling");
+    revalidatePath("/approval"); // Tambahkan revalidation untuk halaman approval
   } catch (error) {
     console.error("Error updating approval status:", error);
     throw new Error("Gagal mengupdate status approval");

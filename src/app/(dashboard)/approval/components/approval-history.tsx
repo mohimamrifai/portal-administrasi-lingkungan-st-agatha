@@ -197,13 +197,15 @@ export function ApprovalHistory({ selectedMonth, approvalData }: ApprovalHistory
                         {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(getKolekteII(item))}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <FileText className="w-4 h-4 flex-shrink-0" />
-                      <span className="truncate">
-                        <span className="font-medium text-foreground">Ucapan Syukur: </span>
-                        {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(getUcapanSyukur(item))}
-                      </span>
-                    </div>
+                    {getUcapanSyukur(item) > 0 && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <FileText className="w-4 h-4 flex-shrink-0" />
+                        <span className="truncate">
+                          <span className="font-medium text-foreground">Ucapan Syukur: </span>
+                          {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(getUcapanSyukur(item))}
+                        </span>
+                      </div>
+                    )}
                   </>
                 )}
                 <div className="flex items-center gap-2 text-muted-foreground">

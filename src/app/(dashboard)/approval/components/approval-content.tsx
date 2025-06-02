@@ -166,43 +166,26 @@ export default function ApprovalContent() {
     
     try {
       if (confirmAction === 'approve') {
-        const success = await approveApproval(selectedItem.id)
+        const response = await approveApproval(selectedItem.id)
         
-        if (success) {
+        if (response.success) {
           // Reload data untuk mendapatkan perubahan terbaru
-          const approvalsResponse = await getApprovals()
-          if (approvalsResponse.success && approvalsResponse.data) {
-            setApprovalData(approvalsResponse.data as ExtendedApproval[])
-          }
+          await refreshData();
           
-          // Reload statistik
-          const statsResponse = await getApprovalStats()
-          if (statsResponse.success && statsResponse.data) {
-            setStats(statsResponse.data)
-          }
-          
-          toast.success(`Persetujuan berhasil. Data telah diintegrasikan ke Kas Lingkungan.`)
-          toast.info(`Notifikasi telah dikirim ke pengurus.`)
+          // Tampilkan pesan yang lebih informatif
+          toast.success(response.message || "Persetujuan berhasil. Data telah diintegrasikan ke Kas Lingkungan.")
+          toast.info("Notifikasi telah dikirim ke pengurus.")
         } else {
-          toast.error("Gagal mengintegrasikan data ke Kas Lingkungan. Silakan coba lagi.")
+          toast.error(response.error || "Gagal mengintegrasikan data ke Kas Lingkungan. Silakan coba lagi.")
         }
-      } else {
+      } else if (confirmAction === 'reject') {
         const success = await rejectApproval(selectedItem.id, reason)
         
         if (success) {
           // Reload data untuk mendapatkan perubahan terbaru
-          const approvalsResponse = await getApprovals()
-          if (approvalsResponse.success && approvalsResponse.data) {
-            setApprovalData(approvalsResponse.data as ExtendedApproval[])
-          }
+          await refreshData();
           
-          // Reload statistik
-          const statsResponse = await getApprovalStats()
-          if (statsResponse.success && statsResponse.data) {
-            setStats(statsResponse.data)
-          }
-          
-          toast.info(`Permohonan ditolak. Notifikasi telah dikirim ke pengurus.`)
+          toast.info("Permohonan ditolak. Notifikasi telah dikirim ke pengurus.")
         } else {
           toast.error("Gagal menolak permohonan. Silakan coba lagi.")
         }
@@ -226,18 +209,9 @@ export default function ApprovalContent() {
       
       if (response.success) {
         // Reload data untuk mendapatkan perubahan terbaru
-        const approvalsResponse = await getApprovals()
-        if (approvalsResponse.success && approvalsResponse.data) {
-          setApprovalData(approvalsResponse.data as ExtendedApproval[])
-        }
+        await refreshData();
         
-        // Reload statistik
-        const statsResponse = await getApprovalStats()
-        if (statsResponse.success && statsResponse.data) {
-          setStats(statsResponse.data)
-        }
-        
-        toast.success(`Status berhasil direset ke Menunggu.`)
+        toast.success("Status berhasil direset ke Menunggu.")
       } else {
         toast.error("Gagal mereset status. Silakan coba lagi.")
       }
@@ -246,6 +220,23 @@ export default function ApprovalContent() {
       toast.error("Terjadi kesalahan. Silakan coba lagi.")
     } finally {
       setIsProcessing(false)
+    }
+  }
+
+  // Fungsi helper untuk refresh data
+  const refreshData = async () => {
+    try {
+      const approvalsResponse = await getApprovals()
+      if (approvalsResponse.success && approvalsResponse.data) {
+        setApprovalData(approvalsResponse.data as ExtendedApproval[])
+      }
+      
+      const statsResponse = await getApprovalStats()
+      if (statsResponse.success && statsResponse.data) {
+        setStats(statsResponse.data)
+      }
+    } catch (error) {
+      console.error("Error refreshing data:", error)
     }
   }
 
@@ -296,6 +287,7 @@ export default function ApprovalContent() {
                 onReset={handleResetStatus}
                 userRole={userRole}
                 keluargaList={keluargaList}
+                onRefreshData={refreshData}
               />
             </CardContent>
           </Card>

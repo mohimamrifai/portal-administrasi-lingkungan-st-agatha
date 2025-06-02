@@ -34,6 +34,9 @@ export async function approveApproval(approvalId: string) {
                 throw new Error("Data doa lingkungan tidak ditemukan")
             }
 
+            let createdEntries = 0;
+            let totalAmount = 0;
+
             // Buat entri kas lingkungan untuk Kolekte I jika nilainya > 0
             if (doaLingkungan.kolekteI > 0) {
                 await prisma.kasLingkungan.create({
@@ -46,6 +49,8 @@ export async function approveApproval(approvalId: string) {
                         kredit: 0,
                     },
                 })
+                createdEntries++;
+                totalAmount += doaLingkungan.kolekteI;
             }
 
             // Buat entri kas lingkungan untuk Kolekte II jika nilainya > 0
@@ -60,6 +65,8 @@ export async function approveApproval(approvalId: string) {
                         kredit: 0,
                     },
                 })
+                createdEntries++;
+                totalAmount += doaLingkungan.kolekteII;
             }
 
             // Buat entri kas lingkungan untuk Ucapan Syukur jika nilainya > 0
@@ -74,6 +81,19 @@ export async function approveApproval(approvalId: string) {
                         kredit: 0,
                     },
                 })
+                createdEntries++;
+                totalAmount += doaLingkungan.ucapanSyukur;
+            }
+
+            // Revalidate semua path terkait
+            revalidatePath("/approval");
+            revalidatePath("/lingkungan/kas");
+            revalidatePath("/kesekretariatan/doling");
+
+            return {
+                success: true,
+                data: updatedApproval,
+                message: `Approval berhasil disetujui. ${createdEntries} entri kas lingkungan telah dibuat dengan total Rp ${totalAmount.toLocaleString('id-ID')}.${doaLingkungan.ucapanSyukur === 0 ? ' (Tanpa ucapan syukur)' : ''}`
             }
         }
 
@@ -81,6 +101,7 @@ export async function approveApproval(approvalId: string) {
         return {
             success: true,
             data: updatedApproval,
+            message: "Approval berhasil disetujui."
         }
     } catch (error) {
         console.error("Gagal menyetujui approval:", error)
