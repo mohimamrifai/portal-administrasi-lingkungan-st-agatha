@@ -126,37 +126,58 @@ export async function getFamilyHeadById(id: string): Promise<FamilyHeadData | nu
  */
 export async function addFamilyHead(data: FamilyHeadFormData): Promise<FamilyHeadData> {
   try {
-    const keluarga = await prisma.keluargaUmat.create({
-      data: {
-        namaKepalaKeluarga: data.namaKepalaKeluarga,
-        alamat: data.alamat,
-        nomorTelepon: data.nomorTelepon || null,
-        tanggalBergabung: data.tanggalBergabung,
-        jumlahAnakTertanggung: data.jumlahAnakTertanggung,
-        jumlahKerabatTertanggung: data.jumlahKerabatTertanggung,
-        jumlahAnggotaKeluarga: data.jumlahAnggotaKeluarga,
-        status: data.status,
-        statusPernikahan: data.statusPernikahan,
-        tanggalKeluar: data.tanggalKeluar || null,
-        tanggalMeninggal: data.tanggalMeninggal || null,
-      },
+    // Gunakan transaction untuk memastikan konsistensi data
+    const result = await prisma.$transaction(async (prisma) => {
+      // Buat record kepala keluarga terlebih dahulu
+      const keluarga = await prisma.keluargaUmat.create({
+        data: {
+          namaKepalaKeluarga: data.namaKepalaKeluarga,
+          alamat: data.alamat,
+          nomorTelepon: data.nomorTelepon || null,
+          tanggalBergabung: data.tanggalBergabung,
+          jumlahAnakTertanggung: data.jumlahAnakTertanggung,
+          jumlahKerabatTertanggung: data.jumlahKerabatTertanggung,
+          jumlahAnggotaKeluarga: data.jumlahAnggotaKeluarga,
+          status: data.status,
+          statusPernikahan: data.statusPernikahan,
+          tanggalKeluar: data.tanggalKeluar || null,
+          tanggalMeninggal: data.tanggalMeninggal || null,
+        },
+      });
+
+      // Jika status pernikahan adalah MENIKAH, buat record pasangan
+      if (data.statusPernikahan === StatusPernikahan.MENIKAH) {
+        await prisma.pasangan.create({
+          data: {
+            nama: `Pasangan dari ${data.namaKepalaKeluarga}`,
+            tempatLahir: 'Belum diisi',
+            tanggalLahir: new Date(), // Default tanggal hari ini, bisa diubah nanti
+            pendidikanTerakhir: 'Belum diisi',
+            agama: 'KATOLIK', // Default
+            status: StatusKehidupan.HIDUP,
+            keluargaId: keluarga.id,
+          },
+        });
+      }
+
+      return keluarga;
     });
 
     revalidatePath("/kesekretariatan/umat");
 
     return {
-      id: keluarga.id,
-      nama: keluarga.namaKepalaKeluarga,
-      alamat: keluarga.alamat,
-      nomorTelepon: keluarga.nomorTelepon,
-      tanggalBergabung: keluarga.tanggalBergabung,
-      jumlahAnakTertanggung: keluarga.jumlahAnakTertanggung,
-      jumlahKerabatTertanggung: keluarga.jumlahKerabatTertanggung,
-      jumlahAnggotaKeluarga: keluarga.jumlahAnggotaKeluarga,
-      status: keluarga.status,
-      statusPernikahan: keluarga.statusPernikahan,
-      tanggalKeluar: keluarga.tanggalKeluar,
-      tanggalMeninggal: keluarga.tanggalMeninggal,
+      id: result.id,
+      nama: result.namaKepalaKeluarga,
+      alamat: result.alamat,
+      nomorTelepon: result.nomorTelepon,
+      tanggalBergabung: result.tanggalBergabung,
+      jumlahAnakTertanggung: result.jumlahAnakTertanggung,
+      jumlahKerabatTertanggung: result.jumlahKerabatTertanggung,
+      jumlahAnggotaKeluarga: result.jumlahAnggotaKeluarga,
+      status: result.status,
+      statusPernikahan: result.statusPernikahan,
+      tanggalKeluar: result.tanggalKeluar,
+      tanggalMeninggal: result.tanggalMeninggal,
     };
   } catch (error) {
     console.error("Error adding family head:", error);
@@ -169,38 +190,77 @@ export async function addFamilyHead(data: FamilyHeadFormData): Promise<FamilyHea
  */
 export async function updateFamilyHead(id: string, data: FamilyHeadFormData): Promise<FamilyHeadData> {
   try {
-    const keluarga = await prisma.keluargaUmat.update({
-      where: { id },
-      data: {
-        namaKepalaKeluarga: data.namaKepalaKeluarga,
-        alamat: data.alamat,
-        nomorTelepon: data.nomorTelepon || null,
-        tanggalBergabung: data.tanggalBergabung,
-        jumlahAnakTertanggung: data.jumlahAnakTertanggung,
-        jumlahKerabatTertanggung: data.jumlahKerabatTertanggung,
-        jumlahAnggotaKeluarga: data.jumlahAnggotaKeluarga,
-        status: data.status,
-        statusPernikahan: data.statusPernikahan,
-        tanggalKeluar: data.tanggalKeluar || null,
-        tanggalMeninggal: data.tanggalMeninggal || null,
-      },
+    // Gunakan transaction untuk memastikan konsistensi data
+    const result = await prisma.$transaction(async (prisma) => {
+      // Ambil data keluarga yang ada untuk mengetahui status pernikahan sebelumnya
+      const existingKeluarga = await prisma.keluargaUmat.findUnique({
+        where: { id },
+        include: { pasangan: true }
+      });
+
+      if (!existingKeluarga) {
+        throw new Error("Data keluarga tidak ditemukan");
+      }
+
+      // Update data kepala keluarga
+      const keluarga = await prisma.keluargaUmat.update({
+        where: { id },
+        data: {
+          namaKepalaKeluarga: data.namaKepalaKeluarga,
+          alamat: data.alamat,
+          nomorTelepon: data.nomorTelepon || null,
+          tanggalBergabung: data.tanggalBergabung,
+          jumlahAnakTertanggung: data.jumlahAnakTertanggung,
+          jumlahKerabatTertanggung: data.jumlahKerabatTertanggung,
+          jumlahAnggotaKeluarga: data.jumlahAnggotaKeluarga,
+          status: data.status,
+          statusPernikahan: data.statusPernikahan,
+          tanggalKeluar: data.tanggalKeluar || null,
+          tanggalMeninggal: data.tanggalMeninggal || null,
+        },
+      });
+
+      // Handle perubahan status pernikahan
+      if (existingKeluarga.statusPernikahan !== data.statusPernikahan) {
+        if (data.statusPernikahan === StatusPernikahan.MENIKAH && !existingKeluarga.pasangan) {
+          // Buat record pasangan baru jika status berubah menjadi MENIKAH
+          await prisma.pasangan.create({
+            data: {
+              nama: `Pasangan dari ${data.namaKepalaKeluarga}`,
+              tempatLahir: 'Belum diisi',
+              tanggalLahir: new Date(),
+              pendidikanTerakhir: 'Belum diisi',
+              agama: 'KATOLIK',
+              status: StatusKehidupan.HIDUP,
+              keluargaId: keluarga.id,
+            },
+          });
+        } else if (data.statusPernikahan === StatusPernikahan.TIDAK_MENIKAH && existingKeluarga.pasangan) {
+          // Hapus record pasangan jika status berubah menjadi TIDAK_MENIKAH
+          await prisma.pasangan.delete({
+            where: { keluargaId: keluarga.id }
+          });
+        }
+      }
+
+      return keluarga;
     });
 
     revalidatePath("/kesekretariatan/umat");
 
     return {
-      id: keluarga.id,
-      nama: keluarga.namaKepalaKeluarga,
-      alamat: keluarga.alamat,
-      nomorTelepon: keluarga.nomorTelepon,
-      tanggalBergabung: keluarga.tanggalBergabung,
-      jumlahAnakTertanggung: keluarga.jumlahAnakTertanggung,
-      jumlahKerabatTertanggung: keluarga.jumlahKerabatTertanggung,
-      jumlahAnggotaKeluarga: keluarga.jumlahAnggotaKeluarga,
-      status: keluarga.status,
-      statusPernikahan: keluarga.statusPernikahan,
-      tanggalKeluar: keluarga.tanggalKeluar,
-      tanggalMeninggal: keluarga.tanggalMeninggal,
+      id: result.id,
+      nama: result.namaKepalaKeluarga,
+      alamat: result.alamat,
+      nomorTelepon: result.nomorTelepon,
+      tanggalBergabung: result.tanggalBergabung,
+      jumlahAnakTertanggung: result.jumlahAnakTertanggung,
+      jumlahKerabatTertanggung: result.jumlahKerabatTertanggung,
+      jumlahAnggotaKeluarga: result.jumlahAnggotaKeluarga,
+      status: result.status,
+      statusPernikahan: result.statusPernikahan,
+      tanggalKeluar: result.tanggalKeluar,
+      tanggalMeninggal: result.tanggalMeninggal,
     };
   } catch (error) {
     console.error("Error updating family head:", error);
