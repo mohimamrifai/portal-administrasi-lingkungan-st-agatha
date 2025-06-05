@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { nowInJakarta } from "@/lib/timezone";
 
 /**
  * Fungsi untuk mendapatkan pengaturan iuran dana mandiri berdasarkan tahun
@@ -34,7 +35,7 @@ export async function getIkataSettingByYear(year: number) {
  * Fungsi untuk menghitung tunggakan dana mandiri secara real-time
  */
 export async function calculateDanaMandiriArrears(year?: number) {
-  const targetYear = year || new Date().getFullYear();
+  const targetYear = year || nowInJakarta().getFullYear();
   
   try {
     // Ambil pengaturan iuran
@@ -130,7 +131,7 @@ export async function calculateDanaMandiriArrears(year?: number) {
  * Fungsi untuk menghitung tunggakan IKATA secara real-time
  */
 export async function calculateIkataArrears(year?: number) {
-  const targetYear = year || new Date().getFullYear();
+  const targetYear = year || nowInJakarta().getFullYear();
   
   try {
     // Ambil pengaturan iuran IKATA
@@ -206,7 +207,7 @@ export async function calculateIkataArrears(year?: number) {
  * Fungsi untuk menghitung tunggakan dana mandiri dengan format lengkap (untuk modul dana mandiri)
  */
 export async function calculateDanaMandiriArrearsDetailed(year?: number) {
-  const targetYear = year || new Date().getFullYear();
+  const targetYear = year || nowInJakarta().getFullYear();
   
   try {
     // Ambil pengaturan iuran
@@ -301,7 +302,7 @@ export async function calculateDanaMandiriArrearsDetailed(year?: number) {
  * Fungsi untuk menghitung tunggakan IKATA dengan format lengkap (untuk modul IKATA)
  */
 export async function calculateIkataArrearsDetailed(year?: number) {
-  const targetYear = year || new Date().getFullYear();
+  const targetYear = year || nowInJakarta().getFullYear();
   
   try {
     // Ambil pengaturan iuran IKATA

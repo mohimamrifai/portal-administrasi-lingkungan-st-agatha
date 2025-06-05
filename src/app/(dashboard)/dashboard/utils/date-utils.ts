@@ -1,5 +1,6 @@
 import { startOfMonth, endOfMonth } from "date-fns";
 import { type DateRange } from "react-day-picker";
+import { nowInJakarta } from "@/lib/timezone";
 
 // Mendapatkan rentang tanggal untuk bulan tertentu
 export function getMonthDateRange(date: Date): DateRange {
@@ -26,7 +27,7 @@ export function getYearFromQuery(year?: string): number | undefined {
   if (!year) return undefined;
   
   const parsedYear = parseInt(year);
-  const currentYear = new Date().getFullYear();
+  const currentYear = nowInJakarta().getFullYear();
   
   // Batasi tahun yang valid dalam rentang 5 tahun ke belakang dan 3 tahun ke depan
   if (isNaN(parsedYear) || parsedYear < (currentYear - 5) || parsedYear > (currentYear + 3)) {
@@ -34,4 +35,9 @@ export function getYearFromQuery(year?: string): number | undefined {
   }
   
   return parsedYear;
+}
+
+export function getCurrentFinancialYear(): number {
+  const currentYear = nowInJakarta().getFullYear();
+  return currentYear;
 } 

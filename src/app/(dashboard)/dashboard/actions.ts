@@ -6,12 +6,29 @@ import { DateRange } from "react-day-picker";
 import { KesekretariatanSummary, KeuanganIkataSummary, KeuanganLingkunganSummary } from "./types";
 import { TipeTransaksiLingkungan, TipeTransaksiIkata } from "@prisma/client";
 import { calculateDanaMandiriArrears, calculateIkataArrears } from "./utils/arrears-utils";
+import { createJakartaMonthRange, createJakartaYearRange, nowInJakarta } from "@/lib/timezone";
 
 // Fungsi untuk mendapatkan data Keuangan Lingkungan
 export async function getKeuanganLingkunganData(bulan?: number, tahun?: number): Promise<KeuanganLingkunganSummary> {
   noStore(); // Menonaktifkan caching
 
   try {
+    // Gunakan timezone Jakarta untuk konsistensi
+    const currentYear = tahun || nowInJakarta().getFullYear();
+    let startDate: Date;
+    let endDate: Date;
+    
+    if (bulan && tahun) {
+      // Filter berdasarkan bulan dan tahun - konversi bulan dari 1-12 ke 0-11
+      const monthIndex = bulan - 1; // Konversi ke index bulan JavaScript (0-11)
+      ({ startDate, endDate } = createJakartaMonthRange(tahun, monthIndex));
+    } else {
+      // Filter berdasarkan tahun saja
+      const range = createJakartaYearRange(currentYear);
+      startDate = range.startDate;
+      endDate = range.endDate;
+    }
+
     // Import fungsi dari kas lingkungan untuk konsistensi
     const { getTransactionsData, getTransactionSummary } = await import("@/app/(dashboard)/lingkungan/kas/components/providers");
     const { calculatePeriodSummary } = await import("@/app/(dashboard)/lingkungan/kas/utils/date-utils");
@@ -28,12 +45,12 @@ export async function getKeuanganLingkunganData(bulan?: number, tahun?: number):
     // Gunakan saldo awal dari database jika ada, atau default ke 0
     const globalInitialBalance = initialBalanceTransaction ? initialBalanceTransaction.debit : 0;
 
-    // Jika ada filter bulan dan tahun, buat dateRange
+    // Jika ada filter bulan dan tahun, buat dateRange menggunakan timezone Jakarta
     let dateRange: DateRange | undefined = undefined;
     if (bulan !== undefined && tahun !== undefined) {
       dateRange = {
-        from: new Date(tahun, bulan - 1, 1),
-        to: new Date(tahun, bulan, 0)
+        from: startDate,
+        to: endDate
       };
     }
 
@@ -62,6 +79,9 @@ export async function getKeuanganIkataData(bulan?: number, tahun?: number): Prom
   noStore(); // Menonaktifkan caching
 
   try {
+    // Gunakan timezone Jakarta untuk konsistensi
+    const currentDate = nowInJakarta();
+    
     // Import fungsi getKasIkataSummary langsung
     const { getKasIkataSummary } = await import("@/app/(dashboard)/ikata/kas/utils/kas-ikata-service");
     
@@ -85,15 +105,20 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
   noStore(); // Menonaktifkan caching
 
   try {
-    const yearStart = new Date(tahun || new Date().getFullYear(), 0, 1);
-    const yearEnd = new Date(tahun || new Date().getFullYear(), 11, 31);
-    const monthStart = bulan !== undefined && tahun !== undefined 
-      ? new Date(tahun, bulan - 1, 1) 
-      : yearStart;
-    const monthEnd = bulan !== undefined && tahun !== undefined
-      ? new Date(tahun, bulan, 0, 23, 59, 59)
-      : yearEnd;
+    // Gunakan timezone Jakarta untuk konsistensi
+    const currentYear = tahun || nowInJakarta().getFullYear();
     
+    let monthStart: Date;
+    let monthEnd: Date;
+    
+    if (bulan && tahun) {
+      // Filter berdasarkan bulan dan tahun - konversi bulan dari 1-12 ke 0-11
+      const monthIndex = bulan - 1; // Konversi ke index bulan JavaScript (0-11)
+      ({ startDate: monthStart, endDate: monthEnd } = createJakartaMonthRange(tahun, monthIndex));
+    } else {
+      // Buat range tahun dalam timezone Jakarta
+      ({ startDate: monthStart, endDate: monthEnd } = createJakartaYearRange(currentYear));
+    }
 
     // Impor fungsi utilitas untuk perhitungan keluarga
     const { hitungJumlahKepalaKeluarga, hitungTotalJiwa } = await import('./utils/family-utils');
@@ -342,7 +367,7 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
 // Fungsi untuk mendapatkan data penunggak Dana Mandiri
 export async function getPenunggakDanaMandiriData() {
   try {
-    const currentYear = new Date().getFullYear();
+    const currentYear = nowInJakarta().getFullYear();
     
     // Gunakan utilitas untuk menghitung tunggakan
     const arrearsData = await calculateDanaMandiriArrears(currentYear);
@@ -357,7 +382,7 @@ export async function getPenunggakDanaMandiriData() {
 // Fungsi untuk mendapatkan data penunggak Ikata
 export async function getPenunggakIkataData() {
   try {
-    const currentYear = new Date().getFullYear();
+    const currentYear = nowInJakarta().getFullYear();
     
     // Gunakan utilitas untuk menghitung tunggakan
     const arrearsData = await calculateIkataArrears(currentYear);
