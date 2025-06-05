@@ -32,6 +32,7 @@ export interface FamilyHeadFormData {
   jumlahKerabatTertanggung: number;
   jumlahAnggotaKeluarga: number;
   status: StatusKehidupan;
+  statusPernikahan: StatusPernikahan;
   tanggalKeluar?: Date;
   tanggalMeninggal?: Date;
 }
@@ -135,9 +136,9 @@ export async function addFamilyHead(data: FamilyHeadFormData): Promise<FamilyHea
         jumlahKerabatTertanggung: data.jumlahKerabatTertanggung,
         jumlahAnggotaKeluarga: data.jumlahAnggotaKeluarga,
         status: data.status,
+        statusPernikahan: data.statusPernikahan,
         tanggalKeluar: data.tanggalKeluar || null,
         tanggalMeninggal: data.tanggalMeninggal || null,
-        statusPernikahan: StatusPernikahan.TIDAK_MENIKAH, // Default value
       },
     });
 
@@ -179,6 +180,7 @@ export async function updateFamilyHead(id: string, data: FamilyHeadFormData): Pr
         jumlahKerabatTertanggung: data.jumlahKerabatTertanggung,
         jumlahAnggotaKeluarga: data.jumlahAnggotaKeluarga,
         status: data.status,
+        statusPernikahan: data.statusPernikahan,
         tanggalKeluar: data.tanggalKeluar || null,
         tanggalMeninggal: data.tanggalMeninggal || null,
       },
