@@ -10,6 +10,7 @@ export function exportFamilyHeadTemplate() {
         'Tanggal Bergabung (DD/MM/YYYY)': '01/01/2023',
         'Alamat': 'Contoh: Jl. Merdeka No. 123',
         'No. Telepon': 'Contoh: 081234567890',
+        'Status Pernikahan': 'MENIKAH atau TIDAK_MENIKAH',
         'Jumlah Anak Tertanggung': '2',
         'Jumlah Kerabat Tertanggung': '1',
         'Jumlah Anggota Keluarga': '4',
@@ -23,6 +24,7 @@ export function exportFamilyHeadTemplate() {
         'Tanggal Bergabung (DD/MM/YYYY)': '',
         'Alamat': '',
         'No. Telepon': '',
+        'Status Pernikahan': '',
         'Jumlah Anak Tertanggung': '',
         'Jumlah Kerabat Tertanggung': '',
         'Jumlah Anggota Keluarga': '',
@@ -43,6 +45,7 @@ export function exportFamilyHeadTemplate() {
       { wch: 25 }, // Tanggal Bergabung
       { wch: 40 }, // Alamat
       { wch: 20 }, // No. Telepon
+      { wch: 25 }, // Status Pernikahan
       { wch: 20 }, // Jumlah Anak Tertanggung
       { wch: 20 }, // Jumlah Kerabat Tertanggung
       { wch: 20 }, // Jumlah Anggota Keluarga
