@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import * as XLSX from 'xlsx';
 import { FamilyHead } from "../types";
-import { StatusKehidupan } from "@prisma/client";
+import { StatusKehidupan, StatusPernikahan } from "@prisma/client";
 
 interface ImportDialogProps {
   open: boolean;
@@ -96,6 +96,17 @@ export function ImportDialog({
               const parsed = parseInt(value);
               return isNaN(parsed) ? 0 : parsed;
             };
+
+            // Parse status pernikahan dari Excel
+            const parseStatusPernikahan = (value: any): StatusPernikahan => {
+              if (typeof value === 'string') {
+                const upperValue = value.toUpperCase().trim();
+                if (upperValue === 'MENIKAH' || upperValue === 'MARRIED') {
+                  return StatusPernikahan.MENIKAH;
+                }
+              }
+              return StatusPernikahan.TIDAK_MENIKAH; // Default
+            };
             
             return {
               namaKepalaKeluarga: row['Nama Kepala Keluarga'] || 'Tidak Ada Nama',
@@ -106,6 +117,7 @@ export function ImportDialog({
               jumlahKerabatTertanggung: parseIntSafe(row['Jumlah Kerabat Tertanggung']),
               jumlahAnggotaKeluarga: Math.max(1, parseIntSafe(row['Jumlah Anggota Keluarga'])),
               status: StatusKehidupan.HIDUP,
+              statusPernikahan: parseStatusPernikahan(row['Status Pernikahan']),
               tanggalKeluar: undefined,
               tanggalMeninggal: undefined,
             };
