@@ -295,8 +295,17 @@ export async function addDoling(data: {
       },
     });
 
+    // Buat record approval dengan status PENDING
+    await prisma.approval.create({
+      data: {
+        doaLingkunganId: newDoling.id,
+        status: StatusApproval.PENDING,
+      }
+    });
+
     // Refresh data di seluruh aplikasi
     revalidatePath("/kesekretariatan/doling");
+    revalidatePath("/approval"); // Tambahkan revalidasi untuk halaman approval
 
     // Format hasil untuk dikembalikan ke UI
     return {
@@ -315,7 +324,7 @@ export async function addDoling(data: {
       subIbadat: newDoling.subIbadat,
       customSubIbadat: newDoling.customSubIbadat,
       temaIbadat: newDoling.temaIbadat,
-      status: 'terjadwal',
+      status: 'menunggu',
       jumlahKKHadir: 0,
       bapak: 0,
       ibu: 0,

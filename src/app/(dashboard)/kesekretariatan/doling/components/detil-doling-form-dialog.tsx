@@ -297,7 +297,14 @@ export function DetilDolingFormDialog({
         setSubIbadat(jadwal.subIbadat ? mapSubIbadatEnumToString(jadwal.subIbadat) : "");
         setCustomSubIbadat(jadwal.customSubIbadat || "");
         setTemaIbadat(jadwal.temaIbadat || null);
-        setStatus(jadwal.status === "dibatalkan" ? "dibatalkan" : "selesai");
+        // Mengatur status berdasarkan approval
+        if (jadwal.status === "dibatalkan") {
+          setStatus("dibatalkan");
+        } else if (!jadwal.approved) {
+          setStatus("menunggu");
+        } else {
+          setStatus("selesai");
+        }
         
         // Jika jadwal telah memiliki data kehadiran dan kolekte, gunakan data tersebut
         if (jadwal.jumlahKKHadir > 0) {
