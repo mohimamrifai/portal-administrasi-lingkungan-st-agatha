@@ -254,7 +254,6 @@ export async function addDoling(data: {
   temaIbadat?: string;
 }): Promise<DolingData> {
   try {
-    
     // Validasi subIbadat, jika bukan nilai enum SubIbadat yang valid, set ke null
     let validSubIbadat = null;
     if (data.subIbadat) {
@@ -280,50 +279,55 @@ export async function addDoling(data: {
       throw new Error(`Keluarga dengan ID ${data.tuanRumahId} tidak ditemukan`);
     }
     
-    // Buat data baru
-    const newDoling = await prisma.doaLingkungan.create({
-      data: {
-        tanggal: data.tanggal,
-        tuanRumahId: data.tuanRumahId,
-        jenisIbadat: data.jenisIbadat,
-        subIbadat: validSubIbadat,
-        customSubIbadat: data.customSubIbadat,
-        temaIbadat: data.temaIbadat,
-      },
-      include: {
-        tuanRumah: true,
-      },
-    });
+    // Gunakan transaksi untuk memastikan konsistensi data
+    const result = await prisma.$transaction(async (tx) => {
+      // Buat data doa lingkungan baru
+      const newDoling = await tx.doaLingkungan.create({
+        data: {
+          tanggal: data.tanggal,
+          tuanRumahId: data.tuanRumahId,
+          jenisIbadat: data.jenisIbadat,
+          subIbadat: validSubIbadat,
+          customSubIbadat: data.customSubIbadat,
+          temaIbadat: data.temaIbadat,
+        },
+        include: {
+          tuanRumah: true,
+        },
+      });
 
-    // Buat record approval dengan status PENDING
-    await prisma.approval.create({
-      data: {
-        doaLingkunganId: newDoling.id,
-        status: StatusApproval.PENDING,
-      }
+      // Buat record approval dengan status PENDING
+      const approval = await tx.approval.create({
+        data: {
+          doaLingkunganId: newDoling.id,
+          status: StatusApproval.PENDING,
+        }
+      });
+
+      return { newDoling, approval };
     });
 
     // Refresh data di seluruh aplikasi
     revalidatePath("/kesekretariatan/doling");
-    revalidatePath("/approval"); // Tambahkan revalidasi untuk halaman approval
+    revalidatePath("/approval");
 
     // Format hasil untuk dikembalikan ke UI
     return {
-      id: newDoling.id,
-      tanggal: newDoling.tanggal,
-      waktu: newDoling.tanggal.toLocaleTimeString('id-ID', { 
+      id: result.newDoling.id,
+      tanggal: result.newDoling.tanggal,
+      waktu: result.newDoling.tanggal.toLocaleTimeString('id-ID', { 
         hour: '2-digit', 
         minute: '2-digit',
         hour12: false
       }),
-      tuanRumah: newDoling.tuanRumah.namaKepalaKeluarga,
-      tuanRumahId: newDoling.tuanRumahId,
-      alamat: newDoling.tuanRumah.alamat,
-      nomorTelepon: newDoling.tuanRumah.nomorTelepon,
-      jenisIbadat: newDoling.jenisIbadat,
-      subIbadat: newDoling.subIbadat,
-      customSubIbadat: newDoling.customSubIbadat,
-      temaIbadat: newDoling.temaIbadat,
+      tuanRumah: result.newDoling.tuanRumah.namaKepalaKeluarga,
+      tuanRumahId: result.newDoling.tuanRumahId,
+      alamat: result.newDoling.tuanRumah.alamat,
+      nomorTelepon: result.newDoling.tuanRumah.nomorTelepon,
+      jenisIbadat: result.newDoling.jenisIbadat,
+      subIbadat: result.newDoling.subIbadat,
+      customSubIbadat: result.newDoling.customSubIbadat,
+      temaIbadat: result.newDoling.temaIbadat,
       status: 'menunggu',
       jumlahKKHadir: 0,
       bapak: 0,
@@ -345,8 +349,8 @@ export async function addDoling(data: {
       pemazmur: null,
       jumlahPeserta: 0,
       approved: false,
-      createdAt: newDoling.createdAt,
-      updatedAt: newDoling.updatedAt,
+      createdAt: result.newDoling.createdAt,
+      updatedAt: result.newDoling.updatedAt,
     };
   } catch (error) {
     console.error("Error adding doa lingkungan:", error);
@@ -381,70 +385,90 @@ export async function updateDolingDetail(id: string, data: {
   customSubIbadat?: string | null;
 }): Promise<DolingData> {
   try {
-    
-    // Update data doling
-    const updatedDoling = await prisma.doaLingkungan.update({
-      where: { id },
-      data: {
-        jumlahKKHadir: data.jumlahKKHadir,
-        bapak: data.bapak,
-        ibu: data.ibu,
-        omk: data.omk,
-        bir: data.bir,
-        biaBawah: data.biaBawah,
-        biaAtas: data.biaAtas,
-        kolekteI: data.kolekteI,
-        kolekteII: data.kolekteII,
-        ucapanSyukur: data.ucapanSyukur,
-        pemimpinIbadat: data.pemimpinIbadat,
-        pemimpinRosario: data.pemimpinRosario,
-        pembawaRenungan: data.pembawaRenungan,
-        pembawaLagu: data.pembawaLagu,
-        doaUmat: data.doaUmat,
-        pemimpinMisa: data.pemimpinMisa,
-        bacaanI: data.bacaanI,
-        pemazmur: data.pemazmur,
-        jumlahPeserta: data.jumlahPeserta,
-        customSubIbadat: data.customSubIbadat,
-      },
-      include: {
-        tuanRumah: true,
-        approval: true,
-      }
-    });
-
-    // Jika status diperbarui, update approval sesuai status
-    if (data.status) {
-      let approvalStatus: StatusApproval;
-      
-      if (data.status === 'selesai') {
-        approvalStatus = StatusApproval.PENDING; // Ubah ke PENDING agar masuk ke queue approval
-      } else if (data.status === 'dibatalkan') {
-        approvalStatus = StatusApproval.REJECTED;
-      } else {
-        approvalStatus = StatusApproval.PENDING;
-      }
-      
-      // Update approval status
-      await updateApprovalStatus(id, approvalStatus);
-    }
-    
-    // Jika belum ada approval dan status adalah 'selesai', buat approval baru dengan status PENDING
-    if (!updatedDoling.approval && data.status === 'selesai') {
-      await prisma.approval.create({
+    // Gunakan transaksi untuk memastikan konsistensi data
+    const result = await prisma.$transaction(async (tx) => {
+      // Update data doling
+      const updatedDoling = await tx.doaLingkungan.update({
+        where: { id },
         data: {
-          doaLingkungan: {
-            connect: {
-              id
-            }
-          },
-          status: StatusApproval.PENDING
+          jumlahKKHadir: data.jumlahKKHadir,
+          bapak: data.bapak,
+          ibu: data.ibu,
+          omk: data.omk,
+          bir: data.bir,
+          biaBawah: data.biaBawah,
+          biaAtas: data.biaAtas,
+          kolekteI: data.kolekteI,
+          kolekteII: data.kolekteII,
+          ucapanSyukur: data.ucapanSyukur,
+          pemimpinIbadat: data.pemimpinIbadat,
+          pemimpinRosario: data.pemimpinRosario,
+          pembawaRenungan: data.pembawaRenungan,
+          pembawaLagu: data.pembawaLagu,
+          doaUmat: data.doaUmat,
+          pemimpinMisa: data.pemimpinMisa,
+          bacaanI: data.bacaanI,
+          pemazmur: data.pemazmur,
+          jumlahPeserta: data.jumlahPeserta,
+          customSubIbadat: data.customSubIbadat,
+        },
+        include: {
+          tuanRumah: true,
+          approval: true,
         }
       });
-    }
+
+      let approval = updatedDoling.approval;
+
+      // Jika status diperbarui, update atau buat approval sesuai status
+      if (data.status) {
+        let approvalStatus: StatusApproval;
+        
+        switch (data.status) {
+          case 'selesai':
+          case 'disetujui':
+            approvalStatus = StatusApproval.APPROVED;
+            break;
+          case 'dibatalkan':
+            approvalStatus = StatusApproval.REJECTED;
+            break;
+          case 'menunggu':
+            approvalStatus = StatusApproval.PENDING;
+            break;
+          default:
+            approvalStatus = StatusApproval.PENDING;
+        }
+
+        if (approval) {
+          // Update approval yang sudah ada
+          approval = await tx.approval.update({
+            where: { id: approval.id },
+            data: { 
+              status: approvalStatus,
+              updatedAt: new Date()
+            }
+          });
+        } else {
+          // Buat approval baru
+          approval = await tx.approval.create({
+            data: {
+              doaLingkungan: { connect: { id } },
+              status: approvalStatus,
+            }
+          });
+        }
+      }
+
+      return { updatedDoling, approval };
+    });
+
+    // Refresh data
+    revalidatePath("/kesekretariatan/doling");
+    revalidatePath("/approval");
 
     // Format result
-    const result: DolingData = {
+    const { updatedDoling, approval } = result;
+    return {
       id: updatedDoling.id,
       tanggal: updatedDoling.tanggal,
       waktu: format(updatedDoling.tanggal, 'HH:mm'),
@@ -456,10 +480,10 @@ export async function updateDolingDetail(id: string, data: {
       subIbadat: updatedDoling.subIbadat,
       customSubIbadat: updatedDoling.customSubIbadat,
       temaIbadat: updatedDoling.temaIbadat,
-      status: updatedDoling.approval ?
-        (updatedDoling.approval.status === StatusApproval.APPROVED ? 'selesai' :
-         updatedDoling.approval.status === StatusApproval.REJECTED ? 'dibatalkan' : 'menunggu') :
-        'terjadwal',
+      status: data.status || (approval ?
+        (approval.status === StatusApproval.APPROVED ? 'selesai' :
+         approval.status === StatusApproval.REJECTED ? 'dibatalkan' : 'menunggu') :
+        'terjadwal'),
       jumlahKKHadir: updatedDoling.jumlahKKHadir,
       bapak: updatedDoling.bapak,
       ibu: updatedDoling.ibu,
@@ -479,16 +503,10 @@ export async function updateDolingDetail(id: string, data: {
       bacaanI: updatedDoling.bacaanI,
       pemazmur: updatedDoling.pemazmur,
       jumlahPeserta: updatedDoling.jumlahPeserta,
-      approved: updatedDoling.approval?.status === StatusApproval.APPROVED,
+      approved: approval?.status === StatusApproval.APPROVED,
       createdAt: updatedDoling.createdAt,
       updatedAt: updatedDoling.updatedAt
     };
-
-    // Revalidate paths untuk memastikan sinkronisasi data
-    revalidatePath("/kesekretariatan/doling");
-    revalidatePath("/approval"); // Tambahkan revalidation untuk halaman approval
-
-    return result;
   } catch (error) {
     console.error("Error updating doa lingkungan detail:", error);
     throw new Error("Gagal mengupdate detail doa lingkungan");

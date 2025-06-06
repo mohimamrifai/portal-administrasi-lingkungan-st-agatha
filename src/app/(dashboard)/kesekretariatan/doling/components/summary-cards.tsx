@@ -53,6 +53,17 @@ interface JadwalDolingCardsProps {
 }
 
 export function JadwalDolingCards({ jadwalState, className = "" }: JadwalDolingCardsProps) {
+  // Dapatkan tanggal hari ini tanpa waktu
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Hitung jadwal mendatang (jadwal yang sudah disetujui dan tanggalnya di masa depan)
+  const jadwalMendatang = jadwalState.filter(jadwal => {
+    const jadwalDate = new Date(jadwal.tanggal);
+    jadwalDate.setHours(0, 0, 0, 0);
+    return jadwalDate > today && (jadwal.status === 'selesai' || jadwal.status === 'terjadwal');
+  }).length;
+
   return (
     <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${className}`}>
       <SummaryCard
@@ -73,7 +84,7 @@ export function JadwalDolingCards({ jadwalState, className = "" }: JadwalDolingC
 
       <SummaryCard
         title="Jadwal Mendatang"
-        value={jadwalState.filter(j => j.status === "terjadwal").length}
+        value={jadwalMendatang}
         subtitle="Jadwal yang akan dilaksanakan"
         icon={<Clock className="h-4 w-4 text-yellow-600" />}
         className="bg-yellow-50 gap-0"
