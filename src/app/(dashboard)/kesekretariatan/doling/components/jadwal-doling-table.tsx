@@ -103,7 +103,7 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete, onSelectDoling }: 
       case "terjadwal":
         return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Terjadwal</Badge>;
       case "selesai":
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Selesai</Badge>;
+        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Disetujui</Badge>;
       case "dibatalkan":
         return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Dibatalkan</Badge>;
       case "menunggu":

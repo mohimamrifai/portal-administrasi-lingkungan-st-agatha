@@ -347,17 +347,6 @@ export function DetilDolingTable({
                           <PencilIcon className="h-4 w-4 mr-2" />
                           <span>Edit</span>
                         </DropdownMenuItem>
-                        {!item.approved && onApprove && (
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation(); // Hindari trigger onClick pada TableRow
-                              handleApproveClick(item.id);
-                            }}
-                          >
-                            <CheckIcon className="h-4 w-4 mr-2" />
-                            <span>Setujui</span>
-                          </DropdownMenuItem>
-                        )}
                         <DropdownMenuSeparator />
                         <AlertDialog>
                           <AlertDialogTrigger asChild>

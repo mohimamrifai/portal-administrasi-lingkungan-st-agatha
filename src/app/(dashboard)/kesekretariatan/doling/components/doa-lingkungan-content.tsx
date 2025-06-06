@@ -356,7 +356,8 @@ export function DoaLingkunganContent({
 
     const handleApproveDetil = async (id: string) => {
         try {
-            await updateApprovalStatus(id, StatusApproval.APPROVED);
+            // Update status menjadi selesai
+            await updateDolingDetail(id, { status: 'selesai' });
             toast.success("Status doling berhasil disetujui");
             fetchData(); // Refresh data
         } catch (error) {
@@ -368,6 +369,12 @@ export function DoaLingkunganContent({
     const handleSubmitDetil = async (values: any) => {
         try {
             const { id, ...updateData } = values;
+            
+            // Pastikan status selalu diset
+            if (!updateData.status) {
+                updateData.status = 'menunggu';
+            }
+            
             await updateDolingDetail(id, updateData);
             toast.success("Detail doling berhasil diperbarui");
             setDetilFormOpen(false);
