@@ -42,6 +42,7 @@ import {
   CommandInput,
   CommandItem,
 } from "@/components/ui/command"
+import { useRouter } from 'next/navigation';
 
 // Periode bulan untuk pembayaran
 const getPeriodeBulanOptions = () => {
@@ -57,30 +58,62 @@ const getPeriodeBulanOptions = () => {
   }));
 };
 
+// Definisikan skema validasi dengan tipe yang benar
 const transactionFormSchema = z.object({
   tanggal: z.date({
-    required_error: 'Tanggal wajib diisi',
+    required_error: "Tanggal wajib diisi",
   }),
   jenis: z.enum(['uang_masuk', 'uang_keluar'], {
-    required_error: 'Jenis transaksi wajib dipilih',
+    required_error: "Jenis transaksi wajib diisi",
   }),
   tipeTransaksi: z.string({
-    required_error: 'Tipe transaksi wajib dipilih',
-  }),
-  keterangan: z.string().min(3, {
-    message: 'Keterangan minimal 3 karakter',
-  }),
-  jumlah: z.coerce.number().positive({
-    message: 'Jumlah harus lebih dari 0',
-  }),
+    required_error: "Tipe transaksi wajib diisi",
+  }).min(1, "Tipe transaksi wajib diisi"),
+  keterangan: z.string().optional(),
+  jumlah: z.number({
+    required_error: "Jumlah wajib diisi",
+  }).min(1, "Jumlah harus lebih dari 0"),
   anggotaId: z.string().optional(),
   statusPembayaran: z.enum(['lunas', 'sebagian_bulan', 'belum_ada_pembayaran']).optional(),
   periodeBayar: z.array(z.string()).optional(),
-  totalIuran: z.coerce.number().positive({
-    message: 'Total iuran harus lebih dari 0',
-  }).optional(),
+  totalIuran: z.number().optional(),
+}).superRefine((data, ctx) => {
+  // Validasi untuk iuran anggota
+  if (data.jenis === 'uang_masuk' && data.tipeTransaksi === 'iuran_anggota') {
+    if (!data.anggotaId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Anggota IKATA wajib dipilih untuk iuran anggota",
+        path: ["anggotaId"]
+      });
+    }
+    if (!data.statusPembayaran) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Status pembayaran wajib dipilih untuk iuran anggota",
+        path: ["statusPembayaran"]
+      });
+    }
+    if (data.statusPembayaran === 'sebagian_bulan' && (!data.periodeBayar || data.periodeBayar.length === 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Periode pembayaran wajib dipilih untuk pembayaran sebagian bulan",
+        path: ["periodeBayar"]
+      });
+    }
+  }
+
+  // Validasi untuk sumbangan anggota
+  if (data.jenis === 'uang_masuk' && data.tipeTransaksi === 'sumbangan_anggota' && !data.anggotaId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Anggota IKATA wajib dipilih untuk sumbangan anggota",
+      path: ["anggotaId"]
+    });
+  }
 });
 
+// Definisikan tipe dari skema
 type TransactionFormValues = z.infer<typeof transactionFormSchema>;
 
 interface TransactionFormDialogProps {
@@ -102,7 +135,9 @@ export function TransactionFormDialog({
   const [showStatusPembayaran, setShowStatusPembayaran] = useState(false);
   const [showPeriodeBayar, setShowPeriodeBayar] = useState(false);
   const [showTotalIuran, setShowTotalIuran] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditing = !!editTransaction;
+  const router = useRouter();
   
   // Ambil parameter keluargaId dari URL jika ada
   useEffect(() => {
@@ -122,6 +157,7 @@ export function TransactionFormDialog({
     }
   }, [open, isEditing]);
   
+  // Gunakan tipe yang sudah didefinisikan untuk form
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionFormSchema),
     defaultValues: {
@@ -130,10 +166,7 @@ export function TransactionFormDialog({
       tipeTransaksi: '',
       keterangan: '',
       jumlah: 0,
-      anggotaId: undefined,
-      statusPembayaran: undefined,
-      periodeBayar: [],
-      totalIuran: 120000, // Default 120.000 (10.000 x 12 bulan)
+      totalIuran: 120000,
     },
   });
 
@@ -142,17 +175,41 @@ export function TransactionFormDialog({
     if (open) {
       if (editTransaction) {
         // Isi form dengan data transaksi yang akan diedit
+        const tanggalParts = editTransaction.tanggal.split('-');
+        const tanggalObj = new Date(
+          parseInt(tanggalParts[0]),
+          parseInt(tanggalParts[1]) - 1,
+          parseInt(tanggalParts[2])
+        );
+
+        // Set nilai form
         form.reset({
-          tanggal: new Date(editTransaction.tanggal),
+          tanggal: tanggalObj,
           jenis: editTransaction.jenis,
           tipeTransaksi: editTransaction.tipeTransaksi,
-          keterangan: editTransaction.keterangan,
+          keterangan: editTransaction.keterangan || '',
           jumlah: editTransaction.jumlah,
           anggotaId: editTransaction.anggotaId,
-          statusPembayaran: editTransaction.statusPembayaran,
+          statusPembayaran: editTransaction.statusPembayaran as any,
           periodeBayar: editTransaction.periodeBayar || [],
           totalIuran: editTransaction.totalIuran || 120000,
         });
+
+        // Update tampilan field berdasarkan tipe transaksi
+        if (editTransaction.jenis === 'uang_masuk') {
+          if (editTransaction.tipeTransaksi === 'iuran_anggota') {
+            setShowAnggotaFields(true);
+            setShowStatusPembayaran(true);
+            setShowTotalIuran(true);
+            if (editTransaction.statusPembayaran === 'sebagian_bulan') {
+              setShowPeriodeBayar(true);
+            }
+          } else if (editTransaction.tipeTransaksi === 'sumbangan_anggota') {
+            setShowAnggotaFields(true);
+            setShowStatusPembayaran(false);
+            setShowTotalIuran(false);
+          }
+        }
       } else {
         // Reset form untuk transaksi baru
         form.reset({
@@ -201,17 +258,23 @@ export function TransactionFormDialog({
     // Reset tipe transaksi saat jenis transaksi berubah
     form.setValue('tipeTransaksi', '');
     
-    // Reset field terkait anggota jika jenis atau tipe berubah
+    // Reset field terkait anggota
     form.setValue('anggotaId', undefined);
     form.setValue('statusPembayaran', undefined);
     form.setValue('periodeBayar', []);
     form.setValue('totalIuran', 120000);
     
+    // Reset tampilan field
     setShowAnggotaFields(false);
     setShowStatusPembayaran(false);
     setShowPeriodeBayar(false);
     setShowTotalIuran(false);
-  }, [watchJenis, form]);
+
+    // Reset keterangan jika bukan mode edit
+    if (!editTransaction) {
+      form.setValue('keterangan', '');
+    }
+  }, [watchJenis, form, editTransaction]);
 
   // Update field saat tipe transaksi berubah
   useEffect(() => {
@@ -224,17 +287,31 @@ export function TransactionFormDialog({
         setShowAnggotaFields(true);
         setShowStatusPembayaran(false);
         setShowTotalIuran(false);
+        // Reset field yang tidak diperlukan
+        form.setValue('statusPembayaran', undefined);
+        form.setValue('periodeBayar', []);
+        form.setValue('totalIuran', undefined);
       } else {
         setShowAnggotaFields(false);
         setShowStatusPembayaran(false);
         setShowTotalIuran(false);
+        // Reset semua field terkait anggota
+        form.setValue('anggotaId', undefined);
+        form.setValue('statusPembayaran', undefined);
+        form.setValue('periodeBayar', []);
+        form.setValue('totalIuran', undefined);
       }
     } else {
       setShowAnggotaFields(false);
       setShowStatusPembayaran(false);
       setShowTotalIuran(false);
+      // Reset semua field terkait anggota
+      form.setValue('anggotaId', undefined);
+      form.setValue('statusPembayaran', undefined);
+      form.setValue('periodeBayar', []);
+      form.setValue('totalIuran', undefined);
     }
-  }, [watchJenis, watchTipeTransaksi]);
+  }, [watchJenis, watchTipeTransaksi, form]);
 
   // Update field saat status pembayaran berubah
   useEffect(() => {
@@ -242,66 +319,68 @@ export function TransactionFormDialog({
       setShowPeriodeBayar(true);
     } else {
       setShowPeriodeBayar(false);
+      // Reset periode bayar jika status bukan sebagian bulan
+      form.setValue('periodeBayar', []);
     }
-  }, [watchStatusPembayaran]);
+  }, [watchStatusPembayaran, form]);
 
   const handleSubmit = async (values: TransactionFormValues) => {
     try {
-      // Validasi khusus untuk iuran anggota
-      if (values.jenis === 'uang_masuk' && values.tipeTransaksi === 'iuran_anggota' && !values.anggotaId) {
-        toast.error("Anggota IKATA wajib dipilih", {
-          description: "Silakan pilih anggota untuk iuran"
-        });
-        return;
-      }
+      console.log("[handleSubmit] Form values:", values);
 
-      if (values.jenis === 'uang_masuk' && values.tipeTransaksi === 'iuran_anggota' && !values.statusPembayaran) {
-        toast.error("Status pembayaran wajib dipilih", {
-          description: "Silakan pilih status pembayaran untuk iuran"
-        });
-        return;
-      }
+      // Format tanggal ke string YYYY-MM-DD
+      const tanggalString = format(values.tanggal, 'yyyy-MM-dd');
 
-      if (values.statusPembayaran === 'sebagian_bulan' && (!values.periodeBayar || values.periodeBayar.length === 0)) {
-        toast.error("Periode pembayaran wajib dipilih", {
-          description: "Silakan pilih periode bulan yang sudah dilunasi"
-        });
-        return;
-      }
-
-      // Simulasi pengiriman notifikasi
+      // Siapkan keterangan berdasarkan tipe transaksi
+      let keterangan = values.keterangan || '';
       if (values.jenis === 'uang_masuk') {
-        if (values.tipeTransaksi === 'iuran_anggota') {
-          const anggota = keluargaUmatList.find(a => a.id === values.anggotaId);
+        if (values.tipeTransaksi === 'sumbangan_anggota' && values.anggotaId) {
+          const anggota = keluargaUmatList.find(k => k.id === values.anggotaId);
           if (anggota) {
-            toast.success(`Notifikasi Terkirim ke ${anggota.namaKepalaKeluarga}`, {
-              description: `Iuran sebesar Rp ${values.jumlah.toLocaleString('id-ID')} telah berhasil dibukukan.`
-            });
+            keterangan = `Sumbangan dari ${anggota.namaKepalaKeluarga}`;
           }
-        } else if (values.tipeTransaksi === 'sumbangan_anggota') {
-          toast.success("Notifikasi Terkirim ke Semua Anggota", {
-            description: `Sumbangan anggota sebesar Rp ${values.jumlah.toLocaleString('id-ID')} telah diterima.`
-          });
+        } else if (values.tipeTransaksi === 'iuran_anggota' && values.anggotaId) {
+          const anggota = keluargaUmatList.find(k => k.id === values.anggotaId);
+          if (anggota) {
+            keterangan = `Iuran dari ${anggota.namaKepalaKeluarga}`;
+            if (values.statusPembayaran) {
+              keterangan += ` (${values.statusPembayaran === 'lunas' ? 'Lunas' : 
+                values.statusPembayaran === 'sebagian_bulan' ? 'Sebagian Bulan' : 'Belum Ada Pembayaran'})`;
+              if (values.statusPembayaran === 'sebagian_bulan' && values.periodeBayar && values.periodeBayar.length > 0) {
+                const periodeBulan = values.periodeBayar.map(periode => {
+                  const [tahun, bulan] = periode.split('-');
+                  const namaBulan = new Date(parseInt(tahun), parseInt(bulan) - 1).toLocaleString('id-ID', { month: 'long' });
+                  return `${namaBulan} ${tahun}`;
+                }).join(', ');
+                keterangan += ` - ${periodeBulan}`;
+              }
+            }
+          }
         }
       }
 
-      onSubmit({
-        tanggal: format(values.tanggal, 'yyyy-MM-dd'),
+      // Persiapkan data untuk dikirim
+      const submissionData: TransactionFormData = {
+        tanggal: tanggalString,
         jenis: values.jenis,
         tipeTransaksi: values.tipeTransaksi as TipeTransaksi,
-        keterangan: values.keterangan,
+        keterangan: keterangan,
         jumlah: values.jumlah,
         anggotaId: values.anggotaId,
         statusPembayaran: values.statusPembayaran,
         periodeBayar: values.periodeBayar,
-        totalIuran: values.totalIuran,
-      });
+        totalIuran: values.totalIuran
+      };
+
+      console.log("[handleSubmit] Data yang akan dikirim:", submissionData);
       
+      await onSubmit(submissionData);
       form.reset();
       onOpenChange(false);
     } catch (error) {
-      toast.error("Error", {
-        description: "Terjadi kesalahan saat menyimpan transaksi",
+      console.error("[handleSubmit] Error:", error);
+      toast.error("Gagal menyimpan transaksi", {
+        description: error instanceof Error ? error.message : "Terjadi kesalahan yang tidak diketahui"
       });
     }
   };
@@ -320,7 +399,80 @@ export function TransactionFormDialog({
         </DialogHeader>
         
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              form.handleSubmit(async (values) => {
+                console.log("Form submitted");
+                console.log("Form values:", values);
+                
+                try {
+                  setIsSubmitting(true);
+                  
+                  // Validasi tambahan untuk field yang required berdasarkan tipe transaksi
+                  if (values.jenis === 'uang_masuk') {
+                    if (values.tipeTransaksi === 'iuran_anggota') {
+                      if (!values.anggotaId) {
+                        toast.error("Anggota IKATA wajib dipilih untuk iuran anggota");
+                        return;
+                      }
+                      if (!values.statusPembayaran) {
+                        toast.error("Status pembayaran wajib dipilih untuk iuran anggota");
+                        return;
+                      }
+                      if (values.statusPembayaran === 'sebagian_bulan' && (!values.periodeBayar || values.periodeBayar.length === 0)) {
+                        toast.error("Periode pembayaran wajib dipilih untuk pembayaran sebagian bulan");
+                        return;
+                      }
+                    } else if (values.tipeTransaksi === 'sumbangan_anggota' && !values.anggotaId) {
+                      toast.error("Anggota IKATA wajib dipilih untuk sumbangan anggota");
+                      return;
+                    }
+                  }
+
+                  // Parse tanggal dengan benar
+                  const tanggalString = format(values.tanggal, 'yyyy-MM-dd');
+
+                  // Persiapkan data untuk dikirim
+                  const submissionData: TransactionFormData = {
+                    tanggal: tanggalString,
+                    jenis: values.jenis,
+                    tipeTransaksi: values.tipeTransaksi as TipeTransaksi,
+                    keterangan: values.keterangan || '',
+                    jumlah: values.jumlah,
+                    anggotaId: values.anggotaId,
+                    statusPembayaran: values.statusPembayaran,
+                    periodeBayar: values.periodeBayar,
+                    totalIuran: values.totalIuran
+                  };
+
+                  console.log("Data yang akan dikirim:", submissionData);
+
+                  // Kirim data ke server
+                  await onSubmit(submissionData);
+
+                  // Reset form dan tutup dialog
+                  form.reset();
+                  onOpenChange(false);
+                  
+                  toast.success("Berhasil", {
+                    description: isEditing ? "Transaksi berhasil diperbarui" : "Transaksi berhasil ditambahkan"
+                  });
+
+                  // Refresh halaman untuk mendapatkan data terbaru
+                  router.refresh();
+                } catch (error) {
+                  console.error("Error:", error);
+                  toast.error("Gagal menyimpan transaksi", {
+                    description: error instanceof Error ? error.message : "Terjadi kesalahan yang tidak diketahui"
+                  });
+                } finally {
+                  setIsSubmitting(false);
+                }
+              })(e);
+            }} 
+            className="space-y-4"
+          >
             <FormField
               control={form.control}
               name="jenis"
@@ -619,10 +771,20 @@ export function TransactionFormDialog({
             )}
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
+              >
                 Batal
               </Button>
-              <Button type="submit">{isEditing ? 'Simpan Perubahan' : 'Simpan'}</Button>
+              <Button 
+                type="submit"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Menyimpan...' : isEditing ? 'Simpan Perubahan' : 'Simpan'}
+              </Button>
             </div>
           </form>
         </Form>

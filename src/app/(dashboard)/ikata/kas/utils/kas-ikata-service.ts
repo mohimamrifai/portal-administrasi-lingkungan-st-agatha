@@ -150,30 +150,133 @@ export async function createKasIkataTransaction(data: {
   totalIuran?: number;
 }) {
   try {
+    console.log("[createKasIkataTransaction] Starting with data:", data);
+
+    // Validasi data dasar
+    if (!data.tanggal || !data.jenisTranasksi || !data.tipeTransaksi) {
+      throw new Error("Data transaksi tidak lengkap");
+    }
+
     // Validasi prasyarat: saldo awal harus sudah diset
     const prerequisiteCheck = await validateIkataTransactionPrerequisites();
     if (!prerequisiteCheck.valid) {
-      return {
-        success: false,
-        error: prerequisiteCheck.error
-      };
+      throw new Error(prerequisiteCheck.error || "Gagal validasi prasyarat");
+    }
+
+    // Validasi tipe transaksi sesuai dengan jenis transaksi
+    const validasiTipeTransaksi = validateTransactionType(data.jenisTranasksi, data.tipeTransaksi);
+    if (!validasiTipeTransaksi.valid) {
+      throw new Error(validasiTipeTransaksi.error || "Tipe transaksi tidak valid");
     }
 
     // Pastikan tanggal valid dengan membuat objek Date baru
     const validDate = new Date(data.tanggal);
+    if (isNaN(validDate.getTime())) {
+      throw new Error("Tanggal tidak valid");
+    }
     
-    const transaction = await prisma.kasIkata.create({
-      data: {
-        ...data,
-        tanggal: validDate
+    // Data untuk tabel KasIkata
+    const kasIkataData = {
+      tanggal: validDate,
+      jenisTranasksi: data.jenisTranasksi,
+      tipeTransaksi: data.tipeTransaksi,
+      keterangan: data.keterangan || '',
+      debit: data.debit,
+      kredit: data.kredit,
+      locked: false
+    };
+
+    console.log("[createKasIkataTransaction] Creating transaction with data:", kasIkataData);
+
+    // Mulai transaksi database
+    const result = await prisma.$transaction(async (tx) => {
+      // Buat transaksi di KasIkata
+      const transaction = await tx.kasIkata.create({
+        data: kasIkataData
+      });
+
+      // Penanganan khusus berdasarkan tipe transaksi
+      switch (data.tipeTransaksi) {
+        case TipeTransaksiIkata.IURAN_ANGGOTA:
+          if (!data.keluargaId) {
+            throw new Error("ID keluarga diperlukan untuk transaksi iuran anggota");
+          }
+          await handleIuranAnggota({ ...data, transaction }, validDate);
+          break;
+
+        case TipeTransaksiIkata.SUMBANGAN_ANGGOTA:
+          if (!data.keluargaId) {
+            throw new Error("ID keluarga diperlukan untuk transaksi sumbangan anggota");
+          }
+          await handleSumbanganAnggota({ ...data, transaction }, validDate);
+          break;
+
+        case TipeTransaksiIkata.TRANSFER_DANA_DARI_LINGKUNGAN:
+          await handleTransferDana({ ...data, transaction }, validDate);
+          break;
+
+        default:
+          if (data.jenisTranasksi === JenisTransaksi.UANG_KELUAR) {
+            await handlePengeluaran({ ...data, transaction }, validDate);
+          }
       }
+
+      return transaction;
     });
-    
-    // Jika transaksinya adalah iuran anggota, perbarui atau buat record IuranIkata
-    if (data.tipeTransaksi === TipeTransaksiIkata.IURAN_ANGGOTA && 
-        data.jenisTranasksi === JenisTransaksi.UANG_MASUK && 
-        data.keluargaId) {
-      
+
+    console.log("[createKasIkataTransaction] Transaction completed successfully:", result);
+
+    // Revalidasi path untuk memperbarui UI
+    revalidatePath("/ikata/kas");
+
+    return result;
+  } catch (error) {
+    console.error("[createKasIkataTransaction] Error:", error);
+    throw error instanceof Error 
+      ? error 
+      : new Error("Gagal membuat transaksi kas IKATA");
+  }
+}
+
+// Fungsi helper untuk validasi tipe transaksi
+function validateTransactionType(jenis: JenisTransaksi, tipe: TipeTransaksiIkata): { valid: boolean; error?: string } {
+  const tipeUangMasuk = [
+    TipeTransaksiIkata.IURAN_ANGGOTA,
+    TipeTransaksiIkata.TRANSFER_DANA_DARI_LINGKUNGAN,
+    TipeTransaksiIkata.SUMBANGAN_ANGGOTA,
+    TipeTransaksiIkata.PENERIMAAN_LAIN
+  ];
+
+  const tipeUangKeluar = [
+    TipeTransaksiIkata.UANG_DUKA_PAPAN_BUNGA,
+    TipeTransaksiIkata.KUNJUNGAN_KASIH,
+    TipeTransaksiIkata.CINDERAMATA_KELAHIRAN,
+    TipeTransaksiIkata.CINDERAMATA_PERNIKAHAN,
+    TipeTransaksiIkata.UANG_AKOMODASI,
+    TipeTransaksiIkata.PEMBELIAN,
+    TipeTransaksiIkata.LAIN_LAIN
+  ];
+
+  if (jenis === JenisTransaksi.UANG_MASUK && !tipeUangMasuk.includes(tipe as any)) {
+    return {
+      valid: false,
+      error: "Tipe transaksi tidak sesuai dengan jenis transaksi uang masuk"
+    };
+  }
+
+  if (jenis === JenisTransaksi.UANG_KELUAR && !tipeUangKeluar.includes(tipe as any)) {
+    return {
+      valid: false,
+      error: "Tipe transaksi tidak sesuai dengan jenis transaksi uang keluar"
+    };
+  }
+
+  return { valid: true };
+}
+
+// Handler untuk iuran anggota
+async function handleIuranAnggota(data: any, validDate: Date) {
+  try {
       const tahun = validDate.getFullYear();
       const bulan = validDate.getMonth() + 1;
       
@@ -185,25 +288,131 @@ export async function createKasIkataTransaction(data: {
         update: {
           status: "LUNAS",
           jumlahDibayar: data.debit,
-          totalIuran: data.totalIuran || 120000 // Default 120000 jika tidak diisi
+        totalIuran: data.totalIuran || 120000,
+        bulanAwal: bulan,
+        bulanAkhir: bulan
         },
         create: {
           keluargaId: data.keluargaId,
           status: "LUNAS",
           tahun: tahun,
           jumlahDibayar: data.debit,
-          totalIuran: data.totalIuran || 120000 // Default 120000 jika tidak diisi
-        }
-      });
-    }
-    
-    // Revalidasi path agar UI diperbarui
-    revalidatePath('/ikata/kas');
-    revalidatePath('/ikata/monitoring');
-    
-    return transaction;
+        totalIuran: data.totalIuran || 120000,
+        bulanAwal: bulan,
+        bulanAkhir: bulan
+      }
+    });
+
+    // Update tunggakan
+    await updateTunggakan(data.keluargaId, tahun);
   } catch (error) {
-    throw new Error("Gagal membuat transaksi kas IKATA");
+    console.error("Error handling iuran anggota:", error);
+  }
+}
+
+// Handler untuk sumbangan anggota
+async function handleSumbanganAnggota(data: any, validDate: Date) {
+  try {
+    // Dapatkan data keluarga untuk notifikasi
+    const keluarga = await prisma.keluargaUmat.findUnique({
+      where: { id: data.keluargaId },
+      select: {
+        namaKepalaKeluarga: true,
+        users: {
+          select: {
+            id: true
+          }
+        }
+      }
+    });
+
+    if (keluarga && keluarga.users.length > 0) {
+      // Buat notifikasi untuk setiap user dalam keluarga
+      await Promise.all(keluarga.users.map(user => 
+        prisma.notification.create({
+          data: {
+            userId: user.id,
+            pesan: `Terima kasih atas sumbangan sebesar Rp ${data.debit.toLocaleString('id-ID')} pada tanggal ${validDate.toLocaleDateString('id-ID')}`,
+            dibaca: false
+          }
+        })
+      ));
+    }
+  } catch (error) {
+    console.error("Error handling sumbangan anggota:", error);
+    // Tidak throw error agar transaksi tetap tersimpan meskipun notifikasi gagal
+  }
+}
+
+// Handler untuk transfer dana
+async function handleTransferDana(data: any, validDate: Date) {
+  try {
+    // Implementasi khusus untuk transfer dana jika diperlukan
+    // Misalnya: update saldo, catat di history, dll
+  } catch (error) {
+    console.error("Error handling transfer dana:", error);
+  }
+}
+
+// Handler untuk pengeluaran
+async function handlePengeluaran(data: any, validDate: Date) {
+  try {
+    // Implementasi khusus untuk pengeluaran jika diperlukan
+    // Misalnya: verifikasi saldo mencukupi, catat di history, dll
+    const currentBalance = await getCurrentBalance();
+    if (currentBalance < data.kredit) {
+      throw new Error("Saldo tidak mencukupi untuk transaksi ini");
+    }
+  } catch (error) {
+    console.error("Error handling pengeluaran:", error);
+    throw error;
+  }
+}
+
+// Helper untuk update tunggakan
+async function updateTunggakan(keluargaId: string, tahun: number) {
+  try {
+    const existingArrear = await prisma.ikataArrears.findUnique({
+      where: { keluargaId }
+    });
+
+    if (existingArrear) {
+      const updatedTahunTertunggak = existingArrear.tahunTertunggak.filter(t => t !== tahun);
+      if (updatedTahunTertunggak.length === 0) {
+        await prisma.ikataArrears.delete({
+          where: { keluargaId }
+        });
+      } else {
+        const settingIuran = await prisma.ikataSetting.findMany({
+          where: { tahun: { in: updatedTahunTertunggak } }
+        });
+        
+        const totalTunggakan = settingIuran.reduce((sum, setting) => sum + setting.jumlahIuran, 0);
+        
+        await prisma.ikataArrears.update({
+          where: { keluargaId },
+          data: {
+            tahunTertunggak: updatedTahunTertunggak,
+            totalTunggakan
+          }
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Error updating tunggakan:", error);
+  }
+}
+
+// Helper untuk mendapatkan saldo saat ini
+async function getCurrentBalance(): Promise<number> {
+  try {
+    const transactions = await prisma.kasIkata.findMany();
+    const totalDebit = transactions.reduce((sum, tx) => sum + tx.debit, 0);
+    const totalKredit = transactions.reduce((sum, tx) => sum + tx.kredit, 0);
+    return totalDebit - totalKredit;
+  } catch (error) {
+    console.error("Error getting current balance:", error);
+    return 0;
   }
 }
 

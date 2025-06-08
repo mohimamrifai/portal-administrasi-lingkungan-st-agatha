@@ -18,26 +18,73 @@ export async function createTransaction(data: {
   totalIuran?: number;
 }) {
   try {
+    console.log("[createTransaction] Received data:", data);
+
+    // Validasi data
+    if (!data.tanggal || !data.jenisTranasksi || !data.tipeTransaksi || !data.jumlah) {
+      throw new Error("Data transaksi tidak lengkap");
+    }
+
+    // Validasi tipe transaksi sesuai jenis
+    if (data.jenisTranasksi === JenisTransaksi.UANG_MASUK) {
+      switch (data.tipeTransaksi) {
+        case TipeTransaksiIkata.IURAN_ANGGOTA:
+        case TipeTransaksiIkata.TRANSFER_DANA_DARI_LINGKUNGAN:
+        case TipeTransaksiIkata.SUMBANGAN_ANGGOTA:
+        case TipeTransaksiIkata.PENERIMAAN_LAIN:
+          break;
+        default:
+          throw new Error("Tipe transaksi tidak sesuai dengan jenis transaksi uang masuk");
+      }
+    }
+
+    if (data.jenisTranasksi === JenisTransaksi.UANG_KELUAR) {
+      switch (data.tipeTransaksi) {
+        case TipeTransaksiIkata.UANG_DUKA_PAPAN_BUNGA:
+        case TipeTransaksiIkata.KUNJUNGAN_KASIH:
+        case TipeTransaksiIkata.CINDERAMATA_KELAHIRAN:
+        case TipeTransaksiIkata.CINDERAMATA_PERNIKAHAN:
+        case TipeTransaksiIkata.UANG_AKOMODASI:
+        case TipeTransaksiIkata.PEMBELIAN:
+        case TipeTransaksiIkata.LAIN_LAIN:
+          break;
+        default:
+          throw new Error("Tipe transaksi tidak sesuai dengan jenis transaksi uang keluar");
+      }
+    }
+
     // Tentukan debit dan kredit berdasarkan jenis transaksi
     const debit = data.jenisTranasksi === JenisTransaksi.UANG_MASUK ? data.jumlah : 0;
     const kredit = data.jenisTranasksi === JenisTransaksi.UANG_KELUAR ? data.jumlah : 0;
     
+    console.log("[createTransaction] Processed data:", {
+      ...data,
+      debit,
+      kredit
+    });
+
     // Buat transaksi baru
     const transaction = await createKasIkataTransaction({
       tanggal: data.tanggal,
       jenisTranasksi: data.jenisTranasksi,
       tipeTransaksi: data.tipeTransaksi,
-      keterangan: data.keterangan,
+      keterangan: data.keterangan || '',
       debit,
       kredit,
       keluargaId: data.keluargaId,
       totalIuran: data.totalIuran
     });
+
+    console.log("[createTransaction] Transaction created:", transaction);
+    
+    if (!transaction) {
+      throw new Error("Gagal membuat transaksi: Tidak ada respons dari server");
+    }
     
     return transaction;
-  } catch (error) {
+  } catch (error: any) {
     console.error("[createTransaction] Error:", error);
-    throw new Error("Gagal membuat transaksi kas IKATA");
+    throw new Error(error.message || "Gagal membuat transaksi kas IKATA");
   }
 }
 
