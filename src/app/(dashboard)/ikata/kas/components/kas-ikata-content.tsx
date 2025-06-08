@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PeriodFilter } from './period-filter';
@@ -19,13 +19,7 @@ import { toast } from 'sonner';
 import { setSaldoAwalIkata } from '../utils/kas-ikata-service';
 import { createTransaction, updateTransaction, deleteTransaction, setIkataDues, getIkataSetting } from '../utils/actions';
 import { JenisTransaksi, TipeTransaksiIkata } from '@prisma/client';
-import {
-  createKasIkataTransaction,
-  updateKasIkataTransaction,
-  deleteKasIkataTransaction,
-  lockKasIkataTransactions,
-  checkInitialBalanceIkataExists
-} from '../utils/kas-ikata-service';
+import { checkInitialBalanceIkataExists } from '../utils/kas-ikata-service';
 
 interface KasIKATAContentProps {
   summary: IKATASummary;
@@ -78,9 +72,17 @@ const mapDbToUITransaction = (
 export function KasIKATAContent({ summary, transactions: initialTransactions, keluargaUmatList, isLoading = false }: KasIKATAContentProps) {
   const { userRole } = useAuth();
   const router = useRouter();
+
+  // Role definition
+  const isAdmin = userRole === 'SUPER_USER' || userRole === 'KETUA';
+  const isTreasurer = userRole === 'WAKIL_BENDAHARA';
+  const canModifyData = isAdmin || isTreasurer;
+  const hasAccess = userRole && ['SUPER_USER', 'KETUA', 'WAKIL_BENDAHARA'].includes(userRole);
+
+  // States
   const [period, setPeriod] = useState<PeriodFilterType>({
-    bulan: new Date().getMonth() + 1, // Default ke bulan saat ini
-    tahun: new Date().getFullYear() // Default ke tahun saat ini
+    bulan: new Date().getMonth() + 1,
+    tahun: new Date().getFullYear()
   });
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
@@ -90,41 +92,12 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
   const [transactions, setTransactions] = useState<IKATATransaction[]>(initialTransactions);
   const [filteredTransactions, setFilteredTransactions] = useState<IKATATransaction[]>(initialTransactions);
   const [currentDuesAmount, setCurrentDuesAmount] = useState<number>(0);
-
-  // State untuk saldo saat ini
   const [currentBalance, setCurrentBalance] = useState<number>(summary.saldoAwal || 0);
   const [isInitialBalanceSet, setIsInitialBalanceSet] = useState(false);
   const [initialBalanceDate, setInitialBalanceDate] = useState<Date | undefined>(undefined);
-
-  // Menghitung ulang ringkasan keuangan berdasarkan transaksi yang difilter
   const [summaryData, setSummaryData] = useState<IKATASummary>(summary);
 
-  // Role definition
-  const isAdmin = userRole === 'SUPER_USER' || userRole === 'KETUA';
-  const isTreasurer = userRole === 'WAKIL_BENDAHARA';
-  const canModifyData = isAdmin || isTreasurer;
-
-  // Filter transaksi berdasarkan periode yang dipilih
-  useEffect(() => {
-    // Format tanggal transaksi: '2024-04-01' (tahun-bulan-hari)
-    const filtered = transactions.filter(tx => {
-      const dateParts = tx.tanggal.split('-');
-      const txYear = parseInt(dateParts[0], 10);
-      const txMonth = parseInt(dateParts[1], 10);
-
-      return txMonth === period.bulan && txYear === period.tahun;
-    });
-    setFilteredTransactions(filtered);
-  }, [transactions, period]);
-
-  // Cek apakah pengguna memiliki hak akses ke halaman
-  const hasAccess = userRole && [
-    'SUPER_USER',
-    'KETUA',
-    'WAKIL_BENDAHARA'
-  ].includes(userRole);
-
-  // Redirect jika tidak memiliki akses
+  // Effects
   useEffect(() => {
     if (!hasAccess) {
       toast.error("Anda tidak memiliki akses ke halaman ini");
@@ -133,34 +106,54 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
   }, [hasAccess, router]);
 
   useEffect(() => {
-    // Gunakan data summary langsung dari server, bukan menghitung ulang di sisi klien
+    const filtered = transactions.filter(tx => {
+      const dateParts = tx.tanggal.split('-');
+      const txYear = parseInt(dateParts[0], 10);
+      const txMonth = parseInt(dateParts[1], 10);
+      return txMonth === period.bulan && txYear === period.tahun;
+    });
+    setFilteredTransactions(filtered);
+  }, [transactions, period]);
+
+  useEffect(() => {
     setSummaryData(summary);
   }, [summary]);
 
   useEffect(() => {
-    // Check for URL parameters when component mounts
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       const keluargaId = urlParams.get('keluargaId');
-
       if (keluargaId) {
-        // Auto-open transaction form dialog with pre-filled data
         setIsAddTransactionOpen(true);
       }
     }
   }, []);
 
-  // Cek status saldo awal saat komponen dimount
   useEffect(() => {
     const checkInitialBalance = async () => {
-      const result = await checkInitialBalanceIkataExists()
-      setIsInitialBalanceSet(result.exists)
+      const result = await checkInitialBalanceIkataExists();
+      setIsInitialBalanceSet(result.exists);
       if (result.date) {
-        setInitialBalanceDate(result.date)
+        setInitialBalanceDate(result.date);
       }
-    }
-    checkInitialBalance()
-  }, [])
+    };
+    checkInitialBalance();
+  }, []);
+
+  // Effect untuk mengambil pengaturan iuran saat ini
+  useEffect(() => {
+    const fetchCurrentDues = async () => {
+      try {
+        const result = await getIkataSetting(period.tahun);
+        if (result.success && result.data) {
+          setCurrentDuesAmount((result.data as { year: number; amount: number }).amount);
+        }
+      } catch (error) {
+        console.error("Error fetching current dues:", error);
+      }
+    };
+    fetchCurrentDues();
+  }, [period.tahun]);
 
   if (!hasAccess) {
     return <div className="flex justify-center items-center h-64">Memeriksa akses...</div>;
@@ -173,6 +166,17 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
     }
 
     try {
+      console.log("[handleAddTransaction] Memulai proses penambahan transaksi:", data);
+
+      // Validasi data yang diperlukan
+      if (!data.tanggal || !data.jenis || !data.tipeTransaksi || !data.jumlah) {
+        console.error("[handleAddTransaction] Data tidak lengkap:", data);
+        toast.error("Data transaksi tidak lengkap", {
+          description: "Mohon lengkapi semua field yang diperlukan"
+        });
+        return;
+      }
+
       // Parse tanggal dengan benar
       const tanggalParts = data.tanggal.split('-');
       const tanggalObj = new Date(
@@ -181,11 +185,11 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         parseInt(tanggalParts[2])
       );
 
-      // Tentukan jenis dan tipe transaksi dalam format yang sesuai dengan server
+      // Map jenis transaksi ke format yang diharapkan server
       const jenisTranasksi: JenisTransaksi =
         data.jenis === 'uang_masuk' ? JenisTransaksi.UANG_MASUK : JenisTransaksi.UANG_KELUAR;
 
-      // Map tipe transaksi dari UI ke enum database
+      // Map tipe transaksi ke format yang diharapkan server
       const tipeTransaksiMap: Record<string, TipeTransaksiIkata> = {
         'iuran_anggota': TipeTransaksiIkata.IURAN_ANGGOTA,
         'transfer_dana_lingkungan': TipeTransaksiIkata.TRANSFER_DANA_DARI_LINGKUNGAN,
@@ -201,46 +205,81 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
       };
 
       const tipeTransaksi = tipeTransaksiMap[data.tipeTransaksi];
+      if (!tipeTransaksi) {
+        console.error("[handleAddTransaction] Tipe transaksi tidak valid:", data.tipeTransaksi);
+        toast.error("Tipe transaksi tidak valid");
+        return;
+      }
 
-      // Kirim ke server action
-      const result = await createTransaction({
+      // Siapkan keterangan berdasarkan tipe transaksi
+      let keterangan = data.keterangan || '';
+      if (data.tipeTransaksi === 'sumbangan_anggota' && data.anggotaId) {
+        const anggota = keluargaUmatList.find(k => k.id === data.anggotaId);
+        if (anggota) {
+          keterangan = `Sumbangan dari ${anggota.namaKepalaKeluarga}`;
+        }
+      } else if (data.tipeTransaksi === 'iuran_anggota' && data.anggotaId) {
+        const anggota = keluargaUmatList.find(k => k.id === data.anggotaId);
+        if (anggota) {
+          keterangan = `Iuran dari ${anggota.namaKepalaKeluarga}`;
+          if (data.statusPembayaran) {
+            keterangan += ` (${data.statusPembayaran === 'lunas' ? 'Lunas' : 
+              data.statusPembayaran === 'sebagian_bulan' ? 'Sebagian Bulan' : 'Belum Ada Pembayaran'})`;
+            if (data.statusPembayaran === 'sebagian_bulan' && data.periodeBayar && data.periodeBayar.length > 0) {
+              const periodeBulan = data.periodeBayar.map(periode => {
+                const [tahun, bulan] = periode.split('-');
+                const namaBulan = new Date(parseInt(tahun), parseInt(bulan) - 1).toLocaleString('id-ID', { month: 'long' });
+                return `${namaBulan} ${tahun}`;
+              }).join(', ');
+              keterangan += ` - ${periodeBulan}`;
+            }
+          }
+        }
+      }
+
+      console.log("[handleAddTransaction] Data yang akan dikirim ke server:", {
         tanggal: tanggalObj,
         jenisTranasksi,
         tipeTransaksi,
-        keterangan: data.keterangan,
+        keterangan,
         jumlah: data.jumlah,
         keluargaId: data.anggotaId,
         totalIuran: data.totalIuran
       });
 
-      // Buat transaksi UI baru dari hasil
-      const newTransaction = mapDbToUITransaction(
-        result,
-        data,
-        userRole
-      );
+      // Kirim data ke server
+      const result = await createTransaction({
+        tanggal: tanggalObj,
+        jenisTranasksi,
+        tipeTransaksi,
+        keterangan,
+        jumlah: data.jumlah,
+        keluargaId: data.anggotaId,
+        totalIuran: data.totalIuran
+      });
+
+      console.log("[handleAddTransaction] Hasil dari server:", result);
+
+      if (!result) {
+        throw new Error("Tidak ada respons dari server");
+      }
 
       // Update state dengan transaksi baru
+      const newTransaction = mapDbToUITransaction(result, {
+        ...data,
+        keterangan
+      }, userRole);
       setTransactions(prev => [...prev, newTransaction]);
 
-      // Tampilkan notifikasi sukses
+      // Perbarui saldo dan tampilkan notifikasi sukses
       toast.success("Transaksi berhasil ditambahkan");
-
-      // Tutup dialog
-      setIsAddTransactionOpen(false);
-
-      // Jika ini adalah untuk iuran anggota, tampilkan notifikasi tambahan
-      if (data.tipeTransaksi === 'iuran_anggota' && data.anggotaId) {
-        const anggota = keluargaUmatList.find(a => a.id === data.anggotaId);
-        if (anggota) {
-          toast.success(`Notifikasi Terkirim ke ${anggota.namaKepalaKeluarga}`, {
-            description: `Iuran sebesar Rp ${data.jumlah.toLocaleString('id-ID')} telah berhasil dibukukan.`
-          });
-        }
-      }
-    } catch (error: any) {
-      toast.error("Gagal menyimpan transaksi", {
-        description: error.message || "Terjadi kesalahan saat menyimpan transaksi"
+      
+      // Refresh halaman untuk mendapatkan data terbaru
+      router.refresh();
+    } catch (error) {
+      console.error("[handleAddTransaction] Error:", error);
+      toast.error("Gagal menambahkan transaksi", {
+        description: error instanceof Error ? error.message : "Terjadi kesalahan yang tidak diketahui"
       });
     }
   };
@@ -487,22 +526,6 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
     }
   };
 
-  // Ambil pengaturan iuran saat ini
-  useEffect(() => {
-    const fetchCurrentDues = async () => {
-      try {
-        const result = await getIkataSetting(period.tahun);
-        if (result.success && result.data) {
-          setCurrentDuesAmount((result.data as { year: number; amount: number }).amount);
-        }
-      } catch (error) {
-        console.error("Error fetching current dues:", error);
-      }
-    };
-
-    fetchCurrentDues();
-  }, [period.tahun]);
-
   return (
     <div className="space-y-6">
       {!canModifyData && (
@@ -575,6 +598,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
             onDelete={handleDeleteTransaction}
             onToggleLock={handleToggleLock}
             canModifyData={canModifyData}
+            keluargaUmatList={keluargaUmatList}
           />
         </CardContent>
       </Card>

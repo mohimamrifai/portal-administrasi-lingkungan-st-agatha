@@ -62,6 +62,7 @@ interface TransactionsTableProps {
   onDelete?: (id: string) => void;
   onToggleLock?: (id: string) => void;
   canModifyData?: boolean;
+  keluargaUmatList: { id: string; namaKepalaKeluarga: string }[];
 }
 
 export function TransactionsTable({ 
@@ -69,7 +70,8 @@ export function TransactionsTable({
   onEdit, 
   onDelete,
   onToggleLock,
-  canModifyData = true
+  canModifyData = true,
+  keluargaUmatList
 }: TransactionsTableProps) {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -239,6 +241,39 @@ export function TransactionsTable({
       const monthIndex = parseInt(month, 10) - 1;
       return `${months[monthIndex]} ${year}`;
     }).join(", ");
+  };
+
+  // Fungsi untuk mendapatkan keterangan yang sesuai
+  const getKeterangan = (transaction: IKATATransaction) => {
+    // Cari data anggota jika ada anggotaId
+    const anggota = transaction.anggotaId 
+      ? keluargaUmatList.find(k => k.id === transaction.anggotaId)
+      : null;
+
+    // Handle sumbangan anggota
+    if (transaction.tipeTransaksi === 'sumbangan_anggota' && anggota) {
+      return `Sumbangan dari ${anggota.namaKepalaKeluarga}`;
+    }
+
+    // Handle iuran anggota
+    if (transaction.tipeTransaksi === 'iuran_anggota' && anggota) {
+      let keterangan = `Iuran dari ${anggota.namaKepalaKeluarga}`;
+      
+      // Tambahkan informasi status pembayaran jika ada
+      if (transaction.statusPembayaran) {
+        keterangan += ` (${formatStatusPembayaran(transaction.statusPembayaran)})`;
+        
+        // Tambahkan informasi periode jika ada
+        if (transaction.statusPembayaran === 'sebagian_bulan' && transaction.periodeBayar && transaction.periodeBayar.length > 0) {
+          keterangan += ` - ${formatPeriodeBayar(transaction.periodeBayar)}`;
+        }
+      }
+      
+      return keterangan;
+    }
+
+    // Untuk tipe transaksi lainnya, gunakan keterangan yang ada
+    return transaction.keterangan || '';
   };
 
   // Handler untuk mengelola callback secara aman
@@ -488,19 +523,7 @@ export function TransactionsTable({
                       </Badge>
                     </TableCell>
                     <TableCell className="max-w-[250px]">
-                      <div className="line-clamp-2">{tx.keterangan}</div>
-                      
-                      {/* Tambahan informasi untuk Iuran Anggota */}
-                      {tx.tipeTransaksi === 'iuran_anggota' && tx.statusPembayaran && (
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          <span className="font-semibold">Status:</span> {formatStatusPembayaran(tx.statusPembayaran)}
-                          {tx.statusPembayaran === 'sebagian_bulan' && tx.periodeBayar && tx.periodeBayar.length > 0 && (
-                            <div>
-                              <span className="font-semibold">Periode:</span> {formatPeriodeBayar(tx.periodeBayar)}
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      <div className="line-clamp-2">{getKeterangan(tx)}</div>
                     </TableCell>
                     <TableCell className="text-right font-medium text-green-600">
                       {(tx.debit ?? 0) > 0 ? formatCurrency(tx.debit ?? 0) : '-'}
