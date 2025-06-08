@@ -147,9 +147,26 @@ export function AbsensiDolingFormDialog({
     }));
   
   // Filter jadwal yang sudah selesai atau terjadwal
-  const availableJadwal = jadwalDoling.filter(jadwal => 
-    jadwal.status === 'selesai' || jadwal.status === 'terjadwal' || jadwal.status === 'menunggu'
-  );
+  const availableJadwal = jadwalDoling.filter(jadwal => {
+    // Pastikan tanggal valid
+    if (!jadwal.tanggal || !(jadwal.tanggal instanceof Date) || isNaN(new Date(jadwal.tanggal).getTime())) {
+      return false;
+    }
+    
+    // Bandingkan dengan tanggal hari ini
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset waktu ke 00:00:00
+    const jadwalDate = new Date(jadwal.tanggal);
+    jadwalDate.setHours(0, 0, 0, 0); // Reset waktu ke 00:00:00
+    
+    // Hanya tampilkan jadwal yang:
+    // 1. Tanggalnya sama dengan atau lebih besar dari hari ini
+    // 2. Status jadwal sesuai (selesai, terjadwal, atau menunggu)
+    // 3. Sudah disetujui
+    return jadwalDate >= today && 
+           (jadwal.status === 'selesai' || jadwal.status === 'terjadwal' || jadwal.status === 'menunggu') &&
+           jadwal.approved === true;
+  });
 
   // Reset form ketika dialog dibuka
   useEffect(() => {
@@ -164,16 +181,26 @@ export function AbsensiDolingFormDialog({
         setKeluargaId("");
         setStatusKehadiran("TIDAK_HADIR");
         
-        // Ambil jadwal terbaru jika tidak ada dolingId yang dipilih
-        if (!selectedDolingId && jadwalDoling.length > 0) {
-          // Dapatkan jadwal terbaru atau aktif
-          const activeJadwal = jadwalDoling.find(j => j.status === 'terjadwal' || j.status === 'menunggu') 
-            || jadwalDoling[0];
-          setSelectedDolingId(activeJadwal.id);
+        // Cari jadwal terdekat dari availableJadwal
+        if (availableJadwal.length > 0) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          // Urutkan jadwal berdasarkan selisih tanggal dengan hari ini
+          const sortedJadwal = [...availableJadwal].sort((a, b) => {
+            const dateA = new Date(a.tanggal);
+            const dateB = new Date(b.tanggal);
+            const diffA = Math.abs(dateA.getTime() - today.getTime());
+            const diffB = Math.abs(dateB.getTime() - today.getTime());
+            return diffA - diffB;
+          });
+          
+          // Pilih jadwal terdekat
+          setSelectedDolingId(sortedJadwal[0].id);
         }
       }
     }
-  }, [open, absensi, jadwalDoling, selectedDolingId]);
+  }, [open, absensi, availableJadwal]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
