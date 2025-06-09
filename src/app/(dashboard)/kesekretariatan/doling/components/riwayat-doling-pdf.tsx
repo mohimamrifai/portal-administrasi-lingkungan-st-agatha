@@ -172,6 +172,14 @@ interface RiwayatDolingPDFProps {
     ucapanSyukur: number;
     // Kehadiran KK
     kepalaKeluarga: KepalaKeluarga[];
+    pemimpinIbadat?: string;
+    pemimpinRosario?: string;
+    pembawaRenungan?: string;
+    pembawaLagu?: string;
+    doaUmat?: string;
+    bacaan?: string;
+    pemimpinMisa?: string;
+    pemazmur?: string;
   };
 }
 
@@ -187,6 +195,20 @@ const PDFDocument = ({ data }: RiwayatDolingPDFProps) => {
 
   const formatDate = (date: Date) => {
     return format(date, "dd MMMM yyyy", { locale: id });
+  };
+
+  // Fungsi untuk memformat tampilan jenis ibadat
+  const formatJenisIbadat = (jenis: string) => {
+    return jenis.split('_').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+  };
+
+  // Fungsi untuk memformat tampilan sub ibadat
+  const formatSubIbadat = (sub: string) => {
+    return sub.split('_').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
   };
 
   return (
@@ -206,12 +228,12 @@ const PDFDocument = ({ data }: RiwayatDolingPDFProps) => {
           <View style={styles.formRow}>
             <Text style={styles.formNumber}>2.</Text>
             <Text style={styles.formLabel}>Jenis Ibadat</Text>
-            <Text style={styles.formValue}>: {data.jenisIbadat}</Text>
+            <Text style={styles.formValue}>: {formatJenisIbadat(data.jenisIbadat)}</Text>
           </View>
           <View style={styles.formRow}>
             <Text style={styles.formNumber}>3.</Text>
             <Text style={styles.formLabel}>Sub Ibadat</Text>
-            <Text style={styles.formValue}>: {data.subIbadat}</Text>
+            <Text style={styles.formValue}>: {formatSubIbadat(data.subIbadat)}</Text>
           </View>
           <View style={styles.formRow}>
             <Text style={styles.formNumber}>4.</Text>
@@ -283,38 +305,46 @@ const PDFDocument = ({ data }: RiwayatDolingPDFProps) => {
               <Text style={styles.formNumber}>8.</Text>
               <Text style={styles.formLabel}>Keibadatan</Text>
             </View>
-            <View style={styles.formSubRow}>
-              <Text style={styles.formSubLabel}>a. Pemimpin Ibadat</Text>
-              <Text style={styles.formSubValue}>: ______________________</Text>
-            </View>
-            <View style={styles.formSubRow}>
-              <Text style={styles.formSubLabel}>b. Pemimpin Rosario</Text>
-              <Text style={styles.formSubValue}>: ______________________</Text>
-            </View>
-            <View style={styles.formSubRow}>
-              <Text style={styles.formSubLabel}>c. Pembawa Renungan</Text>
-              <Text style={styles.formSubValue}>: ______________________</Text>
-            </View>
-            <View style={styles.formSubRow}>
-              <Text style={styles.formSubLabel}>d. Pembawa Lagu</Text>
-              <Text style={styles.formSubValue}>: ______________________</Text>
-            </View>
-            <View style={styles.formSubRow}>
-              <Text style={styles.formSubLabel}>e. Doa Umat</Text>
-              <Text style={styles.formSubValue}>: ______________________</Text>
-            </View>
-            <View style={styles.formSubRow}>
-              <Text style={styles.formSubLabel}>f. Pemimpin Misa</Text>
-              <Text style={styles.formSubValue}>: ______________________</Text>
-            </View>
-            <View style={styles.formSubRow}>
-              <Text style={styles.formSubLabel}>g. Bacaan I</Text>
-              <Text style={styles.formSubValue}>: ______________________</Text>
-            </View>
-            <View style={styles.formSubRow}>
-              <Text style={styles.formSubLabel}>h. Pemazmur</Text>
-              <Text style={styles.formSubValue}>: ______________________</Text>
-            </View>
+            {data.jenisIbadat === "DOA_LINGKUNGAN" && (
+              <>
+                <View style={styles.formSubRow}>
+                  <Text style={styles.formSubLabel}>a. Pemimpin Ibadat</Text>
+                  <Text style={styles.formSubValue}>: {data.pemimpinIbadat || "______________________"}</Text>
+                </View>
+                <View style={styles.formSubRow}>
+                  <Text style={styles.formSubLabel}>b. Pemimpin Rosario</Text>
+                  <Text style={styles.formSubValue}>: {data.pemimpinRosario || "______________________"}</Text>
+                </View>
+                <View style={styles.formSubRow}>
+                  <Text style={styles.formSubLabel}>c. Pembawa Renungan</Text>
+                  <Text style={styles.formSubValue}>: {data.pembawaRenungan || "______________________"}</Text>
+                </View>
+                <View style={styles.formSubRow}>
+                  <Text style={styles.formSubLabel}>d. Pembawa Lagu</Text>
+                  <Text style={styles.formSubValue}>: {data.pembawaLagu || "______________________"}</Text>
+                </View>
+                <View style={styles.formSubRow}>
+                  <Text style={styles.formSubLabel}>e. Doa Umat</Text>
+                  <Text style={styles.formSubValue}>: {data.doaUmat || "______________________"}</Text>
+                </View>
+                <View style={styles.formSubRow}>
+                  <Text style={styles.formSubLabel}>f. Bacaan</Text>
+                  <Text style={styles.formSubValue}>: {data.bacaan || "______________________"}</Text>
+                </View>
+              </>
+            )}
+            {data.jenisIbadat === "MISA" && (
+              <>
+                <View style={styles.formSubRow}>
+                  <Text style={styles.formSubLabel}>a. Pemimpin Misa</Text>
+                  <Text style={styles.formSubValue}>: {data.pemimpinMisa || "______________________"}</Text>
+                </View>
+                <View style={styles.formSubRow}>
+                  <Text style={styles.formSubLabel}>b. Pemazmur</Text>
+                  <Text style={styles.formSubValue}>: {data.pemazmur || "______________________"}</Text>
+                </View>
+              </>
+            )}
           </View>
         </View>
 

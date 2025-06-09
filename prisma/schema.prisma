@@ -309,6 +309,7 @@ model DoaLingkungan {
   pembawaRenungan String?
   pembawaLagu     String?
   doaUmat         String?
+  bacaan          String?         // Menambahkan field bacaan
   pemimpinMisa    String?
   bacaanI         String?
   pemazmur        String?

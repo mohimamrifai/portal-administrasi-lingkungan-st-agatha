@@ -19,7 +19,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { AbsensiDoling, DetilDoling, JadwalDoling } from "../types"
 import { toast } from "sonner"
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 import { Combobox, ComboboxOption } from "@/components/ui/combobox"
@@ -61,7 +61,11 @@ function KeluargaSearchCombobox({
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   
-  const selectedOption = options.find(option => option.value === value);
+  // Cari opsi yang terpilih
+  const selectedOption = useMemo(() => 
+    options.find(option => option.value === value),
+    [options, value]
+  );
   
   // Filter opsi berdasarkan search term - tidak case sensitive
   const filteredOptions = useMemo(() => {
@@ -71,22 +75,36 @@ function KeluargaSearchCombobox({
       option.label.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [options, searchTerm]);
+
+  // Handler untuk memilih opsi
+  const handleSelect = useCallback((selectedValue: string) => {
+    const option = options.find(opt => opt.value === selectedValue);
+    if (option) {
+      console.log('Selecting option in combobox:', option);
+      onChange(option.value);
+      setSearchTerm("");
+      setOpen(false);
+    }
+  }, [onChange, options]);
   
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          type="button"
           variant="outline"
           role="combobox"
           aria-expanded={open}
           className="w-full justify-between"
           disabled={disabled}
         >
-          {selectedOption?.label || placeholder}
+          <span className="truncate">
+            {selectedOption ? selectedOption.label : placeholder}
+          </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0">
+      <PopoverContent className="w-full p-0" align="start">
         <div className="flex items-center border-b px-3">
           <SearchIcon className="mr-2 h-4 w-4 shrink-0 opacity-50" />
           <Input
@@ -102,12 +120,8 @@ function KeluargaSearchCombobox({
             {filteredOptions.map((option) => (
               <CommandItem
                 key={option.value}
-                value={option.value}
-                onSelect={() => {
-                  onChange(option.value);
-                  setSearchTerm("");
-                  setOpen(false);
-                }}
+                onSelect={() => handleSelect(option.value)}
+                className="cursor-pointer"
               >
                 <Check
                   className={cn(
@@ -137,56 +151,78 @@ export function AbsensiDolingFormDialog({
   const [selectedDolingId, setSelectedDolingId] = useState<string>(absensi?.doaLingkunganId || "");
   const [keluargaId, setKeluargaId] = useState<string>(absensi?.keluargaId || "");
   const [statusKehadiran, setStatusKehadiran] = useState<StatusKehadiran>(absensi?.statusKehadiran as StatusKehadiran || "TIDAK_HADIR");
-  
+
   // Konversi keluargaList ke ComboboxOption[]
-  const keluargaOptions: ComboboxOption[] = keluargaList
-    .filter(keluarga => !keluarga.sudahTerpilih || (absensi && keluarga.id === absensi.keluargaId))
-    .map(keluarga => ({
+  const keluargaOptions: ComboboxOption[] = useMemo(() => {
+    const filteredList = keluargaList
+      .filter(keluarga => !keluarga.sudahTerpilih || (absensi && keluarga.id === absensi.keluargaId));
+    
+    console.log('Filtered keluarga list:', filteredList);
+    
+    return filteredList.map(keluarga => ({
       label: keluarga.nama,
       value: keluarga.id
     }));
-  
-  // Filter jadwal yang sudah selesai atau terjadwal
-  const availableJadwal = jadwalDoling.filter(jadwal => {
-    // Pastikan tanggal valid
-    if (!jadwal.tanggal || !(jadwal.tanggal instanceof Date) || isNaN(new Date(jadwal.tanggal).getTime())) {
-      return false;
-    }
-    
-    // Bandingkan dengan tanggal hari ini
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset waktu ke 00:00:00
-    const jadwalDate = new Date(jadwal.tanggal);
-    jadwalDate.setHours(0, 0, 0, 0); // Reset waktu ke 00:00:00
-    
-    // Hanya tampilkan jadwal yang:
-    // 1. Tanggalnya sama dengan atau lebih besar dari hari ini
-    // 2. Status jadwal sesuai (selesai, terjadwal, atau menunggu)
-    // 3. Sudah disetujui
-    return jadwalDate >= today && 
-           (jadwal.status === 'selesai' || jadwal.status === 'terjadwal' || jadwal.status === 'menunggu') &&
-           jadwal.approved === true;
-  });
+  }, [keluargaList, absensi]);
 
-  // Reset form ketika dialog dibuka
+  // Filter jadwal yang sudah selesai atau terjadwal
+  const availableJadwal = useMemo(() => {
+    return jadwalDoling.filter(jadwal => {
+      // Pastikan tanggal valid
+      if (!jadwal.tanggal || !(jadwal.tanggal instanceof Date) || isNaN(new Date(jadwal.tanggal).getTime())) {
+        return false;
+      }
+      
+      // Bandingkan dengan tanggal hari ini
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset waktu ke 00:00:00
+      const jadwalDate = new Date(jadwal.tanggal);
+      jadwalDate.setHours(0, 0, 0, 0); // Reset waktu ke 00:00:00
+      
+      // Hanya tampilkan jadwal yang:
+      // 1. Tanggalnya sama dengan atau lebih besar dari hari ini
+      // 2. Status jadwal sesuai (selesai, terjadwal, atau menunggu)
+      // 3. Sudah disetujui
+      return jadwalDate >= today && 
+             (jadwal.status === 'selesai' || jadwal.status === 'terjadwal' || jadwal.status === 'menunggu') &&
+             jadwal.approved === true;
+    });
+  }, [jadwalDoling]);
+
+  // Handler untuk perubahan keluarga
+  const handleKeluargaChange = useCallback((newValue: string) => {
+    console.log('Handling keluarga change:', newValue);
+    setKeluargaId(newValue);
+  }, []);
+
+  // Debug logs
+  useEffect(() => {
+    console.log('Form state:', {
+      selectedDolingId,
+      keluargaId,
+      statusKehadiran,
+      keluargaOptions: keluargaOptions.length
+    });
+  }, [selectedDolingId, keluargaId, statusKehadiran, keluargaOptions]);
+  
+  // Reset form ketika dialog dibuka/ditutup
   useEffect(() => {
     if (open) {
-      // Jika form dalam mode edit, gunakan data dari absensi
+      // Jika mode edit, gunakan data dari absensi
       if (absensi) {
         setSelectedDolingId(absensi.doaLingkunganId);
         setKeluargaId(absensi.keluargaId);
         setStatusKehadiran(absensi.statusKehadiran as StatusKehadiran || "TIDAK_HADIR");
       } else {
-        // Jika form dalam mode tambah, reset keluargaId dan statusKehadiran
+        // Mode tambah, reset form
         setKeluargaId("");
         setStatusKehadiran("TIDAK_HADIR");
         
-        // Cari jadwal terdekat dari availableJadwal
+        // Pilih jadwal terdekat
         if (availableJadwal.length > 0) {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           
-          // Urutkan jadwal berdasarkan selisih tanggal dengan hari ini
           const sortedJadwal = [...availableJadwal].sort((a, b) => {
             const dateA = new Date(a.tanggal);
             const dateB = new Date(b.tanggal);
@@ -195,9 +231,17 @@ export function AbsensiDolingFormDialog({
             return diffA - diffB;
           });
           
-          // Pilih jadwal terdekat
           setSelectedDolingId(sortedJadwal[0].id);
+        } else {
+          setSelectedDolingId("");
         }
+      }
+    } else {
+      // Reset state saat dialog ditutup
+      if (!absensi) {
+        setSelectedDolingId("");
+        setKeluargaId("");
+        setStatusKehadiran("TIDAK_HADIR");
       }
     }
   }, [open, absensi, availableJadwal]);
@@ -263,9 +307,9 @@ export function AbsensiDolingFormDialog({
                     </SelectItem>
                   ))
                 ) : (
-                  <SelectItem value="" disabled>
+                  <div className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none text-muted-foreground">
                     Tidak ada jadwal doling tersedia
-                  </SelectItem>
+                  </div>
                 )}
               </SelectContent>
             </Select>
@@ -276,7 +320,7 @@ export function AbsensiDolingFormDialog({
             <KeluargaSearchCombobox
               options={keluargaOptions}
               value={keluargaId}
-              onChange={setKeluargaId}
+              onChange={handleKeluargaChange}
               placeholder="Pilih keluarga..."
               emptyMessage="Tidak ada keluarga ditemukan"
               disabled={Boolean(absensi)} // Disable jika edit mode

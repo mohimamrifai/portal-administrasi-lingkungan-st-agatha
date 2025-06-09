@@ -34,6 +34,7 @@ export interface DolingData {
   pembawaRenungan: string | null;
   pembawaLagu: string | null;
   doaUmat: string | null;
+  bacaan: string | null;
   pemimpinMisa: string | null;
   bacaanI: string | null;
   pemazmur: string | null;
@@ -112,6 +113,7 @@ export async function getAllDoling(): Promise<DolingData[]> {
       pembawaRenungan: doling.pembawaRenungan,
       pembawaLagu: doling.pembawaLagu,
       doaUmat: doling.doaUmat,
+      bacaan: doling.bacaan,
       pemimpinMisa: doling.pemimpinMisa,
       bacaanI: doling.bacaanI,
       pemazmur: doling.pemazmur,
@@ -176,6 +178,7 @@ export async function getDolingById(id: string): Promise<DolingData | null> {
       pembawaRenungan: doling.pembawaRenungan,
       pembawaLagu: doling.pembawaLagu,
       doaUmat: doling.doaUmat,
+      bacaan: doling.bacaan,
       pemimpinMisa: doling.pemimpinMisa,
       bacaanI: doling.bacaanI,
       pemazmur: doling.pemazmur,
@@ -344,6 +347,7 @@ export async function addDoling(data: {
       pembawaRenungan: null,
       pembawaLagu: null,
       doaUmat: null,
+      bacaan: null,
       pemimpinMisa: null,
       bacaanI: null,
       pemazmur: null,
@@ -377,6 +381,7 @@ export async function updateDolingDetail(id: string, data: {
   pembawaRenungan?: string;
   pembawaLagu?: string;
   doaUmat?: string;
+  bacaan?: string;
   pemimpinMisa?: string;
   bacaanI?: string;
   pemazmur?: string;
@@ -406,6 +411,7 @@ export async function updateDolingDetail(id: string, data: {
           pembawaRenungan: data.pembawaRenungan,
           pembawaLagu: data.pembawaLagu,
           doaUmat: data.doaUmat,
+          bacaan: data.bacaan,
           pemimpinMisa: data.pemimpinMisa,
           bacaanI: data.bacaanI,
           pemazmur: data.pemazmur,
@@ -499,6 +505,7 @@ export async function updateDolingDetail(id: string, data: {
       pembawaRenungan: updatedDoling.pembawaRenungan,
       pembawaLagu: updatedDoling.pembawaLagu,
       doaUmat: updatedDoling.doaUmat,
+      bacaan: updatedDoling.bacaan,
       pemimpinMisa: updatedDoling.pemimpinMisa,
       bacaanI: updatedDoling.bacaanI,
       pemazmur: updatedDoling.pemazmur,
