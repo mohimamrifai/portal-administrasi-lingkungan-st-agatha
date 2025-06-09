@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { JenisTransaksi, TipeTransaksiLingkungan, TipeTransaksiIkata } from "@prisma/client";
+import { revalidatePath } from "next/cache";
 
 // Fungsi untuk mendapatkan data kas lingkungan
 export async function getKasLingkungan() {
@@ -52,7 +53,24 @@ export async function createKasTransaction(data: {
   keluargaId?: string;
 }) {
   try {
+    // Validasi khusus untuk transfer ke IKATA
+    if (data.tipeTransaksi === TipeTransaksiLingkungan.TRANSFER_DANA_KE_IKATA && 
+        data.jenisTranasksi === JenisTransaksi.UANG_KELUAR) {
+      // Validasi saldo awal IKATA
+      const validateIkata = await prisma.$queryRaw`
+        SELECT EXISTS (
+          SELECT 1 FROM "KasIkata" 
+          WHERE "tipeTransaksi" = 'LAIN_LAIN' 
+          AND "keterangan" = 'SALDO AWAL'
+        ) as "exists"` as { exists: boolean }[];
+      
+      if (!validateIkata[0].exists) {
+        throw new Error("Saldo awal IKATA belum diset. Silakan set saldo awal IKATA terlebih dahulu.");
+      }
+    }
+
     const transaction = await prisma.$transaction(async (tx) => {
+      // Buat transaksi Kas Lingkungan
       const kasTransaction = await tx.kasLingkungan.create({
         data: {
           ...data,
@@ -68,27 +86,53 @@ export async function createKasTransaction(data: {
         }
       });
       
+      // Jika transaksi adalah transfer ke IKATA
       if (data.tipeTransaksi === TipeTransaksiLingkungan.TRANSFER_DANA_KE_IKATA && 
           data.jenisTranasksi === JenisTransaksi.UANG_KELUAR) {
-        await tx.kasIkata.create({
-          data: {
-            tanggal: data.tanggal,
-            jenisTranasksi: JenisTransaksi.UANG_MASUK,
-            tipeTransaksi: TipeTransaksiIkata.TRANSFER_DANA_DARI_LINGKUNGAN,
-            keterangan: "Transfer otomatis dari Kas Lingkungan",
-            debit: data.kredit,
-            kredit: 0
-          }
-        });
+        try {
+          // Buat transaksi di Kas IKATA
+          const ikataTransaction = await tx.kasIkata.create({
+            data: {
+              tanggal: data.tanggal,
+              jenisTranasksi: JenisTransaksi.UANG_MASUK,
+              tipeTransaksi: TipeTransaksiIkata.TRANSFER_DANA_DARI_LINGKUNGAN,
+              keterangan: `Transfer dari Kas Lingkungan - ${data.keterangan || ''}`,
+              debit: data.kredit,
+              kredit: 0,
+              locked: true // Kunci transaksi agar tidak bisa diedit manual
+            }
+          });
+
+          // Update keterangan transaksi Kas Lingkungan
+          await tx.kasLingkungan.update({
+            where: { id: kasTransaction.id },
+            data: {
+              keterangan: `Transfer ke IKATA - Ref: ${ikataTransaction.id}`
+            }
+          });
+
+          // Revalidasi path IKATA
+          revalidatePath('/ikata/kas');
+        } catch (error) {
+          console.error("[createKasTransaction] Error creating IKATA transaction:", error);
+          throw new Error("Gagal membuat transaksi di Kas IKATA. Seluruh transaksi dibatalkan.");
+        }
       }
       
       return kasTransaction;
     });
+
+    // Revalidasi path untuk memperbarui UI
+    revalidatePath('/lingkungan/kas');
+    revalidatePath('/ikata/kas');
+    revalidatePath('/dashboard');
     
     return transaction;
   } catch (error) {
-    console.error("Error creating kas transaction:", error);
-    throw new Error("Gagal membuat transaksi kas");
+    console.error("[createKasTransaction] Error:", error);
+    throw error instanceof Error 
+      ? error 
+      : new Error("Gagal membuat transaksi kas");
   }
 }
 

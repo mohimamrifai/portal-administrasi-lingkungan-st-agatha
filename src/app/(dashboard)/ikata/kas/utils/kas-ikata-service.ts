@@ -347,10 +347,48 @@ async function handleSumbanganAnggota(data: any, validDate: Date) {
 // Handler untuk transfer dana
 async function handleTransferDana(data: any, validDate: Date) {
   try {
-    // Implementasi khusus untuk transfer dana jika diperlukan
-    // Misalnya: update saldo, catat di history, dll
+    // Validasi saldo awal
+    const saldoAwalCheck = await checkInitialBalanceIkataExists();
+    if (!saldoAwalCheck.exists) {
+      throw new Error("Saldo awal IKATA belum diset");
+    }
+
+    // Buat transaksi keluar di Kas Lingkungan menggunakan transaksi yang sama
+    await prisma.$transaction(async (tx) => {
+      await tx.kasLingkungan.create({
+        data: {
+          tanggal: validDate,
+          jenisTranasksi: JenisTransaksi.UANG_KELUAR,
+          tipeTransaksi: "TRANSFER_DANA_KE_IKATA",
+          keterangan: `Transfer ke IKATA - ${data.keterangan || ''}`,
+          debit: 0,
+          kredit: data.debit,
+          approval: {
+            create: {
+              status: 'PENDING'
+            }
+          }
+        }
+      });
+    });
+
+    // Log transaksi untuk audit
+    console.log("[handleTransferDana] Transfer dana berhasil:", {
+      tanggal: validDate,
+      jumlah: data.debit,
+      keterangan: data.keterangan
+    });
+
+    // Revalidasi path untuk memperbarui UI
+    revalidatePath('/ikata/kas');
+    revalidatePath('/lingkungan/kas');
+    revalidatePath('/dashboard');
+
   } catch (error) {
-    console.error("Error handling transfer dana:", error);
+    console.error("[handleTransferDana] Error:", error);
+    throw error instanceof Error 
+      ? error 
+      : new Error("Gagal memproses transfer dana dari Kas Lingkungan");
   }
 }
 
@@ -600,28 +638,27 @@ export async function setSaldoAwalIkata(saldoAwal: number, tanggal: Date) {
   }
 }
 
-// Fungsi untuk mengecek apakah saldo awal IKATA sudah diset
-export async function checkInitialBalanceIkataExists(): Promise<{ exists: boolean; amount?: number; date?: Date }> {
+// Fungsi untuk mengecek keberadaan saldo awal IKATA
+export async function checkInitialBalanceIkataExists(): Promise<{ exists: boolean; error?: string; date?: Date }> {
   try {
-    const existingConfig = await prisma.kasIkata.findFirst({
+    const saldoAwal = await prisma.kasIkata.findFirst({
       where: {
         tipeTransaksi: TipeTransaksiIkata.LAIN_LAIN,
         keterangan: "SALDO AWAL"
       }
     });
 
-    if (existingConfig) {
-      return {
-        exists: true,
-        amount: existingConfig.debit,
-        date: existingConfig.tanggal
-      };
-    }
-
-    return { exists: false };
+    return {
+      exists: !!saldoAwal,
+      error: !saldoAwal ? "Saldo awal IKATA belum diset" : undefined,
+      date: saldoAwal?.tanggal
+    };
   } catch (error) {
-    console.error('Failed to check initial balance IKATA:', error);
-    return { exists: false };
+    console.error("[checkInitialBalanceIkataExists] Error:", error);
+    return {
+      exists: false,
+      error: "Gagal memeriksa saldo awal IKATA"
+    };
   }
 }
 

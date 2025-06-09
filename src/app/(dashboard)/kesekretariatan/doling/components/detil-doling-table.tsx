@@ -317,7 +317,7 @@ export function DetilDolingTable({
                     {formatRupiah(item.kolekteI + item.kolekteII)}
                   </TableCell>
                   <TableCell>
-                    {item.jumlahKKHadir} orang
+                    {item.jumlahKKHadir} KK
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-1">
