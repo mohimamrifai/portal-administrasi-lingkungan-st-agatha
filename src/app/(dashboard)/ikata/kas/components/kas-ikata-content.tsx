@@ -17,7 +17,7 @@ import { AlertCircle, Printer, Settings } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { setSaldoAwalIkata } from '../utils/kas-ikata-service';
-import { createTransaction, updateTransaction, deleteTransaction, setIkataDues, getIkataSetting } from '../utils/actions';
+import { createTransaction, updateTransaction, deleteTransaction, setIkataDues, getIkataSetting, getLatestTransactionData } from '../utils/actions';
 import { JenisTransaksi, TipeTransaksiIkata } from '@prisma/client';
 import { checkInitialBalanceIkataExists } from '../utils/kas-ikata-service';
 
@@ -166,7 +166,6 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
     }
 
     try {
-      console.log("[handleAddTransaction] Memulai proses penambahan transaksi:", data);
 
       // Validasi data yang diperlukan
       if (!data.tanggal || !data.jenis || !data.tipeTransaksi || !data.jumlah) {
@@ -237,16 +236,6 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         }
       }
 
-      console.log("[handleAddTransaction] Data yang akan dikirim ke server:", {
-        tanggal: tanggalObj,
-        jenisTranasksi,
-        tipeTransaksi,
-        keterangan,
-        jumlah: data.jumlah,
-        keluargaId: data.anggotaId,
-        totalIuran: data.totalIuran
-      });
-
       // Kirim data ke server
       const result = await createTransaction({
         tanggal: tanggalObj,
@@ -258,29 +247,21 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         totalIuran: data.totalIuran
       });
 
-      console.log("[handleAddTransaction] Hasil dari server:", result);
-
-      if (!result) {
-        throw new Error("Tidak ada respons dari server");
+      if (result) {
+        // Fetch dan update data terbaru
+        await fetchLatestData();
+        
+        toast.success("Transaksi berhasil ditambahkan");
+        setIsAddTransactionOpen(false);
+        
+        // Tetap panggil router.refresh() untuk memastikan konsistensi data
+        router.refresh();
+      } else {
+        toast.error("Gagal menambahkan transaksi");
       }
-
-      // Update state dengan transaksi baru
-      const newTransaction = mapDbToUITransaction(result, {
-        ...data,
-        keterangan
-      }, userRole);
-      setTransactions(prev => [...prev, newTransaction]);
-
-      // Perbarui saldo dan tampilkan notifikasi sukses
-      toast.success("Transaksi berhasil ditambahkan");
-      
-      // Refresh halaman untuk mendapatkan data terbaru
-      router.refresh();
     } catch (error) {
       console.error("[handleAddTransaction] Error:", error);
-      toast.error("Gagal menambahkan transaksi", {
-        description: error instanceof Error ? error.message : "Terjadi kesalahan yang tidak diketahui"
-      });
+      toast.error("Terjadi kesalahan saat menambahkan transaksi");
     }
   };
 
@@ -351,26 +332,21 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         totalIuran: data.totalIuran
       });
 
-      // Update state dengan data yang diperbarui
-      const updatedTransactions: IKATATransaction[] = transactions.map(tx => {
-        if (tx.id === editingTransaction.id) {
-          return mapDbToUITransaction(
-            result,
-            data,
-            userRole
-          );
-        }
-        return tx;
-      });
-
-      setTransactions(updatedTransactions);
-      setEditingTransaction(null);
-      toast.success("Transaksi berhasil diperbarui");
-      setIsAddTransactionOpen(false);
-    } catch (error: any) {
-      toast.error("Gagal memperbarui transaksi", {
-        description: error.message || "Terjadi kesalahan saat memperbarui transaksi"
-      });
+      if (result) {
+        // Fetch dan update data terbaru
+        await fetchLatestData();
+        
+        toast.success("Transaksi berhasil diperbarui");
+        setEditingTransaction(null);
+        
+        // Tetap panggil router.refresh() untuk memastikan konsistensi data
+        router.refresh();
+      } else {
+        toast.error("Gagal memperbarui transaksi");
+      }
+    } catch (error) {
+      console.error("[handleUpdateTransaction] Error:", error);
+      toast.error("Terjadi kesalahan saat memperbarui transaksi");
     }
   };
 
@@ -380,29 +356,23 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
       return;
     }
 
-    // Cari transaksi yang akan dihapus
-    const transaction = transactions.find(tx => tx.id === id);
+    try {
+      const result = await deleteTransaction(id);
 
-    if (transaction) {
-      if (transaction.locked) {
-        toast.error("Transaksi terkunci tidak dapat dihapus");
-        return;
-      }
-
-      try {
-        // Hapus transaksi dari server
-        await deleteTransaction(id);
-
-        // Hapus transaksi dari state
-        setTransactions(prev => prev.filter(tx => tx.id !== id));
-
-        // Tampilkan notifikasi sukses
+      if (result) {
+        // Fetch dan update data terbaru
+        await fetchLatestData();
+        
         toast.success("Transaksi berhasil dihapus");
-      } catch (error: any) {
-        toast.error("Gagal menghapus transaksi", {
-          description: error.message || "Terjadi kesalahan saat menghapus transaksi"
-        });
+        
+        // Tetap panggil router.refresh() untuk memastikan konsistensi data
+        router.refresh();
+      } else {
+        toast.error("Gagal menghapus transaksi");
       }
+    } catch (error) {
+      console.error("[handleDeleteTransaction] Error:", error);
+      toast.error("Terjadi kesalahan saat menghapus transaksi");
     }
   };
 
@@ -523,6 +493,76 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
     } catch (error) {
       console.error("Error setting IKATA dues:", error);
       toast.error("Terjadi kesalahan saat mengatur iuran IKATA");
+    }
+  };
+
+  // Tambahkan fungsi calculatePeriodSummary
+  const calculatePeriodSummary = (
+    transactions: IKATATransaction[],
+    period: { startDate: Date; endDate: Date },
+    initialBalance: number
+  ): IKATASummary => {
+    const filteredTransactions = transactions.filter(tx => {
+      const txDate = new Date(tx.tanggal);
+      return txDate >= period.startDate && txDate <= period.endDate;
+    });
+
+    const summary = filteredTransactions.reduce(
+      (acc, tx) => {
+        if (tx.jenis === "uang_masuk") {
+          acc.pemasukan += tx.jumlah;
+        } else {
+          acc.pengeluaran += tx.jumlah;
+        }
+        return acc;
+      },
+      { saldoAwal: initialBalance, pemasukan: 0, pengeluaran: 0, saldoAkhir: 0 }
+    );
+
+    summary.saldoAkhir = summary.saldoAwal + summary.pemasukan - summary.pengeluaran;
+    return summary;
+  };
+
+  // Perbaiki fungsi fetchLatestData
+  const fetchLatestData = async () => {
+    try {
+      const result = await getLatestTransactionData();
+      if (result && result.data) {
+        // Map data dari server ke format UI
+        const mappedTransactions: IKATATransaction[] = result.data.map(tx => ({
+          id: tx.id,
+          tanggal: tx.tanggal.toISOString(),
+          keterangan: tx.keterangan || "",
+          jumlah: tx.jenisTransaksi === "UANG_MASUK" ? tx.debit : tx.kredit,
+          jenis: tx.jenisTransaksi === "UANG_MASUK" ? "uang_masuk" : "uang_keluar",
+          tipeTransaksi: tx.tipeTransaksi.toLowerCase() as UITipeTransaksi,
+          debit: tx.debit,
+          kredit: tx.kredit,
+          createdAt: tx.createdAt.toISOString(),
+          updatedAt: tx.updatedAt.toISOString(),
+          createdBy: userRole || "SYSTEM",
+          updatedBy: userRole || "SYSTEM",
+          locked: tx.locked
+        }));
+
+        setTransactions(mappedTransactions);
+        
+        // Hitung ulang summary berdasarkan data baru
+        const calculatedSummary = calculatePeriodSummary(
+          mappedTransactions,
+          {
+            startDate: new Date(period.tahun, period.bulan - 1, 1),
+            endDate: new Date(period.tahun, period.bulan, 0)
+          },
+          summaryData.saldoAwal
+        );
+        setSummaryData(calculatedSummary);
+      } else {
+        toast.error("Gagal memperbarui data terbaru");
+      }
+    } catch (error) {
+      console.error("Error fetching latest data:", error);
+      toast.error("Gagal memperbarui data terbaru");
     }
   };
 

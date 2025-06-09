@@ -60,8 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Ambil role dari session (ditambahkan ke session di NextAuth callbacks)
       const sessionRole = (session.user as any).role as string
-      
-      console.log("Auth context received session role:", sessionRole)
+    
       
       // Validasi role, pastikan role ada dalam daftar UserRole yang valid
       if (sessionRole && isValidUserRole(sessionRole)) {

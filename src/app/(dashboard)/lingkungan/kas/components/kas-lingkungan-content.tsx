@@ -25,6 +25,9 @@ import {
   initialBalanceFormSchema,
 } from "../types"
 
+// Import providers
+import { getTransactionsData, getTransactionSummary } from "./providers"
+
 // Import actions server
 import {
   createTransaction,
@@ -32,7 +35,8 @@ import {
   deleteTransaction,
   approveTransaction,
   saveInitialBalance,
-  checkInitialBalanceExists
+  checkInitialBalanceExists,
+  getLatestTransactionData
 } from "../utils/actions"
 
 // Import utilities
@@ -180,6 +184,29 @@ export default function KasLingkunganContent({
     },
   })
 
+  // Tambahkan fungsi untuk fetch data terbaru
+  const fetchLatestData = async () => {
+    try {
+      const result = await getLatestTransactionData();
+      if (result.success) {
+        setTransactions(result.data);
+        
+        // Hitung ulang summary berdasarkan data baru
+        const calculatedSummary = calculatePeriodSummary(
+          result.data,
+          dateRange,
+          initialSummary.initialBalance
+        );
+        setSummary(calculatedSummary);
+      } else {
+        toast.error(result.error || "Gagal memperbarui data terbaru");
+      }
+    } catch (error) {
+      console.error("Error fetching latest data:", error);
+      toast.error("Gagal memperbarui data terbaru");
+    }
+  };
+
   // Submit edit transaksi
   async function onEditTransactionSubmit(values: TransactionFormValues) {
     // Validasi hak akses modifikasi
@@ -201,11 +228,14 @@ export default function KasLingkunganContent({
       });
 
       if (result.success) {
+        // Fetch dan update data terbaru
+        await fetchLatestData();
+        
         toast.success("Transaksi berhasil diperbarui");
         setEditDialogOpen(false);
         setIsEditing(null);
 
-        // Refresh data dari server
+        // Tetap panggil router.refresh() untuk memastikan konsistensi data
         router.refresh();
       } else {
         toast.error(result.error || "Gagal memperbarui transaksi");
@@ -270,6 +300,9 @@ export default function KasLingkunganContent({
       });
 
       if (result.success) {
+        // Fetch dan update data terbaru
+        await fetchLatestData();
+        
         toast.success("Transaksi berhasil ditambahkan");
         setAddDialogOpen(false);
         
@@ -282,7 +315,7 @@ export default function KasLingkunganContent({
           jumlah: 0,
         });
 
-        // Refresh data dari server
+        // Tetap panggil router.refresh() untuk memastikan konsistensi data
         router.refresh();
       } else {
         toast.error(result.error || "Gagal menambahkan transaksi");
@@ -332,9 +365,12 @@ export default function KasLingkunganContent({
       const result = await deleteTransaction(id);
 
       if (result.success) {
+        // Fetch dan update data terbaru
+        await fetchLatestData();
+        
         toast.success("Transaksi berhasil dihapus");
 
-        // Refresh data dari server
+        // Tetap panggil router.refresh() untuk memastikan konsistensi data
         router.refresh();
       } else {
         toast.error(result.error || "Gagal menghapus transaksi");
@@ -343,7 +379,7 @@ export default function KasLingkunganContent({
       console.error("Error deleting transaction:", error);
       toast.error("Terjadi kesalahan saat menghapus transaksi");
     }
-  }, [canModifyData, router]);
+  }, [canModifyData, router, fetchLatestData]);
 
   const handleApproveTransaction = useCallback(async (id: string) => {
     try {

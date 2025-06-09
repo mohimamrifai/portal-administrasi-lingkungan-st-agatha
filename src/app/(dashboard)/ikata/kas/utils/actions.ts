@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { createKasIkataTransaction, updateKasIkataTransaction, deleteKasIkataTransaction } from "./kas-ikata-service";
-import { JenisTransaksi, TipeTransaksiIkata } from "@prisma/client";
+import { JenisTransaksi, TipeTransaksiIkata, StatusApproval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { TransactionData } from "../types";
 
 // Create transaction
 export async function createTransaction(data: {
@@ -18,7 +19,6 @@ export async function createTransaction(data: {
   totalIuran?: number;
 }) {
   try {
-    console.log("[createTransaction] Received data:", data);
 
     // Validasi data
     if (!data.tanggal || !data.jenisTranasksi || !data.tipeTransaksi || !data.jumlah) {
@@ -56,12 +56,7 @@ export async function createTransaction(data: {
     // Tentukan debit dan kredit berdasarkan jenis transaksi
     const debit = data.jenisTranasksi === JenisTransaksi.UANG_MASUK ? data.jumlah : 0;
     const kredit = data.jenisTranasksi === JenisTransaksi.UANG_KELUAR ? data.jumlah : 0;
-    
-    console.log("[createTransaction] Processed data:", {
-      ...data,
-      debit,
-      kredit
-    });
+
 
     // Buat transaksi baru
     const transaction = await createKasIkataTransaction({
@@ -74,13 +69,13 @@ export async function createTransaction(data: {
       keluargaId: data.keluargaId,
       totalIuran: data.totalIuran
     });
-
-    console.log("[createTransaction] Transaction created:", transaction);
     
     if (!transaction) {
       throw new Error("Gagal membuat transaksi: Tidak ada respons dari server");
     }
     
+    revalidatePath('/ikata/kas');
+    revalidatePath('/dashboard');
     return transaction;
   } catch (error: any) {
     console.error("[createTransaction] Error:", error);
@@ -115,6 +110,8 @@ export async function updateTransaction(id: string, data: {
       totalIuran: data.totalIuran
     });
     
+    revalidatePath('/ikata/kas');
+    revalidatePath('/dashboard');
     return transaction;
   } catch (error) {
     console.error("Error updating transaction:", error);
@@ -127,6 +124,8 @@ export async function deleteTransaction(id: string) {
   try {
     const transaction = await deleteKasIkataTransaction(id);
     
+    revalidatePath('/ikata/kas');
+    revalidatePath('/dashboard');
     return transaction;
   } catch (error) {
     console.error("Error deleting transaction:", error);
@@ -322,5 +321,72 @@ export async function getIkataSetting(year: number) {
   } catch (error) {
     console.error("Error saat mengambil setting iuran IKATA:", error)
     return { success: false, error: error instanceof Error ? error.message : "Gagal mengambil setting iuran IKATA" }
+  }
+}
+
+// Fungsi untuk mengambil data transaksi terbaru
+export async function getLatestTransactionData() {
+  try {
+    const transactions = await prisma.kasIkata.findMany({
+      orderBy: {
+        tanggal: 'desc'
+      }
+    });
+    
+    if (!transactions) {
+      return {
+        success: false,
+        error: "Data transaksi tidak ditemukan",
+        data: [] as {
+          id: string;
+          tanggal: Date;
+          keterangan: string | null;
+          jenisTransaksi: JenisTransaksi;
+          tipeTransaksi: TipeTransaksiIkata;
+          debit: number;
+          kredit: number;
+          locked: boolean;
+          createdAt: Date;
+          updatedAt: Date;
+        }[]
+      };
+    }
+    
+    // Konversi data dari database ke format UI
+    const mappedData = transactions.map(tx => ({
+      id: tx.id,
+      tanggal: tx.tanggal,
+      keterangan: tx.keterangan,
+      jenisTransaksi: tx.jenisTranasksi,
+      tipeTransaksi: tx.tipeTransaksi,
+      debit: tx.debit,
+      kredit: tx.kredit,
+      locked: tx.locked,
+      createdAt: tx.createdAt,
+      updatedAt: tx.updatedAt
+    }));
+
+    return {
+      success: true,
+      data: mappedData
+    };
+  } catch (error) {
+    console.error("Error fetching latest transaction data:", error);
+    return {
+      success: false,
+      error: "Gagal mengambil data transaksi terbaru",
+      data: [] as {
+        id: string;
+        tanggal: Date;
+        keterangan: string | null;
+        jenisTransaksi: JenisTransaksi;
+        tipeTransaksi: TipeTransaksiIkata;
+        debit: number;
+        kredit: number;
+        locked: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+      }[]
+    };
   }
 } 

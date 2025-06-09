@@ -150,7 +150,6 @@ export async function createKasIkataTransaction(data: {
   totalIuran?: number;
 }) {
   try {
-    console.log("[createKasIkataTransaction] Starting with data:", data);
 
     // Validasi data dasar
     if (!data.tanggal || !data.jenisTranasksi || !data.tipeTransaksi) {
@@ -185,8 +184,6 @@ export async function createKasIkataTransaction(data: {
       kredit: data.kredit,
       locked: false
     };
-
-    console.log("[createKasIkataTransaction] Creating transaction with data:", kasIkataData);
 
     // Mulai transaksi database
     const result = await prisma.$transaction(async (tx) => {
@@ -223,8 +220,6 @@ export async function createKasIkataTransaction(data: {
 
       return transaction;
     });
-
-    console.log("[createKasIkataTransaction] Transaction completed successfully:", result);
 
     // Revalidasi path untuk memperbarui UI
     revalidatePath("/ikata/kas");
@@ -370,13 +365,6 @@ async function handleTransferDana(data: any, validDate: Date) {
           }
         }
       });
-    });
-
-    // Log transaksi untuk audit
-    console.log("[handleTransferDana] Transfer dana berhasil:", {
-      tanggal: validDate,
-      jumlah: data.debit,
-      keterangan: data.keterangan
     });
 
     // Revalidasi path untuk memperbarui UI

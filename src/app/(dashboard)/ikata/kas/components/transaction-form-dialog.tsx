@@ -326,7 +326,6 @@ export function TransactionFormDialog({
 
   const handleSubmit = async (values: TransactionFormValues) => {
     try {
-      console.log("[handleSubmit] Form values:", values);
 
       // Format tanggal ke string YYYY-MM-DD
       const tanggalString = format(values.tanggal, 'yyyy-MM-dd');
@@ -371,8 +370,6 @@ export function TransactionFormDialog({
         periodeBayar: values.periodeBayar,
         totalIuran: values.totalIuran
       };
-
-      console.log("[handleSubmit] Data yang akan dikirim:", submissionData);
       
       await onSubmit(submissionData);
       form.reset();
@@ -403,8 +400,6 @@ export function TransactionFormDialog({
             onSubmit={(e) => {
               e.preventDefault();
               form.handleSubmit(async (values) => {
-                console.log("Form submitted");
-                console.log("Form values:", values);
                 
                 try {
                   setIsSubmitting(true);
@@ -445,8 +440,6 @@ export function TransactionFormDialog({
                     periodeBayar: values.periodeBayar,
                     totalIuran: values.totalIuran
                   };
-
-                  console.log("Data yang akan dikirim:", submissionData);
 
                   // Kirim data ke server
                   await onSubmit(submissionData);
