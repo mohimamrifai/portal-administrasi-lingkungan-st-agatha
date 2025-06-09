@@ -16,10 +16,11 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle, Printer, Settings } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { setSaldoAwalIkata } from '../utils/kas-ikata-service';
+import { setSaldoAwalIkata, getKasIkataSummary } from '../utils/kas-ikata-service';
 import { createTransaction, updateTransaction, deleteTransaction, setIkataDues, getIkataSetting, getLatestTransactionData } from '../utils/actions';
 import { JenisTransaksi, TipeTransaksiIkata } from '@prisma/client';
 import { checkInitialBalanceIkataExists } from '../utils/kas-ikata-service';
+import { format } from 'date-fns';
 
 interface KasIKATAContentProps {
   summary: IKATASummary;
@@ -166,7 +167,6 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
     }
 
     try {
-
       // Validasi data yang diperlukan
       if (!data.tanggal || !data.jenis || !data.tipeTransaksi || !data.jumlah) {
         console.error("[handleAddTransaction] Data tidak lengkap:", data);
@@ -250,12 +250,8 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
       if (result) {
         // Fetch dan update data terbaru
         await fetchLatestData();
-        
         toast.success("Transaksi berhasil ditambahkan");
         setIsAddTransactionOpen(false);
-        
-        // Tetap panggil router.refresh() untuk memastikan konsistensi data
-        router.refresh();
       } else {
         toast.error("Gagal menambahkan transaksi");
       }
@@ -335,12 +331,8 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
       if (result) {
         // Fetch dan update data terbaru
         await fetchLatestData();
-        
         toast.success("Transaksi berhasil diperbarui");
         setEditingTransaction(null);
-        
-        // Tetap panggil router.refresh() untuk memastikan konsistensi data
-        router.refresh();
       } else {
         toast.error("Gagal memperbarui transaksi");
       }
@@ -362,11 +354,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
       if (result) {
         // Fetch dan update data terbaru
         await fetchLatestData();
-        
         toast.success("Transaksi berhasil dihapus");
-        
-        // Tetap panggil router.refresh() untuk memastikan konsistensi data
-        router.refresh();
       } else {
         toast.error("Gagal menghapus transaksi");
       }
@@ -523,47 +511,61 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
     return summary;
   };
 
-  // Perbaiki fungsi fetchLatestData
+  // Fungsi untuk mengambil data terbaru
   const fetchLatestData = async () => {
     try {
       const result = await getLatestTransactionData();
-      if (result && result.data) {
-        // Map data dari server ke format UI
+      
+      if (result.success && result.data) {
+        // Map data ke format yang sesuai
         const mappedTransactions: IKATATransaction[] = result.data.map(tx => ({
           id: tx.id,
-          tanggal: tx.tanggal.toISOString(),
-          keterangan: tx.keterangan || "",
-          jumlah: tx.jenisTransaksi === "UANG_MASUK" ? tx.debit : tx.kredit,
-          jenis: tx.jenisTransaksi === "UANG_MASUK" ? "uang_masuk" : "uang_keluar",
-          tipeTransaksi: tx.tipeTransaksi.toLowerCase() as UITipeTransaksi,
+          tanggal: format(tx.tanggal, 'yyyy-MM-dd'),
+          keterangan: tx.keterangan || '',
+          jumlah: tx.debit > 0 ? tx.debit : tx.kredit,
+          jenis: tx.jenisTransaksi === 'UANG_MASUK' ? ('uang_masuk' as UIJenisTransaksi) : ('uang_keluar' as UIJenisTransaksi),
+          tipeTransaksi: mapTipeTransaksi(tx.tipeTransaksi) as UITipeTransaksi,
           debit: tx.debit,
           kredit: tx.kredit,
           createdAt: tx.createdAt.toISOString(),
           updatedAt: tx.updatedAt.toISOString(),
-          createdBy: userRole || "SYSTEM",
-          updatedBy: userRole || "SYSTEM",
+          createdBy: 'System',
+          updatedBy: 'System',
           locked: tx.locked
         }));
 
+        // Update state transaksi
         setTransactions(mappedTransactions);
-        
-        // Hitung ulang summary berdasarkan data baru
-        const calculatedSummary = calculatePeriodSummary(
-          mappedTransactions,
-          {
-            startDate: new Date(period.tahun, period.bulan - 1, 1),
-            endDate: new Date(period.tahun, period.bulan, 0)
-          },
-          summaryData.saldoAwal
-        );
-        setSummaryData(calculatedSummary);
+
+        // Hitung ulang summary
+        const newSummary = await getKasIkataSummary(period.bulan, period.tahun);
+        setSummaryData(newSummary);
+
       } else {
         toast.error("Gagal memperbarui data terbaru");
       }
     } catch (error) {
-      console.error("Error fetching latest data:", error);
+      console.error("[fetchLatestData] Error:", error);
       toast.error("Gagal memperbarui data terbaru");
     }
+  };
+
+  // Helper function untuk mapping tipe transaksi
+  const mapTipeTransaksi = (dbTipe: string): string => {
+    const tipeMap: Record<string, string> = {
+      'IURAN_ANGGOTA': 'iuran_anggota',
+      'TRANSFER_DANA_DARI_LINGKUNGAN': 'transfer_dana_lingkungan',
+      'SUMBANGAN_ANGGOTA': 'sumbangan_anggota',
+      'PENERIMAAN_LAIN': 'penerimaan_lain',
+      'UANG_DUKA_PAPAN_BUNGA': 'uang_duka',
+      'KUNJUNGAN_KASIH': 'kunjungan_kasih',
+      'CINDERAMATA_KELAHIRAN': 'cinderamata_kelahiran',
+      'CINDERAMATA_PERNIKAHAN': 'cinderamata_pernikahan',
+      'UANG_AKOMODASI': 'uang_akomodasi',
+      'PEMBELIAN': 'pembelian',
+      'LAIN_LAIN': 'lain_lain'
+    };
+    return tipeMap[dbTipe] || dbTipe.toLowerCase();
   };
 
   return (
