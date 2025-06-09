@@ -145,6 +145,7 @@ interface SubmitDataType {
   pembawaRenungan: string;
   pembawaLagu: string;
   doaUmat: string;
+  bacaan: string;
   pemimpinMisa: string;
   bacaanI: string;
   pemazmur: string;
@@ -206,7 +207,7 @@ export function DetilDolingFormDialog({
     renungan: detil?.pembawaRenungan || "",
     lagu: detil?.pembawaLagu || "",
     doaUmat: detil?.doaUmat || "",
-    bacaan: "",
+    bacaan: detil?.bacaan || "",
     // Legacy fields
     pemimpinIbadat: detil?.pemimpinIbadat || "",
     pemimpinRosario: detil?.pemimpinRosario || "",
@@ -273,7 +274,7 @@ export function DetilDolingFormDialog({
         renungan: detil.pembawaRenungan || "",
         lagu: detil.pembawaLagu || "",
         doaUmat: detil.doaUmat || "",
-        bacaan: "",
+        bacaan: detil.bacaan || "",
         // Legacy fields
         pemimpinIbadat: detil.pemimpinIbadat || "",
         pemimpinRosario: detil.pemimpinRosario || "",
@@ -343,7 +344,7 @@ export function DetilDolingFormDialog({
             renungan: jadwal.pembawaRenungan || "",
             lagu: jadwal.pembawaLagu || "",
             doaUmat: jadwal.doaUmat || "",
-            bacaan: "",
+            bacaan: jadwal.bacaan || "",
             // Legacy fields
             pemimpinIbadat: jadwal.pemimpinIbadat || "",
             pemimpinRosario: jadwal.pemimpinRosario || "",
@@ -438,6 +439,7 @@ export function DetilDolingFormDialog({
       pembawaRenungan: petugasLiturgi.renungan,
       pembawaLagu: petugasLiturgi.lagu,
       doaUmat: petugasLiturgi.doaUmat,
+      bacaan: petugasLiturgi.bacaan,
       pemimpinMisa: petugasMisa.pemimpin,
       bacaanI: petugasMisa.bacaanPertama,
       pemazmur: petugasMisa.pemazmur,

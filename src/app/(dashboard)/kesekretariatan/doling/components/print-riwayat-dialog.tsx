@@ -28,11 +28,49 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
+interface KepalaKeluarga {
+  nama: string;
+  status: 'hadir' | 'hanya_suami' | 'hanya_istri' | 'tidak_hadir';
+}
+
 interface PrintRiwayatDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   detilDolingData: DetilDoling[];
   absensiDolingData: AbsensiDoling[];
+}
+
+interface RiwayatDolingPDFProps {
+  data: {
+    tanggal: Date;
+    jenisIbadat: string;
+    subIbadat: string;
+    temaIbadat: string;
+    tuanRumah: string;
+    // Statistik kehadiran
+    jumlahKK: number;
+    jumlahBapak: number;
+    jumlahIbu: number;
+    jumlahOMK: number;
+    jumlahBIR: number;
+    jumlahBIA: number;
+    jumlahBIA713: number;
+    // Penerimaan
+    kolekte1: number;
+    kolekte2: number;
+    ucapanSyukur: number;
+    // Kehadiran KK
+    kepalaKeluarga: KepalaKeluarga[];
+    // Petugas Keibadatan
+    pemimpinIbadat?: string;
+    pemimpinRosario?: string;
+    pembawaRenungan?: string;
+    pembawaLagu?: string;
+    doaUmat?: string;
+    bacaan?: string;
+    pemimpinMisa?: string;
+    pemazmur?: string;
+  };
 }
 
 export function PrintRiwayatDialog({
@@ -122,14 +160,23 @@ export function PrintRiwayatDialog({
       jumlahIbu: selectedDetil.ibu,
       jumlahOMK: selectedDetil.omk,
       jumlahBIR: selectedDetil.bir,
-      jumlahBIA: selectedDetil.biaBawah, // BIA usia rendah
-      jumlahBIA713: selectedDetil.biaAtas, // BIA usia lanjut
+      jumlahBIA: selectedDetil.biaBawah,
+      jumlahBIA713: selectedDetil.biaAtas,
       // Penerimaan
       kolekte1: selectedDetil.kolekteI,
       kolekte2: selectedDetil.kolekteII,
       ucapanSyukur: selectedDetil.ucapanSyukur,
       // Kehadiran KK
-      kepalaKeluarga: kepalaKeluarga.length > 0 ? kepalaKeluarga : [],
+      kepalaKeluarga: kepalaKeluarga,
+      // Petugas Keibadatan
+      pemimpinIbadat: selectedDetil.pemimpinIbadat || undefined,
+      pemimpinRosario: selectedDetil.pemimpinRosario || undefined,
+      pembawaRenungan: selectedDetil.pembawaRenungan || undefined,
+      pembawaLagu: selectedDetil.pembawaLagu || undefined,
+      doaUmat: selectedDetil.doaUmat || undefined,
+      bacaan: selectedDetil.bacaan || undefined,
+      pemimpinMisa: selectedDetil.pemimpinMisa || undefined,
+      pemazmur: selectedDetil.pemazmur || undefined
     };
   };
 
