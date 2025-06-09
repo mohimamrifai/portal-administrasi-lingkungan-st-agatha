@@ -77,14 +77,22 @@ export function FamilyHeadFormDialog({
     if (open) {
       if (familyHead) {
         // Editing existing family head
+        const livingChildren = familyHead.tanggungan?.filter(t => 
+          t.jenisTanggungan === 'ANAK' && t.status === StatusKehidupan.HIDUP
+        ).length || 0;
+        
+        const livingRelatives = familyHead.tanggungan?.filter(t => 
+          t.jenisTanggungan === 'KERABAT' && t.status === StatusKehidupan.HIDUP
+        ).length || 0;
+
         form.reset({
           namaKepalaKeluarga: familyHead.nama,
           alamat: familyHead.alamat,
           nomorTelepon: familyHead.nomorTelepon || "",
           tanggalBergabung: familyHead.tanggalBergabung,
-          jumlahAnakTertanggung: familyHead.jumlahAnakTertanggung,
-          jumlahKerabatTertanggung: familyHead.jumlahKerabatTertanggung,
-          jumlahAnggotaKeluarga: familyHead.jumlahAnggotaKeluarga,
+          jumlahAnakTertanggung: livingChildren,
+          jumlahKerabatTertanggung: livingRelatives,
+          jumlahAnggotaKeluarga: familyHead.livingMemberCount || 1,
           status: familyHead.status,
           statusPernikahan: familyHead.statusPernikahan,
           tanggalKeluar: familyHead.tanggalKeluar || null,
@@ -115,24 +123,25 @@ export function FamilyHeadFormDialog({
   const jumlahKerabatValue = form.watch("jumlahKerabatTertanggung");
   const statusKehidupanValue = form.watch("status");
   
-  // Update jumlah anggota keluarga secara otomatis saat status pernikahan berubah
+  // Update jumlah anggota keluarga secara otomatis saat ada perubahan
   useEffect(() => {
-    // Kepala keluarga selalu dihitung sebagai 1 jika hidup
-    let totalAnggota = statusKehidupanValue === StatusKehidupan.HIDUP ? 1 : 0;
-    
-    // Tambah 1 jika menikah (ada pasangan) dan kepala keluarga masih hidup
-    if (statusPernikahanValue === StatusPernikahan.MENIKAH && statusKehidupanValue === StatusKehidupan.HIDUP) {
-      totalAnggota += 1;
-    }
-    
-    // Tambahkan jumlah anak dan kerabat jika kepala keluarga masih hidup
-    if (statusKehidupanValue === StatusKehidupan.HIDUP) {
+    if (!familyHead) {
+      // Untuk data baru, gunakan perhitungan sederhana
+      let totalAnggota = 0;
+      
+      if (statusKehidupanValue === StatusKehidupan.HIDUP) {
+        totalAnggota += 1; // Kepala keluarga
+      }
+      
+      if (statusPernikahanValue === StatusPernikahan.MENIKAH) {
+        totalAnggota += 1; // Pasangan
+      }
+      
       totalAnggota += jumlahAnakValue + jumlahKerabatValue;
+      
+      form.setValue("jumlahAnggotaKeluarga", totalAnggota);
     }
-    
-    // Set nilai ke form
-    form.setValue("jumlahAnggotaKeluarga", totalAnggota);
-  }, [statusPernikahanValue, jumlahAnakValue, jumlahKerabatValue, statusKehidupanValue, form]);
+  }, [statusPernikahanValue, jumlahAnakValue, jumlahKerabatValue, statusKehidupanValue, form, familyHead]);
 
   const handleSubmit = async (values: FamilyHeadFormValues) => {
     try {
@@ -305,15 +314,43 @@ export function FamilyHeadFormDialog({
                     <div className="text-xs text-muted-foreground mt-1">
                       <p>Komposisi anggota keluarga:</p>
                       <ul className="mt-1 pl-5 list-disc">
-                        <li>1 Kepala Keluarga</li>
-                        {statusPernikahanValue === StatusPernikahan.MENIKAH && (
-                          <li>1 Pasangan/Istri</li>
-                        )}
-                        {jumlahAnakValue > 0 && (
-                          <li>{jumlahAnakValue} Anak tertanggung</li>
-                        )}
-                        {jumlahKerabatValue > 0 && (
-                          <li>{jumlahKerabatValue} Kerabat tertanggung</li>
+                        {familyHead ? (
+                          // Tampilkan data aktual dari database
+                          <>
+                            {familyHead.status === StatusKehidupan.HIDUP && <li>1 Kepala Keluarga</li>}
+                            {familyHead.status === StatusKehidupan.MENINGGAL && <li className="text-red-500">1 Kepala Keluarga (Meninggal)</li>}
+                            
+                            {familyHead.pasangan?.status === StatusKehidupan.HIDUP && <li>1 Pasangan/Istri</li>}
+                            {familyHead.pasangan?.status === StatusKehidupan.MENINGGAL && <li className="text-red-500">1 Pasangan/Istri (Meninggal)</li>}
+                            
+                            {familyHead.tanggungan?.filter(t => t.jenisTanggungan === 'ANAK' && t.status === StatusKehidupan.HIDUP).length > 0 && (
+                              <li>{familyHead.tanggungan.filter(t => t.jenisTanggungan === 'ANAK' && t.status === StatusKehidupan.HIDUP).length} Anak</li>
+                            )}
+                            {familyHead.tanggungan?.filter(t => t.jenisTanggungan === 'ANAK' && t.status === StatusKehidupan.MENINGGAL).length > 0 && (
+                              <li className="text-red-500">{familyHead.tanggungan.filter(t => t.jenisTanggungan === 'ANAK' && t.status === StatusKehidupan.MENINGGAL).length} Anak (Meninggal)</li>
+                            )}
+                            
+                            {familyHead.tanggungan?.filter(t => t.jenisTanggungan === 'KERABAT' && t.status === StatusKehidupan.HIDUP).length > 0 && (
+                              <li>{familyHead.tanggungan.filter(t => t.jenisTanggungan === 'KERABAT' && t.status === StatusKehidupan.HIDUP).length} Kerabat</li>
+                            )}
+                            {familyHead.tanggungan?.filter(t => t.jenisTanggungan === 'KERABAT' && t.status === StatusKehidupan.MENINGGAL).length > 0 && (
+                              <li className="text-red-500">{familyHead.tanggungan.filter(t => t.jenisTanggungan === 'KERABAT' && t.status === StatusKehidupan.MENINGGAL).length} Kerabat (Meninggal)</li>
+                            )}
+                          </>
+                        ) : (
+                          // Tampilkan data berdasarkan input form untuk data baru
+                          <>
+                            <li>1 Kepala Keluarga</li>
+                            {statusPernikahanValue === StatusPernikahan.MENIKAH && (
+                              <li>1 Pasangan/Istri</li>
+                            )}
+                            {jumlahAnakValue > 0 && (
+                              <li>{jumlahAnakValue} Anak tertanggung</li>
+                            )}
+                            {jumlahKerabatValue > 0 && (
+                              <li>{jumlahKerabatValue} Kerabat tertanggung</li>
+                            )}
+                          </>
                         )}
                       </ul>
                       <p className="mt-1">Total: {field.value} jiwa</p>
@@ -384,6 +421,8 @@ export function FamilyHeadFormDialog({
                     <SelectContent>
                       <SelectItem value={StatusPernikahan.MENIKAH}>Menikah</SelectItem>
                       <SelectItem value={StatusPernikahan.TIDAK_MENIKAH}>Tidak Menikah</SelectItem>
+                      <SelectItem value={StatusPernikahan.CERAI_HIDUP}>Cerai Hidup</SelectItem>
+                      <SelectItem value={StatusPernikahan.CERAI_MATI}>Cerai Mati</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
