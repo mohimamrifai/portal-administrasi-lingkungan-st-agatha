@@ -1,3 +1,5 @@
+import { JenisTransaksi as DbJenisTransaksi, TipeTransaksiIkata } from "@prisma/client";
+
 export type JenisTransaksi = 'uang_masuk' | 'uang_keluar';
 
 export type TipeTransaksiMasuk = 'iuran_anggota' | 'transfer_dana_lingkungan' | 'sumbangan_anggota' | 'penerimaan_lain';
@@ -5,6 +7,19 @@ export type TipeTransaksiKeluar = 'uang_duka' | 'kunjungan_kasih' | 'cinderamata
 export type TipeTransaksi = TipeTransaksiMasuk | TipeTransaksiKeluar;
 
 export type StatusPembayaran = 'lunas' | 'sebagian_bulan' | 'belum_ada_pembayaran';
+
+export interface TransactionData {
+  id: string;
+  tanggal: Date;
+  keterangan: string | null;
+  jenisTransaksi: DbJenisTransaksi;
+  tipeTransaksi: TipeTransaksiIkata;
+  debit: number;
+  kredit: number;
+  locked: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface IKATATransaction {
   id: string;

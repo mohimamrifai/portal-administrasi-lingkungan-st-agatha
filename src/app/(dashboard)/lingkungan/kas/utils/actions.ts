@@ -6,11 +6,12 @@ import {
   updateKasTransaction, 
   deleteKasTransaction,
   updateApprovalStatus,
-  getKeluargaList
+  getKeluargaList,
+  getKasLingkungan
 } from './kas-service';
-import { JenisTransaksi, TipeTransaksiLingkungan, Role } from '@prisma/client';
+import { JenisTransaksi, TipeTransaksiLingkungan, Role, StatusApproval } from '@prisma/client';
 import { prisma } from '@/lib/db';
-import { KeluargaOption } from '../types';
+import { KeluargaOption, TransactionData } from '../types';
 
 // Fungsi utilitas untuk membuat notifikasi
 async function createNotification(pesan: string, targetRoles: Role[] = []) {
@@ -167,6 +168,7 @@ export async function createTransaction(data: {
     await createNotification(notificationMessage);
     
     // Revalidasi path agar data tersebut diperbarui
+    revalidatePath('/lingkungan');
     revalidatePath('/lingkungan/kas');
     
     return { success: true };
@@ -207,6 +209,7 @@ export async function updateTransaction(id: string, data: {
     
     // Revalidasi path agar data tersebut diperbarui
     revalidatePath('/lingkungan/kas');
+    revalidatePath('/lingkungan');
     
     return { success: true };
   } catch (error) {
@@ -226,6 +229,8 @@ export async function deleteTransaction(id: string) {
     
     // Revalidasi path agar data tersebut diperbarui
     revalidatePath('/lingkungan/kas');
+    revalidatePath('/lingkungan');
+    revalidatePath('/dashboard');
     
     return { success: true };
   } catch (error) {
@@ -266,6 +271,8 @@ export async function approveTransaction(id: string, status: 'APPROVED' | 'REJEC
     
     // Revalidasi path agar data tersebut diperbarui
     revalidatePath('/lingkungan/kas');
+    revalidatePath('/lingkungan');
+    revalidatePath('/dashboard');
     
     return { success: true };
   } catch (error) {
@@ -316,6 +323,8 @@ export async function saveInitialBalance(amount: number, tanggal: Date) {
     
     // Revalidasi path
     revalidatePath('/lingkungan/kas');
+    revalidatePath('/lingkungan');
+    revalidatePath('/dashboard');
     
     return { success: true };
   } catch (error) {
@@ -359,10 +368,58 @@ export async function lockTransactions(transactionIds: string[]) {
     
     // Revalidate path
     revalidatePath('/lingkungan/kas');
+    revalidatePath('/lingkungan');
+    revalidatePath('/dashboard');
     
     return { success: true };
   } catch (error) {
     console.error('Failed to lock transactions:', error);
     return { success: false, error: 'Gagal mengunci transaksi' };
+  }
+}
+
+// Fungsi untuk mengambil data transaksi terbaru
+export async function getLatestTransactionData() {
+  try {
+    const transactions = await getKasLingkungan();
+    
+    if (!transactions) {
+      return {
+        success: false,
+        error: "Data transaksi tidak ditemukan",
+        data: [] as TransactionData[]
+      };
+    }
+    
+    // Konversi data dari database ke format UI
+    const mappedData = transactions.map(tx => ({
+      id: tx.id,
+      tanggal: tx.tanggal,
+      keterangan: tx.keterangan,
+      jenisTransaksi: tx.jenisTranasksi,
+      tipeTransaksi: tx.tipeTransaksi,
+      debit: tx.debit,
+      kredit: tx.kredit,
+      status: tx.approval?.status || StatusApproval.PENDING,
+      isApproved: tx.approval?.status === StatusApproval.APPROVED,
+      isRejected: tx.approval?.status === StatusApproval.REJECTED,
+      isPending: tx.approval?.status === StatusApproval.PENDING || !tx.approval,
+      keluarga: tx.keluarga ? {
+        id: tx.keluarga.id,
+        namaKepalaKeluarga: tx.keluarga.namaKepalaKeluarga
+      } : undefined
+    }));
+
+    return {
+      success: true,
+      data: mappedData
+    };
+  } catch (error) {
+    console.error("Error fetching latest transaction data:", error);
+    return {
+      success: false,
+      error: "Gagal mengambil data transaksi terbaru",
+      data: [] as TransactionData[]
+    };
   }
 } 

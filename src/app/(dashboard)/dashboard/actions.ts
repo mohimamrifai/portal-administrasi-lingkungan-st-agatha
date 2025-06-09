@@ -105,17 +105,9 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
   noStore(); // Menonaktifkan caching
 
   try {
-    // DEBUG: Log environment info untuk production
-    console.log('=== DEBUG KESEKRETARIATAN ===');
-    console.log('NODE_ENV:', process.env.NODE_ENV);
-    console.log('TZ:', process.env.TZ);
-    console.log('Local timezone:', Intl.DateTimeFormat().resolvedOptions().timeZone);
-    console.log('Timezone offset:', new Date().getTimezoneOffset());
-    console.log('Input params - bulan:', bulan, 'tahun:', tahun);
     
     // Gunakan timezone Jakarta untuk konsistensi
     const currentYear = tahun || nowInJakarta().getFullYear();
-    console.log('Current year (Jakarta):', currentYear);
     
     let monthStart: Date;
     let monthEnd: Date;
@@ -124,18 +116,11 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
       // Filter berdasarkan bulan dan tahun - konversi bulan dari 1-12 ke 0-11
       const monthIndex = bulan - 1; // Konversi ke index bulan JavaScript (0-11)
       ({ startDate: monthStart, endDate: monthEnd } = createJakartaMonthRange(tahun, monthIndex));
-      console.log('Monthly filter - monthIndex:', monthIndex);
     } else {
       // Buat range tahun dalam timezone Jakarta
       ({ startDate: monthStart, endDate: monthEnd } = createJakartaYearRange(currentYear));
-      console.log('Yearly filter for year:', currentYear);
     }
     
-    console.log('Date range:');
-    console.log('  Start:', monthStart.toString());
-    console.log('  Start ISO:', monthStart.toISOString());
-    console.log('  End:', monthEnd.toString());
-    console.log('  End ISO:', monthEnd.toISOString());
 
     // Impor fungsi utilitas untuk perhitungan keluarga
     const { hitungJumlahKepalaKeluarga, hitungTotalJiwa } = await import('./utils/family-utils');
@@ -156,8 +141,6 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
       },
     });
 
-    console.log('KK Bergabung count:', kkBergabungCount);
-
     // DEBUG: Cek data mentah sekitar periode
     const debugKeluarga = await prisma.keluargaUmat.findMany({
       where: {
@@ -172,12 +155,6 @@ export async function getKesekretariatanData(bulan?: number, tahun?: number): Pr
       }
     });
     
-    console.log('Debug - Data keluarga sekitar Jan 2025:');
-    debugKeluarga.forEach(k => {
-      console.log(`  - ${k.namaKepalaKeluarga}: ${k.tanggalBergabung?.toString()} (ISO: ${k.tanggalBergabung?.toISOString()})`);
-    });
-    console.log('=== END DEBUG ===');
-
     // Detail KK Bergabung
     const detailKKBergabung = await prisma.keluargaUmat.findMany({
       where: {

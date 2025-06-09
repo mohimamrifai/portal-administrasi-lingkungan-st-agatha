@@ -80,7 +80,6 @@ function KeluargaSearchCombobox({
   const handleSelect = useCallback((selectedValue: string) => {
     const option = options.find(opt => opt.value === selectedValue);
     if (option) {
-      console.log('Selecting option in combobox:', option);
       onChange(option.value);
       setSearchTerm("");
       setOpen(false);
@@ -156,8 +155,7 @@ export function AbsensiDolingFormDialog({
   const keluargaOptions: ComboboxOption[] = useMemo(() => {
     const filteredList = keluargaList
       .filter(keluarga => !keluarga.sudahTerpilih || (absensi && keluarga.id === absensi.keluargaId));
-    
-    console.log('Filtered keluarga list:', filteredList);
+  
     
     return filteredList.map(keluarga => ({
       label: keluarga.nama,
@@ -191,19 +189,8 @@ export function AbsensiDolingFormDialog({
 
   // Handler untuk perubahan keluarga
   const handleKeluargaChange = useCallback((newValue: string) => {
-    console.log('Handling keluarga change:', newValue);
     setKeluargaId(newValue);
   }, []);
-
-  // Debug logs
-  useEffect(() => {
-    console.log('Form state:', {
-      selectedDolingId,
-      keluargaId,
-      statusKehadiran,
-      keluargaOptions: keluargaOptions.length
-    });
-  }, [selectedDolingId, keluargaId, statusKehadiran, keluargaOptions]);
   
   // Reset form ketika dialog dibuka/ditutup
   useEffect(() => {
