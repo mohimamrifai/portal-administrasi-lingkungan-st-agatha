@@ -72,6 +72,8 @@ enum StatusKehidupan {
 enum StatusPernikahan {
   MENIKAH
   TIDAK_MENIKAH
+  CERAI_HIDUP
+  CERAI_MATI
 }
 
 // Model untuk data pasangan

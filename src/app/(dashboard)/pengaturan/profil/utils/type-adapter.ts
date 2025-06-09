@@ -64,20 +64,24 @@ export function mapLivingStatusToStatus(livingStatus: LivingStatus): StatusKehid
 
 // Konversi StatusPernikahan (database) ke MaritalStatus (UI)
 export function mapStatusPernikahanToMaritalStatus(statusPernikahan: StatusPernikahan): MaritalStatus {
-  if (statusPernikahan === StatusPernikahan.MENIKAH) {
-    return MaritalStatus.MARRIED
+  const mapping: Record<StatusPernikahan, MaritalStatus> = {
+    [StatusPernikahan.MENIKAH]: MaritalStatus.MARRIED,
+    [StatusPernikahan.TIDAK_MENIKAH]: MaritalStatus.SINGLE,
+    [StatusPernikahan.CERAI_HIDUP]: MaritalStatus.DIVORCED,
+    [StatusPernikahan.CERAI_MATI]: MaritalStatus.WIDOWED
   }
-  return MaritalStatus.SINGLE
+  return mapping[statusPernikahan] || MaritalStatus.SINGLE
 }
 
 // Konversi MaritalStatus (UI) ke StatusPernikahan (database)
 export function mapMaritalStatusToStatusPernikahan(maritalStatus: MaritalStatus): StatusPernikahan {
-  // Di database hanya ada dua status: MENIKAH dan TIDAK_MENIKAH
-  // UI punya lebih banyak opsi yang harus dimapping ke salah satunya
-  if (maritalStatus === MaritalStatus.MARRIED) {
-    return StatusPernikahan.MENIKAH
+  const mapping: Record<MaritalStatus, StatusPernikahan> = {
+    [MaritalStatus.MARRIED]: StatusPernikahan.MENIKAH,
+    [MaritalStatus.SINGLE]: StatusPernikahan.TIDAK_MENIKAH,
+    [MaritalStatus.DIVORCED]: StatusPernikahan.CERAI_HIDUP,
+    [MaritalStatus.WIDOWED]: StatusPernikahan.CERAI_MATI
   }
-  return StatusPernikahan.TIDAK_MENIKAH
+  return mapping[maritalStatus] || StatusPernikahan.TIDAK_MENIKAH
 }
 
 // Konversi JenisTanggungan (database) ke DependentType (UI)

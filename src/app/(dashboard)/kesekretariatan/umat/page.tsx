@@ -6,6 +6,7 @@ import { getAllFamilyHeadsWithDetails } from "./actions";
 export default async function DataUmatPage() {
   // Mengambil data dari server actions dengan detail tanggungan
   const familyHeadsData = await getAllFamilyHeadsWithDetails();
+  console.log(JSON.stringify(familyHeadsData, null, 2));
   
   return (
     <div className="p-2 md:p-4">

@@ -155,7 +155,7 @@ export function DeleteConfirmationDialog({
         <DialogHeader>
           <DialogTitle>Ubah Status Kepala Keluarga</DialogTitle>
           <DialogDescription>
-            Pilih alasan untuk mengubah status kepala keluarga {familyHead?.nama}
+            Ubah status kepala keluarga {familyHead?.nama}
           </DialogDescription>
         </DialogHeader>
         
@@ -262,33 +262,6 @@ export function DeleteConfirmationDialog({
                       </Command>
                     </PopoverContent>
                   </Popover>
-                  {familyHead && 
-                   ((familyHead.jumlahAnakTertanggung > 0 && !familyMembers.some(m => m.jenis === 'ANAK')) || 
-                    (familyHead.jumlahKerabatTertanggung > 0 && !familyMembers.some(m => m.jenis === 'KERABAT'))) && (
-                    <div className="rounded-md bg-yellow-50 p-3 mt-2">
-                      <div className="flex flex-col gap-2">
-                        <div className="text-yellow-700">
-                          <p className="text-sm font-medium">Perhatian: Data tidak konsisten</p>
-                          <p className="text-xs mt-1">
-                            {familyHead.jumlahAnakTertanggung > 0 && !familyMembers.some(m => m.jenis === 'ANAK') && 
-                              `Ada ${familyHead.jumlahAnakTertanggung} anak tertanggung yang tercatat tetapi datanya tidak ditemukan. `}
-                            {familyHead.jumlahKerabatTertanggung > 0 && !familyMembers.some(m => m.jenis === 'KERABAT') && 
-                              `Ada ${familyHead.jumlahKerabatTertanggung} kerabat tertanggung yang tercatat tetapi datanya tidak ditemukan. `}
-                          </p>
-                        </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="w-full bg-white border-yellow-300 text-yellow-700 hover:bg-yellow-50"
-                          onClick={handleSyncFamily}
-                          disabled={isSyncing}
-                        >
-                          <RefreshCw className={cn("mr-2 h-4 w-4", isSyncing && "animate-spin")} />
-                          {isSyncing ? "Menyinkronkan..." : "Perbaiki Data Tanggungan"}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
                   <p className="text-sm text-muted-foreground">
                     Hanya anggota keluarga yang dipilih akan ditandai sebagai meninggal. Status keluarga secara keseluruhan tetap aktif.
                   </p>

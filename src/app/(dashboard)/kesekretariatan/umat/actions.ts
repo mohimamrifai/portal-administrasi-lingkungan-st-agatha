@@ -3,58 +3,7 @@
 import { prisma } from "@/lib/db";
 import { StatusKehidupan, StatusPernikahan } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-
-// Tipe untuk data yang ditampilkan di UI
-export interface FamilyHeadData {
-  id: string;
-  nama: string;
-  alamat: string;
-  nomorTelepon: string | null;
-  tanggalBergabung: Date;
-  jumlahAnakTertanggung: number;
-  jumlahKerabatTertanggung: number;
-  jumlahAnggotaKeluarga: number;
-  status: StatusKehidupan;
-  statusPernikahan: StatusPernikahan;
-  tanggalKeluar?: Date | null;
-  tanggalMeninggal?: Date | null;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-// Tipe untuk form penambahan/edit data
-export interface FamilyHeadFormData {
-  namaKepalaKeluarga: string;
-  alamat: string;
-  nomorTelepon?: string;
-  tanggalBergabung: Date;
-  jumlahAnakTertanggung: number;
-  jumlahKerabatTertanggung: number;
-  jumlahAnggotaKeluarga: number;
-  status: StatusKehidupan;
-  statusPernikahan: StatusPernikahan;
-  tanggalKeluar?: Date;
-  tanggalMeninggal?: Date;
-}
-
-// Tipe untuk data yang ditampilkan di UI dengan detail tanggungan
-export interface FamilyHeadWithDetails extends FamilyHeadData {
-  pasangan?: {
-    id: string;
-    nama: string;
-    status: StatusKehidupan;
-  } | null;
-  tanggungan: {
-    id: string;
-    nama: string;
-    jenisTanggungan: 'ANAK' | 'KERABAT';
-    status: StatusKehidupan;
-  }[];
-  actualMemberCount: number;
-  livingMemberCount: number;
-  deceasedMemberCount: number;
-}
-
+import { FamilyHeadData, FamilyHeadFormData, FamilyHeadWithDetails } from "./types";
 /**
  * Mengambil semua data kepala keluarga
  */
@@ -190,7 +139,7 @@ export async function addFamilyHead(data: FamilyHeadFormData): Promise<FamilyHea
  */
 export async function updateFamilyHead(id: string, data: FamilyHeadFormData): Promise<FamilyHeadData> {
   try {
-    // Gunakan transaction untuk memastikan konsistensi data
+    // Gunakan transaction dengan timeout yang lebih lama (10 detik)
     const result = await prisma.$transaction(async (prisma) => {
       // Ambil data keluarga yang ada untuk mengetahui status pernikahan sebelumnya
       const existingKeluarga = await prisma.keluargaUmat.findUnique({
@@ -222,29 +171,43 @@ export async function updateFamilyHead(id: string, data: FamilyHeadFormData): Pr
 
       // Handle perubahan status pernikahan
       if (existingKeluarga.statusPernikahan !== data.statusPernikahan) {
-        if (data.statusPernikahan === StatusPernikahan.MENIKAH && !existingKeluarga.pasangan) {
-          // Buat record pasangan baru jika status berubah menjadi MENIKAH
-          await prisma.pasangan.create({
-            data: {
-              nama: `Pasangan dari ${data.namaKepalaKeluarga}`,
-              tempatLahir: 'Belum diisi',
-              tanggalLahir: new Date(),
-              pendidikanTerakhir: 'Belum diisi',
-              agama: 'KATOLIK',
-              status: StatusKehidupan.HIDUP,
-              keluargaId: keluarga.id,
-            },
-          });
-        } else if (data.statusPernikahan === StatusPernikahan.TIDAK_MENIKAH && existingKeluarga.pasangan) {
-          // Hapus record pasangan jika status berubah menjadi TIDAK_MENIKAH
-          await prisma.pasangan.delete({
-            where: { keluargaId: keluarga.id }
-          });
+        try {
+          if (data.statusPernikahan === StatusPernikahan.MENIKAH && !existingKeluarga.pasangan) {
+            // Buat record pasangan baru jika status berubah menjadi MENIKAH
+            await prisma.pasangan.create({
+              data: {
+                nama: `Pasangan dari ${data.namaKepalaKeluarga}`,
+                tempatLahir: 'Belum diisi',
+                tanggalLahir: new Date(),
+                pendidikanTerakhir: 'Belum diisi',
+                agama: 'KATOLIK',
+                status: StatusKehidupan.HIDUP,
+                keluargaId: keluarga.id,
+              },
+            });
+          } else if ((data.statusPernikahan === StatusPernikahan.TIDAK_MENIKAH ||
+                     data.statusPernikahan === StatusPernikahan.CERAI_HIDUP ||
+                     data.statusPernikahan === StatusPernikahan.CERAI_MATI) && 
+                     existingKeluarga.pasangan) {
+            // Hapus record pasangan jika status berubah menjadi TIDAK_MENIKAH, CERAI_HIDUP, atau CERAI_MATI
+            await prisma.pasangan.delete({
+              where: { keluargaId: keluarga.id }
+            });
+          }
+        } catch (error) {
+          console.error("Error handling marital status change:", error);
+          throw new Error("Gagal memproses perubahan status pernikahan");
         }
       }
 
       return keluarga;
+    }, {
+      timeout: 10000 // Set timeout menjadi 10 detik
     });
+
+    // Hitung ulang jumlah anggota keluarga di luar transaksi
+    const { updateJumlahAnggotaKeluarga } = await import('@/app/(dashboard)/dashboard/utils/family-utils');
+    await updateJumlahAnggotaKeluarga(result.id);
 
     revalidatePath("/kesekretariatan/umat");
 
@@ -264,7 +227,11 @@ export async function updateFamilyHead(id: string, data: FamilyHeadFormData): Pr
     };
   } catch (error) {
     console.error("Error updating family head:", error);
-    throw new Error("Gagal mengupdate data kepala keluarga");
+    if (error instanceof Error) {
+      throw new Error(`Gagal mengupdate data kepala keluarga: ${error.message}`);
+    } else {
+      throw new Error("Gagal mengupdate data kepala keluarga");
+    }
   }
 }
 
@@ -603,6 +570,55 @@ export async function syncFamilyDependents(familyId: string): Promise<{success: 
   }
 }
 
+// Fungsi untuk menghitung jumlah jiwa aktual
+function calculateActualMemberCount(familyHead: any) {
+  let count = 0;
+  
+  // Hitung kepala keluarga jika masih hidup
+  if (familyHead.status === 'HIDUP') {
+    count += 1;
+  }
+  
+  // Hitung pasangan jika ada dan masih hidup
+  if (familyHead.pasangan && familyHead.pasangan.status === 'HIDUP') {
+    count += 1;
+  }
+  
+  // Hitung tanggungan yang masih hidup
+  if (familyHead.tanggungan) {
+    count += familyHead.tanggungan.filter((t: any) => t.status === 'HIDUP').length;
+  }
+  
+  return count;
+}
+
+// Fungsi untuk menghitung jumlah jiwa yang masih hidup
+function calculateLivingMemberCount(familyHead: any) {
+  return calculateActualMemberCount(familyHead);
+}
+
+// Fungsi untuk menghitung jumlah jiwa yang meninggal
+function calculateDeceasedMemberCount(familyHead: any) {
+  let count = 0;
+  
+  // Hitung kepala keluarga jika meninggal
+  if (familyHead.status === 'MENINGGAL') {
+    count += 1;
+  }
+  
+  // Hitung pasangan jika ada dan meninggal
+  if (familyHead.pasangan && familyHead.pasangan.status === 'MENINGGAL') {
+    count += 1;
+  }
+  
+  // Hitung tanggungan yang meninggal
+  if (familyHead.tanggungan) {
+    count += familyHead.tanggungan.filter((t: any) => t.status === 'MENINGGAL').length;
+  }
+  
+  return count;
+}
+
 /**
  * Mengambil semua data kepala keluarga dengan detail tanggungan
  */
@@ -618,39 +634,65 @@ export async function getAllFamilyHeadsWithDetails(): Promise<FamilyHeadWithDeta
       },
     });
 
-    return keluargaUmat.map(keluarga => {
-      // Hitung jumlah anggota yang sebenarnya
-      let actualMemberCount = 0;
+    const processedKeluarga = await Promise.all(keluargaUmat.map(async (keluarga) => {
+      // Cek apakah jumlah tanggungan sesuai dengan yang tercatat
+      const existingAnak = keluarga.tanggungan.filter(t => t.jenisTanggungan === 'ANAK').length;
+      const existingKerabat = keluarga.tanggungan.filter(t => t.jenisTanggungan === 'KERABAT').length;
+      
+      const missingAnak = keluarga.jumlahAnakTertanggung - existingAnak;
+      const missingKerabat = keluarga.jumlahKerabatTertanggung - existingKerabat;
+
+      // Jika ada tanggungan yang belum tercatat, lakukan sinkronisasi
+      if (missingAnak > 0 || missingKerabat > 0) {
+        try {
+          await syncFamilyDependents(keluarga.id);
+          // Ambil data terbaru setelah sinkronisasi
+          const updatedKeluarga = await prisma.keluargaUmat.findUnique({
+            where: { id: keluarga.id },
+            include: {
+              pasangan: true,
+              tanggungan: true,
+            },
+          });
+          if (updatedKeluarga) {
+            keluarga = updatedKeluarga;
+          }
+        } catch (error) {
+          console.error(`Failed to sync dependents for family ${keluarga.id}:`, error);
+        }
+      }
+
+      // Hitung jumlah anggota
       let livingMemberCount = 0;
       let deceasedMemberCount = 0;
 
-      // Kepala keluarga
-      actualMemberCount += 1;
-      if (keluarga.status === StatusKehidupan.HIDUP) {
+      // Hitung kepala keluarga
+      if (keluarga.status === 'HIDUP') {
         livingMemberCount += 1;
-      } else {
+      } else if (keluarga.status === 'MENINGGAL') {
         deceasedMemberCount += 1;
       }
 
-      // Pasangan
+      // Hitung pasangan
       if (keluarga.pasangan) {
-        actualMemberCount += 1;
-        if (keluarga.pasangan.status === StatusKehidupan.HIDUP) {
+        if (keluarga.pasangan.status === 'HIDUP') {
           livingMemberCount += 1;
-        } else {
+        } else if (keluarga.pasangan.status === 'MENINGGAL') {
           deceasedMemberCount += 1;
         }
       }
 
-      // Tanggungan
+      // Hitung tanggungan
       keluarga.tanggungan.forEach(tanggungan => {
-        actualMemberCount += 1;
-        if (tanggungan.status === StatusKehidupan.HIDUP) {
+        if (tanggungan.status === 'HIDUP') {
           livingMemberCount += 1;
-        } else {
+        } else if (tanggungan.status === 'MENINGGAL') {
           deceasedMemberCount += 1;
         }
       });
+
+      // Hitung total anggota
+      const actualMemberCount = livingMemberCount + deceasedMemberCount;
 
       return {
         id: keluarga.id,
@@ -660,7 +702,7 @@ export async function getAllFamilyHeadsWithDetails(): Promise<FamilyHeadWithDeta
         tanggalBergabung: keluarga.tanggalBergabung,
         jumlahAnakTertanggung: keluarga.jumlahAnakTertanggung,
         jumlahKerabatTertanggung: keluarga.jumlahKerabatTertanggung,
-        jumlahAnggotaKeluarga: keluarga.jumlahAnggotaKeluarga,
+        jumlahAnggotaKeluarga: actualMemberCount,
         status: keluarga.status,
         statusPernikahan: keluarga.statusPernikahan,
         tanggalKeluar: keluarga.tanggalKeluar,
@@ -675,12 +717,21 @@ export async function getAllFamilyHeadsWithDetails(): Promise<FamilyHeadWithDeta
           nama: t.nama,
           jenisTanggungan: t.jenisTanggungan,
           status: t.status,
+          tanggalLahir: t.tanggalLahir,
+          pendidikanTerakhir: t.pendidikanTerakhir,
+          agama: t.agama,
+          statusPernikahan: t.statusPernikahan,
+          tanggalBaptis: t.tanggalBaptis || null,
+          tanggalKrisma: t.tanggalKrisma || null,
+          tanggalMeninggal: t.tanggalMeninggal || null
         })),
         actualMemberCount,
         livingMemberCount,
-        deceasedMemberCount,
+        deceasedMemberCount
       };
-    });
+    }));
+
+    return processedKeluarga;
   } catch (error) {
     console.error("Error getting family heads with details:", error);
     throw new Error("Gagal mengambil data keluarga umat dengan detail");

@@ -1,9 +1,5 @@
 import { z } from "zod";
 import { StatusKehidupan, StatusPernikahan } from "@prisma/client";
-import { FamilyHeadData, FamilyHeadWithDetails } from "../actions";
-
-// Re-export FamilyHeadData untuk kompatibilitas
-export type { FamilyHeadData, FamilyHeadWithDetails } from "../actions";
 
 // Alias untuk FamilyHead (kompatibilitas dengan kode lama)
 export type FamilyHead = FamilyHeadData;
@@ -45,4 +41,68 @@ export const familyHeadFormSchema = z.object({
   tanggalMeninggal: z.date().optional().nullable(),
 });
 
-export type FamilyHeadFormValues = z.infer<typeof familyHeadFormSchema>; 
+export type FamilyHeadFormValues = z.infer<typeof familyHeadFormSchema>;
+
+
+// Tipe untuk data yang ditampilkan di UI
+export interface FamilyHeadData {
+  id: string;
+  nama: string;
+  alamat: string;
+  nomorTelepon: string | null;
+  tanggalBergabung: Date;
+  jumlahAnakTertanggung: number;
+  jumlahKerabatTertanggung: number;
+  jumlahAnggotaKeluarga: number;
+  status: StatusKehidupan;
+  statusPernikahan: StatusPernikahan;
+  tanggalKeluar?: Date | null;
+  tanggalMeninggal?: Date | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+// Tipe untuk form penambahan/edit data
+export interface FamilyHeadFormData {
+  namaKepalaKeluarga: string;
+  alamat: string;
+  nomorTelepon?: string;
+  tanggalBergabung: Date;
+  jumlahAnakTertanggung: number;
+  jumlahKerabatTertanggung: number;
+  jumlahAnggotaKeluarga: number;
+  status: StatusKehidupan;
+  statusPernikahan: StatusPernikahan;
+  tanggalKeluar?: Date;
+  tanggalMeninggal?: Date;
+}
+
+// Tipe untuk data yang ditampilkan di UI dengan detail tanggungan
+export interface FamilyHeadWithDetails extends FamilyHeadData {
+  pasangan?: {
+    id: string;
+    nama: string;
+    status: StatusKehidupan;
+  } | null;
+  tanggungan: {
+    id: string;
+    nama: string;
+    jenisTanggungan: 'ANAK' | 'KERABAT';
+    status: StatusKehidupan;
+    tanggalLahir: Date;
+    pendidikanTerakhir: string;
+    agama: 'KATOLIK' | 'ISLAM' | 'KRISTEN' | 'HINDU' | 'BUDHA';
+    statusPernikahan: StatusPernikahan;
+    tanggalBaptis?: Date | null;
+    tanggalKrisma?: Date | null;
+    tanggalMeninggal?: Date | null;
+  }[];
+  actualMemberCount: number;
+  livingMemberCount: number;
+  deceasedMemberCount: number;
+  hasMissingDependents?: boolean;
+  missingDependentsInfo?: {
+    missingAnak: number;
+    missingKerabat: number;
+  } | null;
+}
