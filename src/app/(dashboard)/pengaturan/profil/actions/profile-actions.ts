@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { Agama, StatusKehidupan, StatusPernikahan, JenisTanggungan } from "@prisma/client"
 import { adaptProfileData } from "./profile-adapters"
+import { Gender, Religion, LivingStatus } from "../types"
+import { mapStatusPernikahanToMaritalStatus } from "../utils/type-adapter"
 
 /**
  * Mendapatkan data profil dan keluarga berdasarkan userId
@@ -23,8 +25,41 @@ export async function getProfileData(userId: string) {
       }
     })
 
-    if (!user || !user.keluarga) {
-      return { success: false, error: "Data profil tidak ditemukan" }
+    if (!user) {
+      return { success: false, error: "Data user tidak ditemukan" }
+    }
+
+    // Jika user tidak memiliki keluarga (role non-UMAT), buat data profil minimal
+    if (!user.keluarga) {
+      return {
+        success: true,
+        data: {
+          familyHead: {
+            id: 0,
+            fullName: user.username,
+            gender: Gender.MALE,
+            birthPlace: "Tidak Tersedia",
+            birthDate: new Date(),
+            nik: "Tidak Tersedia",
+            maritalStatus: mapStatusPernikahanToMaritalStatus(StatusPernikahan.TIDAK_MENIKAH),
+            address: "Lingkungan St. Agatha",
+            city: "Bekasi",
+            phoneNumber: "Tidak Tersedia",
+            email: "Tidak Tersedia",
+            occupation: user.role.toLowerCase().replace(/_/g, ' '),
+            education: "Tidak Tersedia",
+            religion: Religion.CATHOLIC,
+            livingStatus: LivingStatus.ALIVE,
+            bidukNumber: "Tidak Tersedia",
+            baptismDate: null,
+            confirmationDate: null,
+            deathDate: null,
+            imageUrl: null
+          },
+          spouse: null,
+          dependents: []
+        }
+      }
     }
 
     // Gunakan adapter untuk konversi data
