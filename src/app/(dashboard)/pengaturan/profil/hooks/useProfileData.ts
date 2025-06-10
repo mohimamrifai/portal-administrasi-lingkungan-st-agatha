@@ -2,7 +2,6 @@ import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { getProfileData } from "../actions/profile-actions"
 import { ProfileData } from "../types"
-import { generateMockProfile } from "../utils"
 
 export function useProfileData(userId: string | null | undefined) {
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
@@ -25,26 +24,17 @@ export function useProfileData(userId: string | null | undefined) {
         
         if (!response.success) {
           toast.error(response.error || "Gagal memuat data profil")
-          // Gunakan data dummy sebagai fallback jika data dari API gagal
-          const fallbackData = generateMockProfile(1)
-          setProfileData(fallbackData)
           return
         }
         
         if (response.data) {
           setProfileData(response.data)
         } else {
-          // Jika data tidak ada, gunakan fallback data
-          const fallbackData = generateMockProfile(1)
-          setProfileData(fallbackData)
+          
         }
       } catch (error) {
         toast.error("Gagal memuat data profil")
         console.error(error)
-        
-        // Gunakan data dummy sebagai fallback jika terjadi error
-        const fallbackData = generateMockProfile(1)
-        setProfileData(fallbackData)
       } finally {
         setIsLoading(false)
       }

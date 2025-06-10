@@ -45,28 +45,59 @@ import {
   handleDeleteDependent 
 } from "./profile-handlers"
 
+import { AccountInfoCard } from "./account-info-card"
+import { UmatProfileContent } from "./umat-profile-content"
+
 // Berdasarkan README.md:
 // Submenu Profil - Hanya role "Umat" yang dapat memperbarui data profil
 const ROLE_ACCESS_MAP = {
-  // Semua role non-umat hanya bisa lihat profil mereka sendiri
-  SuperUser: {
+  SUPER_USER: {
     canView: true,
     canEdit: false,
-    message: "Anda melihat data profil sebagai SuperUser"
+    message: "Anda melihat data profil sebagai Super User"
   },
-  // Hanya umat yang dapat mengedit data profil
-  umat: {
+  KETUA: {
+    canView: true,
+    canEdit: false,
+    message: "Anda melihat data profil sebagai Ketua"
+  },
+  WAKIL_KETUA: {
+    canView: true,
+    canEdit: false,
+    message: "Anda melihat data profil sebagai Wakil Ketua"
+  },
+  BENDAHARA: {
+    canView: true,
+    canEdit: false,
+    message: "Anda melihat data profil sebagai Bendahara"
+  },
+  WAKIL_BENDAHARA: {
+    canView: true,
+    canEdit: false,
+    message: "Anda melihat data profil sebagai Wakil Bendahara"
+  },
+  SEKRETARIS: {
+    canView: true,
+    canEdit: false,
+    message: "Anda melihat data profil sebagai Sekretaris"
+  },
+  WAKIL_SEKRETARIS: {
+    canView: true,
+    canEdit: false,
+    message: "Anda melihat data profil sebagai Wakil Sekretaris"
+  },
+  UMAT: {
     canView: true,
     canEdit: true,
     message: "Anda dapat memperbarui data profil keluarga Anda"
-  },
+  }
 }
 
 export default function ProfileContent() {
   const { userRole, userId } = useAuth()
   
   // Ambil konfigurasi akses berdasarkan role
-  const roleAccess = ROLE_ACCESS_MAP[userRole as keyof typeof ROLE_ACCESS_MAP] || ROLE_ACCESS_MAP.umat
+  const roleAccess = ROLE_ACCESS_MAP[userRole as keyof typeof ROLE_ACCESS_MAP]
   
   // Gunakan custom hook untuk data profil
   const { 
@@ -76,11 +107,8 @@ export default function ProfileContent() {
     setIsSaving,
     refreshProfileData 
   } = useProfileData(userId)
-  
-  // Buat wrapper untuk refreshProfileData yang mengembalikan Promise<boolean>
-  const refreshProfile = useCallback(async (): Promise<boolean> => {
-    return await refreshProfileData() || false
-  }, [refreshProfileData])
+
+  console.log(profileData)
   
   // Gunakan custom hook untuk dialog konfirmasi
   const {
@@ -144,7 +172,7 @@ export default function ProfileContent() {
         }
         
         // Refresh data profil setelah berhasil upload
-        await refreshProfile()
+        await refreshProfileData()
         
         toast.success(`Foto ${entityType === 'familyHead' ? 'profil' : entityType === 'spouse' ? 'pasangan' : 'tanggungan'} berhasil diperbarui`, {
           id: toastId,
@@ -175,7 +203,7 @@ export default function ProfileContent() {
       "Apakah Anda yakin ingin menyimpan perubahan data Kepala Keluarga?",
       async () => {
         if (!userId) return
-        await handleFamilyHeadSubmit(userId, values, setIsSaving, refreshProfile)
+        await handleFamilyHeadSubmit(userId, values, setIsSaving, refreshProfileData)
       }
     )
   }
@@ -194,7 +222,7 @@ export default function ProfileContent() {
       "Apakah Anda yakin ingin menyimpan perubahan data Pasangan?",
       async () => {
         if (!userId) return
-        await handleSpouseSubmit(userId, values, setIsSaving, refreshProfile)
+        await handleSpouseSubmit(userId, values, setIsSaving, refreshProfileData)
       }
     )
   }
@@ -213,7 +241,7 @@ export default function ProfileContent() {
       "Apakah Anda yakin ingin menambah data Tanggungan?",
       async () => {
         if (!userId) return
-        const success = await handleAddDependent(userId, values, setIsSaving, refreshProfile)
+        const success = await handleAddDependent(userId, values, setIsSaving, refreshProfileData)
         if (success) {
           setShowDependentForm(false)
           setEditingDependent(null)
@@ -242,7 +270,7 @@ export default function ProfileContent() {
           editingDependent.id, 
           values, 
           setIsSaving, 
-          refreshProfile
+          refreshProfileData
         )
         
         if (success) {
@@ -267,7 +295,7 @@ export default function ProfileContent() {
       `Apakah Anda yakin ingin menghapus data tanggungan ${dependent.name}?`,
       async () => {
         if (!userId) return
-        await handleDeleteDependent(userId, dependent, setIsSaving, refreshProfile)
+        await handleDeleteDependent(userId, dependent, setIsSaving, refreshProfileData)
       }
     )
   }
@@ -311,12 +339,181 @@ export default function ProfileContent() {
     )
   }
   
-  // Render informasi identitas user berdasarkan role
-  const renderUserInfo = () => {
-    if (!profileData) return null;
+  // Render konten berdasarkan role
+  const renderContent = () => {
+    // Jika role adalah UMAT dan profileData tersedia
+    if (userRole === "UMAT" && profileData) {
+      return (
+        <Tabs defaultValue={activeTab} className="w-full" onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-3 h-auto">
+            <TabsTrigger value="kepala-keluarga" className="py-2 text-xs sm:text-sm data-[state=active]:font-medium">
+              Kepala Keluarga
+            </TabsTrigger>
+            {profileData.familyHead.maritalStatus === MaritalStatus.MARRIED && (
+              <TabsTrigger value="pasangan" className="py-2 text-xs sm:text-sm data-[state=active]:font-medium">
+                Pasangan
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="tanggungan" className="py-2 text-xs sm:text-sm data-[state=active]:font-medium">
+              Tanggungan
+            </TabsTrigger>
+          </TabsList>
+          
+          {/* Tab Kepala Keluarga */}
+          <TabsContent value="kepala-keluarga" className="space-y-4">
+            <div className="flex flex-col gap-6">
+              <div className="flex flex-col items-center">
+                <div className="relative">
+                  <Avatar className="h-28 w-28 border-4 border-primary/10">
+                    {profileData.familyHead.imageUrl ? (
+                      <AvatarImage src={profileData.familyHead.imageUrl} alt={profileData.familyHead.fullName} />
+                    ) : (
+                      <AvatarFallback className="text-3xl">
+                        {getInitials(profileData.familyHead.fullName)}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  {roleAccess.canEdit && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className="absolute bottom-2 right-2 h-8 w-8 rounded-full bg-background border border-border shadow"
+                      onClick={() => handleImageUpload('familyHead')}
+                    >
+                      <Camera className="h-4 w-4" />
+                      <span className="sr-only">Ubah Foto</span>
+                    </Button>
+                  )}
+                </div>
+                <h3 className="mt-2 font-medium text-lg">{profileData.familyHead.fullName}</h3>
+                <p className="text-sm text-muted-foreground">{profileData.familyHead.phoneNumber}</p>
+              </div>
+              
+              <div className="w-full">
+                <FamilyHeadForm 
+                  defaultValues={profileData.familyHead} 
+                  onSubmit={onFamilyHeadSubmit}
+                  isSubmitting={isSaving}
+                  readOnly={!roleAccess.canEdit}
+                />
+              </div>
+            </div>
+          </TabsContent>
+          
+          {/* Tab Pasangan */}
+          {profileData.familyHead.maritalStatus === MaritalStatus.MARRIED && (
+            <TabsContent value="pasangan" className="space-y-4">
+              <div className="flex flex-col gap-6">
+                <div className="flex flex-col items-center">
+                  <div className="relative">
+                    <Avatar className="h-28 w-28 border-4 border-primary/10">
+                      {profileData.spouse?.imageUrl ? (
+                        <AvatarImage src={profileData.spouse.imageUrl} alt={profileData.spouse?.fullName || ''} />
+                      ) : (
+                        <AvatarFallback className="text-3xl">
+                          {profileData.spouse ? getInitials(profileData.spouse.fullName) : <User className="h-10 w-10" />}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    {roleAccess.canEdit && profileData.spouse && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        className="absolute bottom-2 right-2 h-8 w-8 rounded-full bg-background border border-border shadow"
+                        onClick={() => handleImageUpload('spouse')}
+                      >
+                        <Camera className="h-4 w-4" />
+                        <span className="sr-only">Ubah Foto</span>
+                      </Button>
+                    )}
+                  </div>
+                  {profileData.spouse && (
+                    <>
+                      <h3 className="mt-2 font-medium text-lg">{profileData.spouse.fullName}</h3>
+                      <p className="text-sm text-muted-foreground">{profileData.spouse.phoneNumber}</p>
+                    </>
+                  )}
+                </div>
+                
+                <div className="w-full">
+                  <SpouseForm 
+                    defaultValues={profileData.spouse || undefined} 
+                    onSubmit={onSpouseSubmit}
+                    isSubmitting={isSaving}
+                    readOnly={!roleAccess.canEdit}
+                  />
+                </div>
+              </div>
+            </TabsContent>
+          )}
+          
+          {/* Tab Tanggungan */}
+          <TabsContent value="tanggungan" className="space-y-4">
+            {showDependentForm ? (
+              <div className="bg-background/80 p-3 border rounded-lg">
+                <DependentForm 
+                  defaultValues={editingDependent || undefined}
+                  onSubmit={onDependentSubmit}
+                  onCancel={onCancelDependentForm}
+                  isSubmitting={isSaving}
+                />
+              </div>
+            ) : (
+              <>
+                {profileData.dependents.length === 0 ? (
+                  <div className="text-center py-8 px-4 border rounded-lg">
+                    <p className="text-muted-foreground mb-3">Belum ada data tanggungan</p>
+                    {roleAccess.canEdit && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowDependentForm(true)}
+                      >
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Tambah Tanggungan
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-base font-medium">Daftar Tanggungan</h3>
+                      {roleAccess.canEdit && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          onClick={() => setShowDependentForm(true)}
+                        >
+                          <PlusCircle className="mr-1.5 h-3.5 w-3.5" />
+                          <span className="text-xs">Tambah</span>
+                        </Button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {profileData.dependents.map((dependent) => (
+                        <DependentItem
+                          key={dependent.id}
+                          dependent={dependent}
+                          onEdit={onEditDependent}
+                          onDelete={onDeleteDependent}
+                          onImageUpload={handleImageUpload}
+                          readOnly={!roleAccess.canEdit}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </TabsContent>
+        </Tabs>
+      )
+    }
     
+    // Untuk role non-UMAT atau jika profileData belum tersedia, hanya tampilkan informasi akun
     return (
-      <Card className="mb-4 gap-0 overflow-hidden">
+      <Card className="mb-4">
         <CardHeader className="p-3 pb-2 sm:p-4 sm:pb-3">
           <div className="flex justify-between items-center">
             <CardTitle className="text-base sm:text-lg">Informasi Akun</CardTitle>
@@ -326,27 +523,27 @@ export default function ProfileContent() {
         <CardContent className="p-3 sm:p-4">
           <div className="flex items-center gap-3">
             <Avatar className="h-14 w-14 shrink-0 border-2 border-primary/10">
-              {profileData.familyHead.imageUrl ? (
+              {profileData?.familyHead.imageUrl ? (
                 <AvatarImage 
                   src={profileData.familyHead.imageUrl} 
                   alt={profileData.familyHead.fullName} 
                 />
               ) : (
                 <AvatarFallback className="text-base">
-                  {getInitials(profileData.familyHead.fullName)}
+                  {profileData?.familyHead.fullName ? getInitials(profileData.familyHead.fullName) : <User className="h-6 w-6" />}
                 </AvatarFallback>
               )}
             </Avatar>
             <div className="min-w-0">
-              <h3 className="text-base font-semibold truncate">{profileData.familyHead.fullName}</h3>
+              <h3 className="text-base font-semibold truncate">{profileData?.familyHead.fullName}</h3>
               <p className="text-xs text-muted-foreground truncate">
-                {profileData.familyHead.address}
+                {profileData?.familyHead.address}
               </p>
               <div className="flex flex-wrap gap-2 mt-1">
                 <p className="text-xs text-muted-foreground">
-                  {profileData.familyHead.phoneNumber}
+                  {profileData?.familyHead.phoneNumber}
                 </p>
-                {profileData.familyHead.email && (
+                {profileData?.familyHead.email && (
                   <p className="text-xs text-muted-foreground truncate">
                     {profileData.familyHead.email}
                   </p>
@@ -356,9 +553,9 @@ export default function ProfileContent() {
           </div>
         </CardContent>
       </Card>
-    );
-  };
-  
+    )
+  }
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -389,174 +586,25 @@ export default function ProfileContent() {
       {/* Tampilkan pesan akses berdasarkan role */}
       {renderRoleAccessAlert()}
       
-      {/* Tampilkan informasi user */}
-      {renderUserInfo()}
-      
-      {/* Tab data profil */}
-      <Tabs defaultValue={activeTab} className="w-full" onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3 h-auto">
-          <TabsTrigger value="kepala-keluarga" className="py-2 text-xs sm:text-sm data-[state=active]:font-medium">
-            Kepala Keluarga
-          </TabsTrigger>
-          {profileData.familyHead.maritalStatus === MaritalStatus.MARRIED && (
-            <TabsTrigger value="pasangan" className="py-2 text-xs sm:text-sm data-[state=active]:font-medium">
-              Pasangan
-            </TabsTrigger>
-          )}
-          <TabsTrigger value="tanggungan" className="py-2 text-xs sm:text-sm data-[state=active]:font-medium">
-            Tanggungan
-          </TabsTrigger>
-        </TabsList>
-        
-        {/* Tab Kepala Keluarga */}
-        <TabsContent value="kepala-keluarga" className="space-y-4">
-          <div className="flex flex-col gap-6">
-            <div className="flex flex-col items-center">
-              <div className="relative">
-                <Avatar className="h-28 w-28 border-4 border-primary/10">
-                  {profileData.familyHead.imageUrl ? (
-                    <AvatarImage src={profileData.familyHead.imageUrl} alt={profileData.familyHead.fullName} />
-                  ) : (
-                    <AvatarFallback className="text-3xl">
-                      {getInitials(profileData.familyHead.fullName)}
-                    </AvatarFallback>
-                  )}
-                </Avatar>
-                {roleAccess.canEdit && (
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    className="absolute bottom-2 right-2 h-8 w-8 rounded-full bg-background border border-border shadow"
-                    onClick={() => handleImageUpload('familyHead')}
-                  >
-                    <Camera className="h-4 w-4" />
-                    <span className="sr-only">Ubah Foto</span>
-                  </Button>
-                )}
-              </div>
-              <h3 className="mt-2 font-medium text-lg">{profileData.familyHead.fullName}</h3>
-              <p className="text-sm text-muted-foreground">{profileData.familyHead.phoneNumber}</p>
-            </div>
-            
-            <div className="w-full">
-              <FamilyHeadForm 
-                defaultValues={profileData.familyHead} 
-                onSubmit={onFamilyHeadSubmit}
-                isSubmitting={isSaving}
-                readOnly={!roleAccess.canEdit}
-              />
-            </div>
-          </div>
-        </TabsContent>
-        
-        {/* Tab Pasangan */}
-        {profileData.familyHead.maritalStatus === MaritalStatus.MARRIED && (
-          <TabsContent value="pasangan" className="space-y-4">
-            <div className="flex flex-col gap-6">
-              <div className="flex flex-col items-center">
-                <div className="relative">
-                  <Avatar className="h-28 w-28 border-4 border-primary/10">
-                    {profileData.spouse?.imageUrl ? (
-                      <AvatarImage src={profileData.spouse.imageUrl} alt={profileData.spouse?.fullName || ''} />
-                    ) : (
-                      <AvatarFallback className="text-3xl">
-                        {profileData.spouse ? getInitials(profileData.spouse.fullName) : <User className="h-10 w-10" />}
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
-                  {roleAccess.canEdit && profileData.spouse && (
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      className="absolute bottom-2 right-2 h-8 w-8 rounded-full bg-background border border-border shadow"
-                      onClick={() => handleImageUpload('spouse')}
-                    >
-                      <Camera className="h-4 w-4" />
-                      <span className="sr-only">Ubah Foto</span>
-                    </Button>
-                  )}
-                </div>
-                {profileData.spouse && (
-                  <>
-                    <h3 className="mt-2 font-medium text-lg">{profileData.spouse.fullName}</h3>
-                    <p className="text-sm text-muted-foreground">{profileData.spouse.phoneNumber}</p>
-                  </>
-                )}
-              </div>
-              
-              <div className="w-full">
-                <SpouseForm 
-                  defaultValues={profileData.spouse || undefined} 
-                  onSubmit={onSpouseSubmit}
-                  isSubmitting={isSaving}
-                  readOnly={!roleAccess.canEdit}
-                />
-              </div>
-            </div>
-          </TabsContent>
-        )}
-        
-        {/* Tab Tanggungan */}
-        <TabsContent value="tanggungan" className="space-y-4">
-          {showDependentForm ? (
-            <div className="bg-background/80 p-3 border rounded-lg">
-              <DependentForm 
-                defaultValues={editingDependent || undefined}
-                onSubmit={onDependentSubmit}
-                onCancel={onCancelDependentForm}
-                isSubmitting={isSaving}
-              />
-            </div>
-          ) : (
-            <>
-              {profileData.dependents.length === 0 ? (
-                <div className="text-center py-8 px-4 border rounded-lg">
-                  <p className="text-muted-foreground mb-3">Belum ada data tanggungan</p>
-                  {roleAccess.canEdit && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowDependentForm(true)}
-                    >
-                      <PlusCircle className="mr-2 h-4 w-4" />
-                      Tambah Tanggungan
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-base font-medium">Daftar Tanggungan</h3>
-                    {roleAccess.canEdit && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8"
-                        onClick={() => setShowDependentForm(true)}
-                      >
-                        <PlusCircle className="mr-1.5 h-3.5 w-3.5" />
-                        <span className="text-xs">Tambah</span>
-                      </Button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {profileData.dependents.map((dependent) => (
-                      <DependentItem
-                        key={dependent.id}
-                        dependent={dependent}
-                        onEdit={onEditDependent}
-                        onDelete={onDeleteDependent}
-                        onImageUpload={handleImageUpload}
-                        readOnly={!roleAccess.canEdit}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </TabsContent>
-      </Tabs>
+      {/* Render konten berdasarkan role */}
+      {userRole === "UMAT" ? (
+        <UmatProfileContent
+          profileData={profileData}
+          isSaving={isSaving}
+          onFamilyHeadSubmit={onFamilyHeadSubmit}
+          onSpouseSubmit={onSpouseSubmit}
+          onDependentSubmit={onDependentSubmit}
+          onEditDependent={onEditDependent}
+          onDeleteDependent={onDeleteDependent}
+          onImageUpload={handleImageUpload}
+          canEdit={roleAccess.canEdit}
+        />
+      ) : (
+        <AccountInfoCard
+          userRole={userRole}
+          profileData={profileData}
+        />
+      )}
       
       {/* Dialog Konfirmasi */}
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>

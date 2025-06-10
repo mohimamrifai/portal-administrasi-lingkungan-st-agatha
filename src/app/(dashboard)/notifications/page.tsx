@@ -27,7 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface NotificationItem {
-  id: number;
+  id: string;
   title: string;
   message: string;
   type: string;
@@ -53,11 +53,41 @@ export default function NotificationsPage() {
       const data = await getUserNotifications(100); // Ambil 100 notifikasi terbaru
       const count = await getUnreadNotificationsCount();
       
-      // Transformasi data jika diperlukan
-      const transformedData = data.map(item => ({
-        ...item,
-        timestamp: new Date(item.timestamp)
-      }));
+      // Transformasi data dengan validasi timestamp
+      const transformedData = data.map(item => {
+        try {
+          // Gunakan createdAt sebagai timestamp
+          const timestamp = new Date(item.createdAt);
+          
+          return {
+            id: item.id,
+            title: "Notifikasi Baru", // Default title
+            message: item.pesan,
+            type: "info", // Default type
+            timestamp: timestamp,
+            isRead: item.dibaca,
+            recipientId: null,
+            senderId: null,
+            relatedItemId: null,
+            relatedItemType: null
+          };
+        } catch (error) {
+          console.error(`Error transforming notification ${item.id}:`, error);
+          // Gunakan waktu saat ini sebagai fallback
+          return {
+            id: item.id,
+            title: "Notifikasi Baru",
+            message: item.pesan || "Tidak ada pesan",
+            type: "info",
+            timestamp: new Date(),
+            isRead: item.dibaca || false,
+            recipientId: null,
+            senderId: null,
+            relatedItemId: null,
+            relatedItemType: null
+          };
+        }
+      });
       
       // Urutkan notifikasi: prioritaskan yang belum dibaca, kemudian berdasarkan timestamp terbaru
       const sortedNotifications = [...transformedData].sort((a, b) => {
@@ -73,6 +103,8 @@ export default function NotificationsPage() {
       setUnreadCount(count);
     } catch (error) {
       console.error("Error fetching notifications:", error);
+      setNotifications([]);
+      setUnreadCount(0);
     } finally {
       setLoading(false);
     }
@@ -100,12 +132,12 @@ export default function NotificationsPage() {
   };
 
   // Menandai satu notifikasi sebagai dibaca
-  const handleMarkAsRead = async (id: number, event: React.MouseEvent) => {
+  const handleMarkAsRead = async (id: string, event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
     
     try {
-      await markNotificationAsRead(id.toString());
+      await markNotificationAsRead(id);
       
       // Update local state
       const updatedNotifications = notifications.map(notification => 
@@ -130,10 +162,21 @@ export default function NotificationsPage() {
 
   // Format waktu notifikasi (contoh: 5 menit yang lalu)
   const formatNotificationTime = (date: Date) => {
-    return formatDistanceToNow(date, { 
-      addSuffix: true,
-      locale: id // Menggunakan locale Bahasa Indonesia
-    });
+    try {
+      // Validasi timestamp
+      if (!(date instanceof Date) || isNaN(date.getTime())) {
+        console.error("Invalid date value:", date);
+        return "Waktu tidak valid";
+      }
+
+      return formatDistanceToNow(date, { 
+        addSuffix: true,
+        locale: id // Menggunakan locale Bahasa Indonesia
+      });
+    } catch (error) {
+      console.error("Error formatting notification time:", error);
+      return "Waktu tidak valid";
+    }
   };
 
   // Dapatkan warna badge berdasarkan tipe notifikasi
