@@ -165,26 +165,23 @@ export function AbsensiDolingFormDialog({
 
   // Filter jadwal yang sudah selesai atau terjadwal
   const availableJadwal = useMemo(() => {
-    return jadwalDoling.filter(jadwal => {
-      // Pastikan tanggal valid
-      if (!jadwal.tanggal || !(jadwal.tanggal instanceof Date) || isNaN(new Date(jadwal.tanggal).getTime())) {
-        return false;
-      }
-      
-      // Bandingkan dengan tanggal hari ini
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Reset waktu ke 00:00:00
-      const jadwalDate = new Date(jadwal.tanggal);
-      jadwalDate.setHours(0, 0, 0, 0); // Reset waktu ke 00:00:00
-      
-      // Hanya tampilkan jadwal yang:
-      // 1. Tanggalnya sama dengan atau lebih besar dari hari ini
-      // 2. Status jadwal sesuai (selesai, terjadwal, atau menunggu)
-      // 3. Sudah disetujui
-      return jadwalDate >= today && 
-             (jadwal.status === 'selesai' || jadwal.status === 'terjadwal' || jadwal.status === 'menunggu') &&
-             jadwal.approved === true;
-    });
+    return jadwalDoling
+      .filter(jadwal => {
+        // Pastikan tanggal valid
+        if (!jadwal.tanggal || !(jadwal.tanggal instanceof Date) || isNaN(new Date(jadwal.tanggal).getTime())) {
+          return false;
+        }
+        
+        // Hanya tampilkan jadwal yang:
+        // 1. Status jadwal sesuai (selesai, terjadwal, atau menunggu)
+        return jadwal.status === 'selesai' || jadwal.status === 'terjadwal' || jadwal.status === 'menunggu';
+      })
+      .sort((a, b) => {
+        // Urutkan berdasarkan tanggal terbaru
+        const dateA = new Date(a.tanggal);
+        const dateB = new Date(b.tanggal);
+        return dateB.getTime() - dateA.getTime();
+      });
   }, [jadwalDoling]);
 
   // Handler untuk perubahan keluarga
