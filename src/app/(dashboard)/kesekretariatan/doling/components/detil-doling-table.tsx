@@ -25,6 +25,9 @@ import {
   UsersIcon,
   CheckCircleIcon,
   XCircleIcon,
+  CheckCircle,
+  XCircle,
+  Clock,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
@@ -100,23 +103,20 @@ export function DetilDolingTable({
   };
 
   // Filter data based on search and filters
-  const filteredData = detil.filter(item => {
-    const matchesSearch = 
-      searchTerm === "" || 
+  const filteredData = detil.filter((item) => {
+    const matchesSearch =
+      !searchTerm ||
       item.tuanRumah.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item.temaIbadat && item.temaIbadat.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (item.jenisIbadat && item.jenisIbadat.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesStatus = 
-      statusFilter === null || 
-      item.status === statusFilter;
-    
-    const matchesApproval = 
-      approveFilter === null || 
-      (approveFilter === "approved" && item.approved) ||
-      (approveFilter === "notApproved" && !item.approved);
-    
-    return matchesSearch && matchesStatus && matchesApproval;
+
+    const matchesStatus =
+      !statusFilter ||
+      (statusFilter === "selesai" && item.status === "selesai") ||
+      (statusFilter === "menunggu" && item.status === "menunggu") ||
+      (statusFilter === "dibatalkan" && item.status === "dibatalkan");
+
+    return matchesSearch && matchesStatus;
   });
   
   // Calculate pagination
@@ -146,18 +146,33 @@ export function DetilDolingTable({
   const clearAllFilters = () => {
     setSearchTerm("");
     setStatusFilter(null);
-    setApproveFilter(null);
+    setCurrentPage(1);
   };
 
   // Helper untuk status badge
-  const getStatusBadge = (status: DetilDoling['status']) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'selesai':
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Selesai</Badge>;
-      case 'dibatalkan':
-        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Dibatalkan</Badge>;
+      case "selesai":
+        return (
+          <Badge variant="success">
+            <CheckCircle className="mr-1 h-4 w-4" />
+            Selesai
+          </Badge>
+        );
+      case "dibatalkan":
+        return (
+          <Badge variant="destructive">
+            <XCircle className="mr-1 h-4 w-4" />
+            Dibatalkan
+          </Badge>
+        );
       default:
-        return null;
+        return (
+          <Badge variant="outline" className="bg-amber-400 text-white">
+            <Clock className="mr-1 h-4 w-4 " />
+            Belum Selesai
+          </Badge>
+        );
     }
   };
 
@@ -246,6 +261,7 @@ export function DetilDolingTable({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Semua Status</SelectItem>
+              <SelectItem value="menunggu">Menunggu</SelectItem>
               <SelectItem value="selesai">Selesai</SelectItem>
               <SelectItem value="dibatalkan">Dibatalkan</SelectItem>
             </SelectContent>
@@ -270,7 +286,7 @@ export function DetilDolingTable({
           </Select>
           
           {/* Reset button */}
-          {(searchTerm || statusFilter !== null || approveFilter !== null) && (
+          {(searchTerm || statusFilter !== null) && (
             <Button variant="outline" onClick={clearAllFilters} size="sm">
               Reset
             </Button>
@@ -320,10 +336,7 @@ export function DetilDolingTable({
                     {item.jumlahKKHadir} KK
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-col gap-1">
-                      {getStatusBadge(item.status)}
-                      {getApprovalStatus(item.approved)}
-                    </div>
+                    {getStatusBadge(item.status)}
                   </TableCell>
                   <TableCell className="sticky right-0 bg-white shadow-sm">
                     <DropdownMenu>

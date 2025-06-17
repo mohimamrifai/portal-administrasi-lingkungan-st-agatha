@@ -107,7 +107,7 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete, onSelectDoling }: 
       case "dibatalkan":
         return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Dibatalkan</Badge>;
       case "menunggu":
-        return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Menunggu Approval</Badge>;
+        return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Belum Selesai</Badge>;
       default:
         return null;
     }
@@ -243,7 +243,7 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete, onSelectDoling }: 
               <SelectItem value="terjadwal">Terjadwal</SelectItem>
               <SelectItem value="selesai">Selesai</SelectItem>
               <SelectItem value="dibatalkan">Dibatalkan</SelectItem>
-              <SelectItem value="menunggu">Menunggu Approval</SelectItem>
+              <SelectItem value="menunggu">Belum Selesai</SelectItem>
             </SelectContent>
           </Select>
           

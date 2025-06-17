@@ -1,36 +1,29 @@
-import { JenisIbadat, SubIbadat, StatusApproval } from "@prisma/client";
-import { DolingData, AbsensiData, KeluargaForSelect } from "../actions";
+import { JenisIbadat, SubIbadat, StatusApproval, StatusKegiatan } from "@prisma/client";
+import type { DolingData, AbsensiData, KeluargaForSelect } from "../actions";
 
-// Re-export types dari action untuk penggunaan di komponen
-export type { DolingData, AbsensiData, KeluargaForSelect } from "../actions";
+// Re-export tipe dari actions untuk penggunaan di komponen lain
+export type { DolingData, AbsensiData, KeluargaForSelect };
 
-// Menggantikan tipe-tipe lama dengan tipe-tipe yang kompatibel 
-// dengan Prisma dan server actions
-
-// Alias untuk JadwalDoling (kompatibilitas dengan kode lama)
+// Alias untuk kompatibilitas dengan kode lama
 export type JadwalDoling = DolingData;
-
-// Alias untuk DetilDoling (kompatibilitas dengan kode lama)
 export type DetilDoling = DolingData;
-
-// Alias untuk AbsensiDoling (kompatibilitas dengan kode lama)
 export type AbsensiDoling = AbsensiData;
 
-// Tipe untuk riwayat kehadiran
+// Tipe data untuk riwayat kehadiran
 export interface RiwayatDoling {
   nama: string;
   totalHadir: number;
   persentase: number;
 }
 
-// Tipe untuk rekapitulasi kegiatan
+// Tipe data untuk rekapitulasi kegiatan
 export interface RekapitulasiKegiatan {
   bulan: string;
   jumlahKegiatan: number;
   rataRataHadir: number;
 }
 
-// Tipe untuk data kaleidoskop
+// Tipe data untuk kaleidoskop
 export interface KaleidoskopData {
   totalKegiatan: number;
   rataRataKehadiran: number;

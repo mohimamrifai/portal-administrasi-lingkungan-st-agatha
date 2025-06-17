@@ -314,6 +314,7 @@ model DoaLingkungan {
   bacaanI         String?
   pemazmur        String?
   jumlahPeserta   Int             @default(0)
+  statusKegiatan  StatusKegiatan  @default(BELUM_SELESAI)
   absensi         AbsensiDoling[]
   approval        Approval?
   createdAt       DateTime        @default(now())
@@ -462,4 +463,10 @@ model Notification {
   userId    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum StatusKegiatan {
+  BELUM_SELESAI
+  SELESAI
+  DIBATALKAN
 }
