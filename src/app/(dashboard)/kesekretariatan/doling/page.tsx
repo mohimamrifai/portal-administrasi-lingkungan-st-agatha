@@ -1,7 +1,15 @@
 import { Suspense } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DoaLingkunganContent } from "./components/doa-lingkungan-content";
-import { getAllDoling, getRiwayatKehadiran, getRekapitulasiBulanan, getKeluargaForSelection } from "./actions";
+import { 
+  getAllDoling, 
+  getRiwayatKehadiran, 
+  getRekapitulasiBulanan, 
+  getKeluargaForSelection,
+  DolingData,
+  KeluargaForSelect
+} from "./actions";
+import { RiwayatDoling, RekapitulasiKegiatan } from "./types";
 
 // Komponen Loading Sederhana
 function LoadingSkeleton() {
@@ -16,10 +24,10 @@ function LoadingSkeleton() {
 
 export default async function DoaLingkunganPage() {
   // Mengambil data dari server actions
-  const dolingData = await getAllDoling();
-  const riwayatData = await getRiwayatKehadiran();
-  const rekapitulasiData = await getRekapitulasiBulanan(new Date().getFullYear());
-  const keluargaData = await getKeluargaForSelection();
+  const dolingData: DolingData[] = await getAllDoling();
+  const riwayatData: RiwayatDoling[] = await getRiwayatKehadiran();
+  const rekapitulasiData: RekapitulasiKegiatan[] = await getRekapitulasiBulanan(new Date().getFullYear());
+  const keluargaData: KeluargaForSelect[] = await getKeluargaForSelection();
   
   return (
     <div className="p-2 px-4">

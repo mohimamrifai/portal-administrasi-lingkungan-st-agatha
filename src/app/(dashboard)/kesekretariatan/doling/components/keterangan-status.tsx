@@ -3,20 +3,22 @@
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { DetilDoling } from "../types";
+import { StatusKegiatan } from "@prisma/client";
 
 interface KeteranganStatusSectionProps {
   keterangan: string;
-  status: string;
+  status: StatusKegiatan;
   onKeteranganChange: (value: string) => void;
-  onStatusChange: (value: string) => void;
+  onStatusChange: (value: StatusKegiatan) => void;
+  approved: boolean;
 }
 
-export function KeteranganStatusSection({ 
-  keterangan, 
-  status, 
-  onKeteranganChange, 
-  onStatusChange 
+export function KeteranganStatusSection({
+  keterangan,
+  status = StatusKegiatan.BELUM_SELESAI,
+  onKeteranganChange,
+  onStatusChange,
+  approved
 }: KeteranganStatusSectionProps) {
   return (
     <div className="space-y-4 p-4 pt-2 border rounded-lg">
@@ -38,44 +40,36 @@ export function KeteranganStatusSection({
         {/* Status Kegiatan */}
         <div className="space-y-2">
           <Label>Status Kegiatan</Label>
-          <RadioGroup 
-            value={status} 
+          <RadioGroup
+            value={status}
             onValueChange={onStatusChange}
-            className="flex flex-col space-y-3"
+            className="flex flex-col space-y-1"
           >
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="selesai" id="status-selesai" />
-              <Label 
-                htmlFor="status-selesai" 
-                className="text-green-700 font-medium cursor-pointer"
-              >
-                Selesai (Disetujui)
-              </Label>
+              <RadioGroupItem value={StatusKegiatan.BELUM_SELESAI} id="menunggu" />
+              <Label htmlFor="menunggu">Menunggu</Label>
             </div>
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="dibatalkan" id="status-dibatalkan" />
-              <Label 
-                htmlFor="status-dibatalkan" 
-                className="text-red-700 font-medium cursor-pointer"
-              >
-                Dibatalkan (Ditolak)
-              </Label>
+              <RadioGroupItem value={StatusKegiatan.DIBATALKAN} id="dibatalkan" />
+              <Label htmlFor="dibatalkan">Dibatalkan</Label>
             </div>
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="menunggu" id="status-menunggu" />
+              <RadioGroupItem 
+                value={StatusKegiatan.SELESAI}
+                id="selesai" 
+                disabled={!approved}
+                className={!approved ? "opacity-50 cursor-not-allowed" : ""}
+              />
               <Label 
-                htmlFor="status-menunggu" 
-                className="text-blue-700 font-medium cursor-pointer"
+                htmlFor="selesai" 
+                className={!approved ? "opacity-50 cursor-not-allowed" : ""}
               >
-                Menunggu Persetujuan
+                Selesai {!approved && "(Perlu approval)"}
               </Label>
             </div>
           </RadioGroup>
-          <p className="text-xs text-muted-foreground mt-2">
-            Status akan mengubah approval kegiatan ini.
-          </p>
         </div>
       </div>
     </div>
-  )
+  );
 } 

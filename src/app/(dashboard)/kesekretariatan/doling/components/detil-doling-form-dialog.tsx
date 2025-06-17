@@ -17,16 +17,9 @@ import { PetugasMisaSection } from "./petugas-misa"
 import { KeteranganStatusSection } from "./keterangan-status"
 import { DolingData } from "../actions"
 import { toast } from "sonner"
-import { JenisIbadat, SubIbadat } from "@prisma/client"
+import { JenisIbadat, SubIbadat, StatusKegiatan } from "@prisma/client"
 import { JenisIbadat as FormJenisIbadat } from "../types/form-types"
 import { KeluargaForSelect } from "../actions"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 
 // Fungsi konversi dari JenisIbadat Prisma ke JenisIbadat form
 const mapPrismaJenisIbadatToForm = (jenisIbadat: JenisIbadat): FormJenisIbadat => {
@@ -150,9 +143,10 @@ interface SubmitDataType {
   bacaanI: string;
   pemazmur: string;
   jumlahPeserta: number;
-  status: string;
+  status: StatusKegiatan;
   customSubIbadat?: string | null;
   subIbadat?: SubIbadat | null;
+  statusKegiatan: StatusKegiatan;
 }
 
 export function DetilDolingFormDialog({
@@ -182,7 +176,9 @@ export function DetilDolingFormDialog({
   const [customSubIbadat, setCustomSubIbadat] = useState<string>(detil?.customSubIbadat || "")
   const [temaIbadat, setTemaIbadat] = useState<string | null>(detil?.temaIbadat || null)
   const [keterangan, setKeterangan] = useState<string>("")
-  const [status, setStatus] = useState<string>(detil?.status === "selesai" || detil?.status === "dibatalkan" ? detil.status : "selesai")
+  const [status, setStatus] = useState<StatusKegiatan>(
+    detil?.statusKegiatan || StatusKegiatan.BELUM_SELESAI
+  )
   
   const [jumlahKehadiran, setJumlahKehadiran] = useState<KehadiranData>({
     jumlahKKHadir: detil?.jumlahKKHadir || 0,
@@ -248,7 +244,7 @@ export function DetilDolingFormDialog({
       setSubIbadat(detil.subIbadat ? mapSubIbadatEnumToString(detil.subIbadat) : "");
       setCustomSubIbadat(detil.customSubIbadat || "");
       setTemaIbadat(detil.temaIbadat || null);
-      setStatus(detil.status === "selesai" || detil.status === "dibatalkan" ? detil.status : "selesai");
+      setStatus(detil.statusKegiatan || StatusKegiatan.BELUM_SELESAI);
       
       setJumlahKehadiran({
         jumlahKKHadir: detil.jumlahKKHadir || 0,
@@ -305,14 +301,7 @@ export function DetilDolingFormDialog({
         setSubIbadat(jadwal.subIbadat ? mapSubIbadatEnumToString(jadwal.subIbadat) : "");
         setCustomSubIbadat(jadwal.customSubIbadat || "");
         setTemaIbadat(jadwal.temaIbadat || null);
-        // Mengatur status berdasarkan approval
-        if (jadwal.status === "dibatalkan") {
-          setStatus("dibatalkan");
-        } else if (!jadwal.approved) {
-          setStatus("menunggu");
-        } else {
-          setStatus("selesai");
-        }
+        setStatus(jadwal.statusKegiatan || StatusKegiatan.BELUM_SELESAI);
         
         // Jika jadwal telah memiliki data kehadiran dan kolekte, gunakan data tersebut
         if (jadwal.jumlahKKHadir > 0) {
@@ -403,7 +392,7 @@ export function DetilDolingFormDialog({
   };
   
   // Handle status
-  const handleStatusChange = (value: string): void => {
+  const handleStatusChange = (value: StatusKegiatan): void => {
     setStatus(value);
   };
   
@@ -446,8 +435,8 @@ export function DetilDolingFormDialog({
       jumlahPeserta: petugasMisa.jumlahPeserta,
       status: status,
       customSubIbadat: customSubIbadat || null,
-      // Tambahkan subIbadat yang sudah dimapping kembali ke enum
-      subIbadat: subIbadat ? mapStringToSubIbadatEnum(subIbadat) : null
+      subIbadat: subIbadat ? mapStringToSubIbadatEnum(subIbadat) : null,
+      statusKegiatan: status,
     };
     
     onSubmit(submitData);
@@ -608,6 +597,7 @@ export function DetilDolingFormDialog({
             status={status}
             onKeteranganChange={handleKeteranganChange}
             onStatusChange={handleStatusChange}
+            approved={detil?.approved || false}
           />
           
           <div className="flex justify-end space-x-2">

@@ -42,11 +42,12 @@ import {
     updateApprovalStatus,
     getRiwayatKehadiran,
     getRekapitulasiBulanan,
-    KeluargaForSelect
+    KeluargaForSelect,
+    getDolingById
 } from "../actions";
 
 import { setupReminderNotifications } from "../utils/reminder-notifications";
-import { JenisIbadat, SubIbadat, StatusApproval } from "@prisma/client";
+import { JenisIbadat, SubIbadat, StatusApproval, StatusKegiatan } from "@prisma/client";
 
 
 export interface DoaLingkunganContentProps {
@@ -356,13 +357,20 @@ export function DoaLingkunganContent({
 
     const handleApproveDetil = async (id: string) => {
         try {
-            // Update status menjadi selesai
-            await updateDolingDetail(id, { status: 'selesai' });
-            toast.success("Status doling berhasil disetujui");
+            // Cek status approval terlebih dahulu
+            const doling = await getDolingById(id);
+            if (!doling) {
+                toast.error("Data doling tidak ditemukan");
+                return;
+            }
+
+            // Update status menjadi selesai hanya jika sudah diapprove
+            await updateDolingDetail(id, { statusKegiatan: StatusKegiatan.SELESAI });
+            toast.success("Status doling berhasil diubah menjadi selesai");
             fetchData(); // Refresh data
         } catch (error) {
             console.error("Error approving detail:", error);
-            toast.error("Gagal menyetujui status doling");
+            toast.error("Gagal mengubah status doling");
         }
     };
 
@@ -370,9 +378,9 @@ export function DoaLingkunganContent({
         try {
             const { id, ...updateData } = values;
             
-            // Pastikan status selalu diset
-            if (!updateData.status) {
-                updateData.status = 'menunggu';
+            // Pastikan status selalu diset ke statusKegiatan
+            if (!updateData.statusKegiatan) {
+                updateData.statusKegiatan = StatusKegiatan.BELUM_SELESAI;
             }
             
             await updateDolingDetail(id, updateData);
@@ -528,8 +536,8 @@ export function DoaLingkunganContent({
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
                 <TabsList className="">
                     <TabsTrigger value="jadwal-doling" className="text-xs sm:text-sm py-2">Jadwal</TabsTrigger>
-                    <TabsTrigger value="detil-doling" className="text-xs sm:text-sm py-2">Detil</TabsTrigger>
                     <TabsTrigger value="absensi-doling" className="text-xs sm:text-sm py-2">Absensi</TabsTrigger>
+                    <TabsTrigger value="detil-doling" className="text-xs sm:text-sm py-2">Detil</TabsTrigger>
                     <TabsTrigger value="riwayat-doling" className="text-xs sm:text-sm py-2">Riwayat</TabsTrigger>
                 </TabsList>
 
