@@ -1,32 +1,60 @@
 "use server"
 
 import { prisma } from "@/lib/db"
-import { StatusApproval } from "@prisma/client"
+import { StatusApproval, JenisTransaksi, TipeTransaksiLingkungan } from "@prisma/client"
 
 export async function getApprovalStats() {
     try {
-        const totalApproval = await prisma.approval.count()
+        // Filter untuk saldo awal
+        const excludeSaldoAwal = {
+            NOT: {
+                kasLingkungan: {
+                    AND: [
+                        { jenisTranasksi: JenisTransaksi.UANG_MASUK },
+                        { tipeTransaksi: TipeTransaksiLingkungan.LAIN_LAIN },
+                        { keterangan: "SALDO AWAL" }
+                    ]
+                }
+            }
+        }
+
+        const totalApproval = await prisma.approval.count({
+            where: excludeSaldoAwal
+        })
+
         const pendingApproval = await prisma.approval.count({
-            where: { status: StatusApproval.PENDING },
+            where: { 
+                ...excludeSaldoAwal,
+                status: StatusApproval.PENDING
+            }
         })
+
         const approvedApproval = await prisma.approval.count({
-            where: { status: StatusApproval.APPROVED },
+            where: { 
+                ...excludeSaldoAwal,
+                status: StatusApproval.APPROVED
+            }
         })
+
         const rejectedApproval = await prisma.approval.count({
-            where: { status: StatusApproval.REJECTED },
+            where: { 
+                ...excludeSaldoAwal,
+                status: StatusApproval.REJECTED
+            }
         })
 
         // Mendapatkan total nilai dari doa lingkungan yang sudah diapprove
         const approvedDoaLingkungan = await prisma.doaLingkungan.findMany({
             where: {
                 approval: {
+                    ...excludeSaldoAwal,
                     status: StatusApproval.APPROVED,
                 },
             },
             select: {
                 kolekteI: true,
                 kolekteII: true,
-                ucapanSyukur: true,
+                ucapanSyukur: true
             },
         })
 
@@ -42,6 +70,7 @@ export async function getApprovalStats() {
 
         const thisMonthApproved = await prisma.approval.count({
             where: {
+                ...excludeSaldoAwal,
                 status: StatusApproval.APPROVED,
                 createdAt: {
                     gte: startOfMonth,
@@ -54,6 +83,7 @@ export async function getApprovalStats() {
         const thisMonthDoaLingkungan = await prisma.doaLingkungan.findMany({
             where: {
                 approval: {
+                    ...excludeSaldoAwal,
                     status: StatusApproval.APPROVED,
                     createdAt: {
                         gte: startOfMonth,
@@ -82,14 +112,14 @@ export async function getApprovalStats() {
                 rejected: rejectedApproval,
                 totalAmount: totalApprovedAmount,
                 thisMonthApproved,
-                thisMonthAmount,
-            },
+                thisMonthAmount
+            }
         }
     } catch (error) {
-        console.error("Gagal mengambil statistik approval:", error)
+        console.error("Error getting approval stats:", error)
         return {
             success: false,
-            error: "Gagal mengambil statistik approval",
+            error: "Gagal mendapatkan statistik approval"
         }
     }
 }

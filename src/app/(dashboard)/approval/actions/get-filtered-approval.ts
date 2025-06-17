@@ -4,7 +4,17 @@ import { prisma } from "@/lib/db"
 
 export async function getFilteredApprovals(monthYear: string, status: string) {
     try {
-        let whereClause: any = {}
+        let whereClause: any = {
+            NOT: {
+                kasLingkungan: {
+                    AND: [
+                        { jenisTranasksi: "UANG_MASUK" },
+                        { tipeTransaksi: "LAIN_LAIN" },
+                        { keterangan: "SALDO AWAL" }
+                    ]
+                }
+            }
+        }
 
         // Filter berdasarkan status
         if (status !== "all") {
