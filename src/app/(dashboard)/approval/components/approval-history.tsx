@@ -10,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { DropdownBulanTahun } from "@/app/(dashboard)/approval/components/dropdown-bulan-tahun";
-import { StatusApproval } from "@prisma/client";
+import { StatusApproval, JenisTransaksi, TipeTransaksiLingkungan } from "@prisma/client";
 import { ExtendedApproval } from "../types";
 
 type ApprovalHistoryProps = {
@@ -30,10 +30,13 @@ export function ApprovalHistory({ selectedMonth, approvalData }: ApprovalHistory
   const filteredHistory = useMemo(() => {
     if (!approvalData.length) return [];
     
-    // Hanya status approved/rejected
+    // Filter out saldo awal and status approved/rejected
     let history = approvalData.filter(item => 
-      item.status === StatusApproval.APPROVED || 
-      item.status === StatusApproval.REJECTED
+      (item.status === StatusApproval.APPROVED || 
+      item.status === StatusApproval.REJECTED) &&
+      !(item.kasLingkungan?.jenisTranasksi === JenisTransaksi.UANG_MASUK &&
+        item.kasLingkungan?.tipeTransaksi === TipeTransaksiLingkungan.LAIN_LAIN &&
+        item.kasLingkungan?.keterangan === "SALDO AWAL")
     );
     
     if (month === 'all') {
@@ -58,6 +61,17 @@ export function ApprovalHistory({ selectedMonth, approvalData }: ApprovalHistory
       const itemYear = itemDate.getFullYear();
       const itemMonth = itemDate.getMonth() + 1;
       return itemYear === year && itemMonth === monthNum;
+    });
+    
+    // Exclude initial balance transactions
+    filtered = filtered.filter((item) => {
+      if (item.kasLingkungan) {
+        return !(
+          item.kasLingkungan.keterangan === "SALDO AWAL" &&
+          item.kasLingkungan.debit > 0
+        );
+      }
+      return true;
     });
     
     // Urutkan terbaru di atas

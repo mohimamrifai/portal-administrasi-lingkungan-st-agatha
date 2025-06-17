@@ -57,6 +57,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { useAuth } from "@/contexts/auth-context"
 
 interface DetilDolingTableProps {
   detil: DetilDoling[]
@@ -73,6 +74,7 @@ export function DetilDolingTable({
   onApprove,
   onSelectDoling
 }: DetilDolingTableProps) {
+  const { userRole } = useAuth()
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -356,6 +358,7 @@ export function DetilDolingTable({
                             e.stopPropagation(); // Hindari trigger onClick pada TableRow
                             onEdit(item);
                           }}
+                          disabled={item.status === "selesai" && userRole !== "SUPER_USER"}
                         >
                           <PencilIcon className="h-4 w-4 mr-2" />
                           <span>Edit</span>
@@ -369,6 +372,7 @@ export function DetilDolingTable({
                                 e.preventDefault();
                                 e.stopPropagation(); // Hindari trigger onClick pada TableRow
                               }}
+                              disabled={item.status === "selesai" && userRole !== "SUPER_USER"}
                             >
                               <Trash2Icon className="h-4 w-4 mr-2" />
                               <span>Hapus</span>

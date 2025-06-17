@@ -50,6 +50,8 @@ export default function ApprovalContent() {
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
 
+  console.log(approvalData)
+
   // Fetch data
   useEffect(() => {
     const loadData = async () => {
@@ -260,9 +262,9 @@ export default function ApprovalContent() {
           <TabsTrigger value="riwayat" className="flex-1 px-4">Riwayat Approval</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="daftar" className="space-y-4">
+        <TabsContent value="daftar" className="space-y-2">
           <Card>
-            <CardHeader className="flex flex-col space-y-1.5 p-4 sm:p-6">
+            <CardHeader className="flex flex-col">
               <CardTitle>Daftar Persetujuan</CardTitle>
               <CardDescription>
                 Kelola semua permohonan yang memerlukan persetujuan

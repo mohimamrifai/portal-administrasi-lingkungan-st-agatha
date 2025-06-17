@@ -5,6 +5,17 @@ import { prisma } from "@/lib/db"
 export async function getApprovals() {
     try {
         const approvals = await prisma.approval.findMany({
+            where: {
+                NOT: {
+                    kasLingkungan: {
+                        AND: [
+                            { jenisTranasksi: "UANG_MASUK" },
+                            { tipeTransaksi: "LAIN_LAIN" },
+                            { keterangan: "SALDO AWAL" }
+                        ]
+                    }
+                }
+            },
             include: {
                 kasLingkungan: true,
                 doaLingkungan: {

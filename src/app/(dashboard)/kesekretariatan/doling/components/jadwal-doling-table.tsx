@@ -48,10 +48,7 @@ import {
 } from "@/components/ui/dialog";
 import { formatTanggalWaktu } from "../utils/helpers";
 import { JenisIbadat, SubIbadat } from "@prisma/client";
-import {
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/auth-context"
 
 interface JadwalDolingTableProps {
   jadwal: JadwalDoling[];
@@ -62,6 +59,7 @@ interface JadwalDolingTableProps {
 
 export function JadwalDolingTable({ jadwal, onEdit, onDelete, onSelectDoling }: JadwalDolingTableProps) {
   // state
+  const { userRole } = useAuth()
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
@@ -363,6 +361,7 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete, onSelectDoling }: 
                           e.stopPropagation(); // Hindari trigger onClick pada TableRow
                           onEdit(item);
                         }}
+                        disabled={item.status === "selesai" && userRole !== "SUPER_USER"}
                       >
                         <PencilIcon className="h-4 w-4" />
                         <span className="sr-only">Edit</span>
@@ -375,6 +374,7 @@ export function JadwalDolingTable({ jadwal, onEdit, onDelete, onSelectDoling }: 
                             onClick={(e) => {
                               e.stopPropagation(); // Hindari trigger onClick pada TableRow
                             }}
+                            disabled={item.status === "selesai" && userRole !== "SUPER_USER"}
                           >
                             <TrashIcon className="h-4 w-4" />
                             <span className="sr-only">Hapus</span>
