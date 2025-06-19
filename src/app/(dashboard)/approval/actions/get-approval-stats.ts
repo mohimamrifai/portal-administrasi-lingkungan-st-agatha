@@ -5,40 +5,34 @@ import { StatusApproval, JenisTransaksi, TipeTransaksiLingkungan } from "@prisma
 
 export async function getApprovalStats() {
     try {
-        // Filter untuk saldo awal
-        const excludeSaldoAwal = {
-            NOT: {
-                kasLingkungan: {
-                    AND: [
-                        { jenisTranasksi: JenisTransaksi.UANG_MASUK },
-                        { tipeTransaksi: TipeTransaksiLingkungan.LAIN_LAIN },
-                        { keterangan: "SALDO AWAL" }
-                    ]
-                }
+        // Filter untuk hanya data dari doa lingkungan
+        const onlyDoaLingkungan = {
+            doaLingkunganId: {
+                not: null
             }
         }
 
         const totalApproval = await prisma.approval.count({
-            where: excludeSaldoAwal
+            where: onlyDoaLingkungan
         })
 
         const pendingApproval = await prisma.approval.count({
             where: { 
-                ...excludeSaldoAwal,
+                ...onlyDoaLingkungan,
                 status: StatusApproval.PENDING
             }
         })
 
         const approvedApproval = await prisma.approval.count({
             where: { 
-                ...excludeSaldoAwal,
+                ...onlyDoaLingkungan,
                 status: StatusApproval.APPROVED
             }
         })
 
         const rejectedApproval = await prisma.approval.count({
             where: { 
-                ...excludeSaldoAwal,
+                ...onlyDoaLingkungan,
                 status: StatusApproval.REJECTED
             }
         })
@@ -47,7 +41,7 @@ export async function getApprovalStats() {
         const approvedDoaLingkungan = await prisma.doaLingkungan.findMany({
             where: {
                 approval: {
-                    ...excludeSaldoAwal,
+                    ...onlyDoaLingkungan,
                     status: StatusApproval.APPROVED,
                 },
             },
@@ -70,7 +64,7 @@ export async function getApprovalStats() {
 
         const thisMonthApproved = await prisma.approval.count({
             where: {
-                ...excludeSaldoAwal,
+                ...onlyDoaLingkungan,
                 status: StatusApproval.APPROVED,
                 createdAt: {
                     gte: startOfMonth,
@@ -83,7 +77,7 @@ export async function getApprovalStats() {
         const thisMonthDoaLingkungan = await prisma.doaLingkungan.findMany({
             where: {
                 approval: {
-                    ...excludeSaldoAwal,
+                    ...onlyDoaLingkungan,
                     status: StatusApproval.APPROVED,
                     createdAt: {
                         gte: startOfMonth,

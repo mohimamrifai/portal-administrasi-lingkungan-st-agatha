@@ -16,7 +16,7 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle, Printer, Settings } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { setSaldoAwalIkata, getKasIkataSummary } from '../utils/kas-ikata-service';
+import { setSaldoAwalIkata, getAllKasIkataSummary } from '../utils/kas-ikata-service';
 import { createTransaction, updateTransaction, deleteTransaction, setIkataDues, getIkataSetting, getLatestTransactionData } from '../utils/actions';
 import { JenisTransaksi, TipeTransaksiIkata } from '@prisma/client';
 import { checkInitialBalanceIkataExists } from '../utils/kas-ikata-service';
@@ -107,14 +107,9 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
   }, [hasAccess, router]);
 
   useEffect(() => {
-    const filtered = transactions.filter(tx => {
-      const dateParts = tx.tanggal.split('-');
-      const txYear = parseInt(dateParts[0], 10);
-      const txMonth = parseInt(dateParts[1], 10);
-      return txMonth === period.bulan && txYear === period.tahun;
-    });
-    setFilteredTransactions(filtered);
-  }, [transactions, period]);
+    // Tampilkan semua transaksi tanpa filter periode
+    setFilteredTransactions(transactions);
+  }, [transactions]);
 
   useEffect(() => {
     setSummaryData(summary);
@@ -538,7 +533,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         setTransactions(mappedTransactions);
 
         // Hitung ulang summary
-        const newSummary = await getKasIkataSummary(period.bulan, period.tahun);
+        const newSummary = await getAllKasIkataSummary();
         setSummaryData(newSummary);
 
       } else {

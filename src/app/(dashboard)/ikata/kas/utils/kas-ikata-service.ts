@@ -41,6 +41,22 @@ export async function getKasIkataTransactions(bulan?: number, tahun?: number) {
   }
 }
 
+// Fungsi untuk mendapatkan SEMUA data transaksi Kas IKATA tanpa filter periode
+export async function getAllKasIkataTransactions() {
+  try {
+    // Query untuk mendapatkan semua transaksi
+    const transactions = await prisma.kasIkata.findMany({
+      orderBy: {
+        tanggal: 'desc' as const
+      }
+    });
+    
+    return transactions;
+  } catch (error) {
+    throw new Error("Gagal mengambil data transaksi kas IKATA");
+  }
+}
+
 // Fungsi untuk mendapatkan ringkasan Kas IKATA
 export async function getKasIkataSummary(bulan?: number, tahun?: number) {
   try {
@@ -86,6 +102,61 @@ export async function getKasIkataSummary(bulan?: number, tahun?: number) {
     // Dapatkan semua transaksi untuk bulan ini
     const transactions = await prisma.kasIkata.findMany({
       where: transactionQuery.where,
+      select: {
+        id: true,
+        tanggal: true,
+        jenisTranasksi: true,
+        debit: true,
+        kredit: true
+      }
+    });
+    
+    // Hitung pemasukan dan pengeluaran
+    const pemasukanTxs = transactions.filter(tx => tx.jenisTranasksi === "UANG_MASUK");
+    const pengeluaranTxs = transactions.filter(tx => tx.jenisTranasksi === "UANG_KELUAR");
+    
+    const pemasukan = pemasukanTxs.reduce((sum, tx) => sum + tx.debit, 0);
+    const pengeluaran = pengeluaranTxs.reduce((sum, tx) => sum + tx.kredit, 0);
+    
+    // Hitung saldo akhir
+    const saldoAkhir = saldoAwal + pemasukan - pengeluaran;
+    
+    const result = {
+      saldoAwal,
+      pemasukan,
+      pengeluaran,
+      saldoAkhir
+    };
+    
+    return result;
+  } catch (error) {
+    throw new Error("Gagal menghitung ringkasan kas IKATA");
+  }
+}
+
+// Fungsi untuk mendapatkan ringkasan SEMUA transaksi Kas IKATA tanpa filter periode
+export async function getAllKasIkataSummary() {
+  try {
+    // Dapatkan saldo awal dari transaksi SALDO AWAL
+    const saldoAwalTransaction = await prisma.kasIkata.findFirst({
+      where: {
+        tipeTransaksi: TipeTransaksiIkata.LAIN_LAIN,
+        keterangan: "SALDO AWAL"
+      },
+      orderBy: {
+        updatedAt: 'desc'
+      }
+    });
+    
+    const saldoAwal = saldoAwalTransaction ? saldoAwalTransaction.debit : 0;
+    
+    // Dapatkan semua transaksi kecuali saldo awal
+    const transactions = await prisma.kasIkata.findMany({
+      where: {
+        keterangan: {
+          not: "SALDO AWAL" // Jangan hitung transaksi saldo awal
+        }
+      },
       select: {
         id: true,
         tanggal: true,
