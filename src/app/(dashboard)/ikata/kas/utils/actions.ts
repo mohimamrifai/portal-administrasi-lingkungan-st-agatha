@@ -17,6 +17,8 @@ export async function createTransaction(data: {
   jumlah: number;
   keluargaId?: string;
   totalIuran?: number;
+  statusPembayaran?: string;
+  periodeBayar?: string[];
 }) {
   try {
 
@@ -67,7 +69,9 @@ export async function createTransaction(data: {
       debit,
       kredit,
       keluargaId: data.keluargaId,
-      totalIuran: data.totalIuran
+      totalIuran: data.totalIuran,
+      statusPembayaran: data.statusPembayaran,
+      periodeBayar: data.periodeBayar
     });
     
     if (!transaction) {
@@ -92,6 +96,8 @@ export async function updateTransaction(id: string, data: {
   jumlah: number;
   keluargaId?: string;
   totalIuran?: number;
+  statusPembayaran?: string;
+  periodeBayar?: string[];
 }) {
   try {
     // Tentukan debit dan kredit berdasarkan jenis transaksi
@@ -107,7 +113,9 @@ export async function updateTransaction(id: string, data: {
       debit,
       kredit,
       keluargaId: data.keluargaId,
-      totalIuran: data.totalIuran
+      totalIuran: data.totalIuran,
+      statusPembayaran: data.statusPembayaran,
+      periodeBayar: data.periodeBayar
     });
     
     revalidatePath('/ikata/kas');

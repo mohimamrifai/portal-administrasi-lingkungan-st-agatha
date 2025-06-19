@@ -122,6 +122,7 @@ interface TransactionFormDialogProps {
   onSubmit: (data: TransactionFormData) => void;
   editTransaction?: IKATATransaction | null;
   keluargaUmatList: { id: string; namaKepalaKeluarga: string }[];
+  currentDuesAmount?: number;
 }
 
 export function TransactionFormDialog({ 
@@ -129,7 +130,8 @@ export function TransactionFormDialog({
   onOpenChange, 
   onSubmit, 
   editTransaction,
-  keluargaUmatList
+  keluargaUmatList,
+  currentDuesAmount
 }: TransactionFormDialogProps) {
   const [showAnggotaFields, setShowAnggotaFields] = useState(false);
   const [showStatusPembayaran, setShowStatusPembayaran] = useState(false);
@@ -166,7 +168,7 @@ export function TransactionFormDialog({
       tipeTransaksi: '',
       keterangan: '',
       jumlah: 0,
-      totalIuran: 120000,
+      totalIuran: currentDuesAmount || 120000,
     },
   });
 
@@ -221,11 +223,11 @@ export function TransactionFormDialog({
           anggotaId: undefined,
           statusPembayaran: undefined,
           periodeBayar: [],
-          totalIuran: 120000,
+          totalIuran: currentDuesAmount || 120000,
         });
       }
     }
-  }, [open, editTransaction, form]);
+  }, [open, editTransaction, form, currentDuesAmount]);
 
   const watchJenis = form.watch('jenis');
   const watchTipeTransaksi = form.watch('tipeTransaksi');
@@ -262,7 +264,7 @@ export function TransactionFormDialog({
     form.setValue('anggotaId', undefined);
     form.setValue('statusPembayaran', undefined);
     form.setValue('periodeBayar', []);
-    form.setValue('totalIuran', 120000);
+    form.setValue('totalIuran', currentDuesAmount || 120000);
     
     // Reset tampilan field
     setShowAnggotaFields(false);
@@ -274,7 +276,7 @@ export function TransactionFormDialog({
     if (!editTransaction) {
       form.setValue('keterangan', '');
     }
-  }, [watchJenis, form, editTransaction]);
+  }, [watchJenis, form, editTransaction, currentDuesAmount]);
 
   // Update field saat tipe transaksi berubah
   useEffect(() => {
@@ -283,6 +285,8 @@ export function TransactionFormDialog({
         setShowAnggotaFields(true);
         setShowStatusPembayaran(true);
         setShowTotalIuran(true);
+        // Set totalIuran dari currentDuesAmount
+        form.setValue('totalIuran', currentDuesAmount || 120000);
       } else if (watchTipeTransaksi === 'sumbangan_anggota') {
         setShowAnggotaFields(true);
         setShowStatusPembayaran(false);
@@ -311,7 +315,14 @@ export function TransactionFormDialog({
       form.setValue('periodeBayar', []);
       form.setValue('totalIuran', undefined);
     }
-  }, [watchJenis, watchTipeTransaksi, form]);
+  }, [watchJenis, watchTipeTransaksi, form, currentDuesAmount]);
+
+  // Tambahkan useEffect untuk memastikan totalIuran selalu sinkron dengan currentDuesAmount
+  useEffect(() => {
+    if (showTotalIuran && currentDuesAmount) {
+      form.setValue('totalIuran', currentDuesAmount);
+    }
+  }, [currentDuesAmount, showTotalIuran, form]);
 
   // Update field saat status pembayaran berubah
   useEffect(() => {
@@ -368,7 +379,7 @@ export function TransactionFormDialog({
         anggotaId: values.anggotaId,
         statusPembayaran: values.statusPembayaran,
         periodeBayar: values.periodeBayar,
-        totalIuran: values.totalIuran
+        totalIuran: currentDuesAmount || 120000
       };
       
       await onSubmit(submissionData);
@@ -384,7 +395,7 @@ export function TransactionFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] md:max-w-[550px] lg:max-w-[600px] w-full mx-auto">
+      <DialogContent className="sm:max-w-[425px] md:max-w-[550px] lg:max-w-[600px] w-full mx-auto max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit Transaksi' : 'Tambah Transaksi'}</DialogTitle>
           <DialogDescription>
@@ -438,7 +449,7 @@ export function TransactionFormDialog({
                     anggotaId: values.anggotaId,
                     statusPembayaran: values.statusPembayaran,
                     periodeBayar: values.periodeBayar,
-                    totalIuran: values.totalIuran
+                    totalIuran: currentDuesAmount || 120000
                   };
 
                   // Kirim data ke server
@@ -628,13 +639,15 @@ export function TransactionFormDialog({
                     <FormControl>
                       <Input 
                         type="number" 
-                        placeholder="120000" 
+                        placeholder={currentDuesAmount ? currentDuesAmount.toString() : "120000"} 
                         {...field}
-                        onChange={(e) => field.onChange(e.target.valueAsNumber || 120000)}
+                        value={currentDuesAmount || 120000}
+                        disabled
+                        className="bg-muted"
                       />
                     </FormControl>
                     <FormDescription>
-                      Total iuran untuk satu tahun penuh
+                      Nilai ini diambil dari pengaturan iuran IKATA (dapat diatur melalui tombol "Atur Iuran")
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
