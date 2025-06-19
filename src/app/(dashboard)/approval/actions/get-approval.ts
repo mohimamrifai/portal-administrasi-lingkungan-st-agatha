@@ -6,14 +6,10 @@ export async function getApprovals() {
     try {
         const approvals = await prisma.approval.findMany({
             where: {
-                NOT: {
-                    kasLingkungan: {
-                        AND: [
-                            { jenisTranasksi: "UANG_MASUK" },
-                            { tipeTransaksi: "LAIN_LAIN" },
-                            { keterangan: "SALDO AWAL" }
-                        ]
-                    }
+                // Hanya ambil approval yang terkait dengan doa lingkungan
+                // Ini akan otomatis mengecualikan semua transaksi kas ikata
+                doaLingkunganId: {
+                    not: null
                 }
             },
             include: {
