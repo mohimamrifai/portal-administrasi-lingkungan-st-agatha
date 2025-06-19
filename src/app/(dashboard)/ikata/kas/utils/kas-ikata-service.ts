@@ -219,6 +219,8 @@ export async function createKasIkataTransaction(data: {
   kredit: number;
   keluargaId?: string;
   totalIuran?: number;
+  statusPembayaran?: string;
+  periodeBayar?: string[];
 }) {
   try {
 
@@ -269,7 +271,12 @@ export async function createKasIkataTransaction(data: {
           if (!data.keluargaId) {
             throw new Error("ID keluarga diperlukan untuk transaksi iuran anggota");
           }
-          await handleIuranAnggota({ ...data, transaction }, validDate);
+          await handleIuranAnggota({ 
+            ...data, 
+            transaction,
+            statusPembayaran: data.statusPembayaran,
+            periodeBayar: data.periodeBayar 
+          }, validDate);
           break;
 
         case TipeTransaksiIkata.SUMBANGAN_ANGGOTA:
@@ -346,28 +353,65 @@ async function handleIuranAnggota(data: any, validDate: Date) {
       const tahun = validDate.getFullYear();
       const bulan = validDate.getMonth() + 1;
       
+      // Tentukan status berdasarkan statusPembayaran yang dikirim
+      let status = "LUNAS";
+      let bulanAwal = bulan;
+      let bulanAkhir = bulan;
+      
+      if (data.statusPembayaran) {
+        switch (data.statusPembayaran) {
+          case 'lunas':
+            status = "LUNAS";
+            bulanAwal = 1;
+            bulanAkhir = 12;
+            break;
+          case 'sebagian_bulan':
+            status = "SEBAGIAN_BULAN";
+            // Jika ada periodeBayar, gunakan untuk menentukan bulan
+            if (data.periodeBayar && data.periodeBayar.length > 0) {
+              const bulanTerbayar = data.periodeBayar.map((periode: string) => {
+                const [tahunPeriode, bulanPeriode] = periode.split('-');
+                return parseInt(bulanPeriode);
+              }).sort((a: number, b: number) => a - b);
+              
+              bulanAwal = bulanTerbayar[0];
+              bulanAkhir = bulanTerbayar[bulanTerbayar.length - 1];
+            }
+            break;
+          case 'belum_ada_pembayaran':
+            status = "BELUM_BAYAR";
+            bulanAwal = bulan;
+            bulanAkhir = bulan;
+            break;
+          default:
+            status = "LUNAS";
+            bulanAwal = 1;
+            bulanAkhir = 12;
+        }
+      }
+      
       // Update atau buat record IuranIkata
       await prisma.iuranIkata.upsert({
         where: {
           id: await getIuranIkataId(data.keluargaId, tahun)
         },
         update: {
-          status: "LUNAS",
+          status: status as any,
           jumlahDibayar: data.debit,
-        totalIuran: data.totalIuran || 120000,
-        bulanAwal: bulan,
-        bulanAkhir: bulan
+          totalIuran: data.totalIuran || 120000,
+          bulanAwal: bulanAwal,
+          bulanAkhir: bulanAkhir
         },
         create: {
           keluargaId: data.keluargaId,
-          status: "LUNAS",
+          status: status as any,
           tahun: tahun,
           jumlahDibayar: data.debit,
-        totalIuran: data.totalIuran || 120000,
-        bulanAwal: bulan,
-        bulanAkhir: bulan
-      }
-    });
+          totalIuran: data.totalIuran || 120000,
+          bulanAwal: bulanAwal,
+          bulanAkhir: bulanAkhir
+        }
+      });
 
     // Update tunggakan
     await updateTunggakan(data.keluargaId, tahun);
@@ -523,6 +567,8 @@ export async function updateKasIkataTransaction(id: string, data: {
   kredit: number;
   keluargaId?: string;
   totalIuran?: number;
+  statusPembayaran?: string;
+  periodeBayar?: string[];
 }) {
   try {
     // Pastikan tanggal valid
@@ -531,8 +577,12 @@ export async function updateKasIkataTransaction(id: string, data: {
     const transaction = await prisma.kasIkata.update({
       where: { id },
       data: {
-        ...data,
-        tanggal: validDate
+        tanggal: validDate,
+        jenisTranasksi: data.jenisTranasksi,
+        tipeTransaksi: data.tipeTransaksi,
+        keterangan: data.keterangan,
+        debit: data.debit,
+        kredit: data.kredit
       }
     });
     
@@ -542,6 +592,44 @@ export async function updateKasIkataTransaction(id: string, data: {
         data.keluargaId) {
       
       const tahun = validDate.getFullYear();
+      const bulan = validDate.getMonth() + 1;
+      
+      // Tentukan status berdasarkan statusPembayaran yang dikirim
+      let status = "LUNAS";
+      let bulanAwal = bulan;
+      let bulanAkhir = bulan;
+      
+      if (data.statusPembayaran) {
+        switch (data.statusPembayaran) {
+          case 'lunas':
+            status = "LUNAS";
+            bulanAwal = 1;
+            bulanAkhir = 12;
+            break;
+          case 'sebagian_bulan':
+            status = "SEBAGIAN_BULAN";
+            // Jika ada periodeBayar, gunakan untuk menentukan bulan
+            if (data.periodeBayar && data.periodeBayar.length > 0) {
+              const bulanTerbayar = data.periodeBayar.map((periode: string) => {
+                const [tahunPeriode, bulanPeriode] = periode.split('-');
+                return parseInt(bulanPeriode);
+              }).sort((a: number, b: number) => a - b);
+              
+              bulanAwal = bulanTerbayar[0];
+              bulanAkhir = bulanTerbayar[bulanTerbayar.length - 1];
+            }
+            break;
+          case 'belum_ada_pembayaran':
+            status = "BELUM_BAYAR";
+            bulanAwal = bulan;
+            bulanAkhir = bulan;
+            break;
+          default:
+            status = "LUNAS";
+            bulanAwal = 1;
+            bulanAkhir = 12;
+        }
+      }
       
       // Update record IuranIkata
       await prisma.iuranIkata.updateMany({
@@ -550,9 +638,11 @@ export async function updateKasIkataTransaction(id: string, data: {
           tahun: tahun
         },
         data: {
-          status: "LUNAS",
+          status: status as any,
           jumlahDibayar: data.debit,
-          totalIuran: data.totalIuran || 120000 // Default 120000 jika tidak diisi
+          totalIuran: data.totalIuran || 120000,
+          bulanAwal: bulanAwal,
+          bulanAkhir: bulanAkhir
         }
       });
     }

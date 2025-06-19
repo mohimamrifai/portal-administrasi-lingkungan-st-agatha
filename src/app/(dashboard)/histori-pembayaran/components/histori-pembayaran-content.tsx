@@ -6,12 +6,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
-import { SearchIcon, X, PlusCircleIcon } from "lucide-react"
+import { SearchIcon, X } from "lucide-react"
 
 import { YearFilter } from "./year-filter"
 import { PaymentHistoryTable } from "./payment-history-table"
 import { SummaryCards } from "./summary-cards"
-import { AddPaymentDialog } from "./add-payment-dialog"
 import LoadingSkeleton from "./loading-skeleton"
 import { DanaMandiriHistory, IkataHistory } from "../types"
 import { 
@@ -46,8 +45,6 @@ export default function HistoriPembayaranContent() {
   const [selectedYear, setSelectedYear] = useState<number | undefined>(undefined)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [searchTerm, setSearchTerm] = useState("")
-  const [showAddPaymentDialog, setShowAddPaymentDialog] = useState(false)
-  const [paymentTypeToAdd, setPaymentTypeToAdd] = useState<"Dana Mandiri" | "IKATA">("Dana Mandiri")
   const [danaMandiriTotal, setDanaMandiriTotal] = useState({ total: 0, count: 0 })
   const [ikataTotal, setIkataTotal] = useState({ total: 0, count: 0 })
   
@@ -404,65 +401,6 @@ export default function HistoriPembayaranContent() {
     }
   }
   
-  // Handler untuk menampilkan dialog tambah pembayaran
-  const handleShowAddPayment = (type: "Dana Mandiri" | "IKATA") => {
-    setPaymentTypeToAdd(type)
-    setShowAddPaymentDialog(true)
-  }
-  
-  // Handler setelah berhasil menambahkan pembayaran
-  const handlePaymentAdded = async () => {
-    // Refresh data
-    try {
-      setIsLoading(true)
-      
-      if (hasAdminAccess) {
-        const danaMandiri = await getAllDanaMandiri()
-        const ikata = await getAllIkata()
-        
-        setDanaMandiriData(danaMandiri)
-        setIkataData(ikata)
-        
-        // Perbarui total
-        const yearToQuery = selectedYear ?? 0;
-        const danaMandiriTotalData = await getTotalDanaMandiriByYear(yearToQuery);
-        const ikataTotalData = await getTotalIkataByYear(yearToQuery);
-        
-        setDanaMandiriTotal(danaMandiriTotalData)
-        setIkataTotal(ikataTotalData)
-      } else if (keluargaId) {
-        const danaMandiri = await getDanaMandiriByKeluargaId(keluargaId)
-        const ikata = await getIkataByKeluargaId(keluargaId)
-        
-        setDanaMandiriData(danaMandiri)
-        setIkataData(ikata)
-        
-        // Filter data berdasarkan tahun yang dipilih
-        const filteredDanaMandiri = filterDanaMandiriByYear(danaMandiri, selectedYear);
-        const filteredIkata = filterIkataByYear(ikata, selectedYear);
-        
-        // Perbarui total untuk data umat yang login
-        const danaMandiriTotalData = {
-          total: filteredDanaMandiri.filter(item => item.statusSetor).reduce((sum, item) => sum + item.jumlahDibayar, 0),
-          count: filteredDanaMandiri.filter(item => item.statusSetor).length
-        }
-        
-        const ikataTotalData = {
-          total: filteredIkata.filter(item => item.status === "LUNAS").reduce((sum, item) => sum + item.jumlahDibayar, 0),
-          count: filteredIkata.filter(item => item.status === "LUNAS").length
-        }
-        
-        setDanaMandiriTotal(danaMandiriTotalData)
-        setIkataTotal(ikataTotalData)
-      }
-    } catch (error) {
-      console.error("Error refreshing data:", error)
-      toast.error("Gagal memperbarui data")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-  
   // Handler untuk memperbaiki data bulan IKATA
   const handleFixIkataMonthData = async () => {
     try {
@@ -473,7 +411,26 @@ export default function HistoriPembayaranContent() {
         toast.success(`Berhasil memperbaiki ${result.fixed} data bulan IKATA`)
         
         // Refresh data setelah perbaikan
-        await handlePaymentAdded()
+        try {
+          if (hasAdminAccess) {
+            const danaMandiri = await getAllDanaMandiri()
+            const ikata = await getAllIkata()
+            
+            setDanaMandiriData(danaMandiri)
+            setIkataData(ikata)
+            
+            // Perbarui total
+            const yearToQuery = selectedYear ?? 0;
+            const danaMandiriTotalData = await getTotalDanaMandiriByYear(yearToQuery);
+            const ikataTotalData = await getTotalIkataByYear(yearToQuery);
+            
+            setDanaMandiriTotal(danaMandiriTotalData)
+            setIkataTotal(ikataTotalData)
+          }
+        } catch (refreshError) {
+          console.error("Error refreshing data:", refreshError)
+          toast.error("Gagal memperbarui data setelah perbaikan")
+        }
       }
     } catch (error) {
       console.error("Error fixing IKATA month data:", error)
@@ -551,20 +508,6 @@ export default function HistoriPembayaranContent() {
                 )}
               </div>
             </div>
-            
-            {/* Tombol Tambah hanya ditampilkan untuk admin/super user */}
-            {hasAdminAccess && (
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => handleShowAddPayment("Dana Mandiri")}
-                  className="flex items-center gap-1"
-                >
-                  <PlusCircleIcon className="h-4 w-4" />
-                  Tambah
-                </Button>
-              </div>
-            )}
           </div>
           
           <div className="rounded-md border">
@@ -610,20 +553,6 @@ export default function HistoriPembayaranContent() {
                 )}
               </div>
             </div>
-            
-            {/* Tombol Tambah hanya ditampilkan untuk admin/super user */}
-            {hasAdminAccess && (
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => handleShowAddPayment("IKATA")}
-                  className="flex items-center gap-1"
-                >
-                  <PlusCircleIcon className="h-4 w-4" />
-                  Tambah
-                </Button>
-              </div>
-            )}
           </div>
           
           <div className="rounded-md border">
@@ -638,16 +567,6 @@ export default function HistoriPembayaranContent() {
           </div>
         </TabsContent>
       </Tabs>
-      
-      {/* Dialog untuk menambahkan pembayaran */}
-      <AddPaymentDialog
-        isOpen={showAddPaymentDialog}
-        onClose={() => setShowAddPaymentDialog(false)}
-        paymentType={paymentTypeToAdd}
-        onSuccess={handlePaymentAdded}
-        isSuperUser={isSuperUser}
-        defaultKeluargaId={!hasAdminAccess ? keluargaId || undefined : undefined}
-      />
     </div>
   )
 } 

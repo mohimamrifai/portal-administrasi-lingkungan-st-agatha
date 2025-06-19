@@ -239,7 +239,9 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         keterangan,
         jumlah: data.jumlah,
         keluargaId: data.anggotaId,
-        totalIuran: data.totalIuran
+        totalIuran: data.totalIuran,
+        statusPembayaran: data.statusPembayaran,
+        periodeBayar: data.periodeBayar
       });
 
       if (result) {
@@ -320,7 +322,9 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         keterangan: data.keterangan,
         jumlah: data.jumlah,
         keluargaId: data.anggotaId,
-        totalIuran: data.totalIuran
+        totalIuran: data.totalIuran,
+        statusPembayaran: data.statusPembayaran,
+        periodeBayar: data.periodeBayar
       });
 
       if (result) {
@@ -660,6 +664,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         }}
         editTransaction={editingTransaction}
         keluargaUmatList={keluargaUmatList}
+        currentDuesAmount={currentDuesAmount}
       />
 
       <PrintPDFDialog
