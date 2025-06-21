@@ -295,7 +295,7 @@ export function ApprovalTable({ items, onApprove, onReject, onReset, userRole, k
                       </TableCell>
                     )}
                     <TableCell className="max-w-[200px] truncate" title={getKeterangan(item)}>{getKeterangan(item)}</TableCell>
-                    <TableCell>{getJumlahHadir(item)} orang</TableCell>
+                    <TableCell>{getJumlahHadir(item)} KK</TableCell>
                     <TableCell>Rp {getTotal(item).toLocaleString('id-ID')}</TableCell>
                     <TableCell>
                       <Badge
