@@ -105,7 +105,7 @@ export function ConfirmationDialog({
               <div>{format(getItemDate(selectedItem), "dd/MM/yyyy", { locale: id })}</div>
               
               <div className="font-semibold">Jumlah Hadir:</div>
-              <div>{getJumlahHadir(selectedItem)} orang</div>
+              <div>{getJumlahHadir(selectedItem)} KK</div>
               
               <div className="font-semibold">Total Pemasukan:</div>
               <div>Rp {getTotal(selectedItem).toLocaleString('id-ID')}</div>
