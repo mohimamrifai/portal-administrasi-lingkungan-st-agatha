@@ -80,14 +80,14 @@ export function ApprovalStats({ stats }: ApprovalStatsProps) {
         </CardContent>
       </Card>
       
-      {/* Total Biaya */}
+      {/* Total Pemasukan */}
       <Card className="gap-0 bg-emerald-50 border-emerald-200">
         <CardHeader className="pb-2 flex flex-row items-center gap-2">
           <div className="rounded-full bg-emerald-100 p-2 mr-2">
             <Wallet2 className="h-6 w-6 text-emerald-600" />
           </div>
           <div>
-            <CardTitle className="text-sm font-medium">Total Biaya</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Pemasukan</CardTitle>
             <CardDescription>Yang telah disetujui</CardDescription>
           </div>
         </CardHeader>

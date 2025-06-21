@@ -115,7 +115,7 @@ function KeluargaSearchCombobox({
         </div>
         <Command>
           <CommandEmpty>{emptyMessage}</CommandEmpty>
-          <CommandGroup className="max-h-[300px] overflow-auto">
+          <CommandGroup className="max-h-[300px] overflow-auto overscroll-contain touch-pan-y">
             {filteredOptions.map((option) => (
               <CommandItem
                 key={option.value}
@@ -173,8 +173,9 @@ export function AbsensiDolingFormDialog({
         }
         
         // Hanya tampilkan jadwal yang:
-        // 1. Status jadwal sesuai (selesai, terjadwal, atau menunggu)
-        return jadwal.status === 'selesai' || jadwal.status === 'terjadwal' || jadwal.status === 'menunggu';
+        // 1. Status jadwal bukan selesai (jadwal yang sudah selesai tidak ditampilkan)
+        // 2. Status terjadwal atau menunggu approval
+        return jadwal.status === 'terjadwal' || jadwal.status === 'menunggu';
       })
       .sort((a, b) => {
         // Urutkan berdasarkan tanggal terbaru

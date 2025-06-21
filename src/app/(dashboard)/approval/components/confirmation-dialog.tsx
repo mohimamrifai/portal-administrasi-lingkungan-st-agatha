@@ -107,7 +107,7 @@ export function ConfirmationDialog({
               <div className="font-semibold">Jumlah Hadir:</div>
               <div>{getJumlahHadir(selectedItem)} orang</div>
               
-              <div className="font-semibold">Total Biaya:</div>
+              <div className="font-semibold">Total Pemasukan:</div>
               <div>Rp {getTotal(selectedItem).toLocaleString('id-ID')}</div>
 
               <div className="font-semibold">Keterangan:</div>
