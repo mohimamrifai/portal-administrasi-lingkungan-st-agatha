@@ -392,11 +392,25 @@ export async function updateDolingDetail(id: string, data: {
   customSubIbadat?: string | null;
 }): Promise<DolingData> {
   try {
+    // Jika tidak ada perubahan pada jumlahKKHadir, gunakan data absensi yang sebenarnya
+    let finalJumlahKKHadir = data.jumlahKKHadir;
+    
+    if (finalJumlahKKHadir === undefined) {
+      // Hitung berdasarkan data absensi yang ada
+      const actualAttendanceCount = await prisma.absensiDoling.count({
+        where: {
+          doaLingkunganId: id,
+          hadir: true,
+        },
+      });
+      finalJumlahKKHadir = actualAttendanceCount;
+    }
+
     // Update data doling
     const updatedDoling = await prisma.doaLingkungan.update({
       where: { id },
       data: {
-        jumlahKKHadir: data.jumlahKKHadir,
+        jumlahKKHadir: finalJumlahKKHadir,
         bapak: data.bapak,
         ibu: data.ibu,
         omk: data.omk,
@@ -706,7 +720,7 @@ export async function getRiwayatKehadiran(): Promise<{
   persentase: number;
 }[]> {
   try {
-    // Get all families
+    // Get all families with their attendance records
     const keluarga = await prisma.keluargaUmat.findMany({
       where: {
         status: 'HIDUP',
@@ -718,15 +732,26 @@ export async function getRiwayatKehadiran(): Promise<{
         absensiDoling: {
           select: {
             hadir: true,
+            doaLingkungan: {
+              select: {
+                statusKegiatan: true,
+                tanggal: true,
+              }
+            }
           },
         },
       },
     });
 
-    // Calculate attendance statistics
+    // Calculate attendance statistics - hanya hitung dari kegiatan yang sudah selesai
     return keluarga.map(k => {
-      const totalAbsensi = k.absensiDoling.length;
-      const totalHadir = k.absensiDoling.filter(a => a.hadir).length;
+      // Filter absensi hanya dari kegiatan yang sudah selesai atau setidaknya sudah terjadi
+      const validAbsensi = k.absensiDoling.filter(a => 
+        a.doaLingkungan.tanggal <= new Date() // Hanya kegiatan yang sudah berlalu
+      );
+      
+      const totalAbsensi = validAbsensi.length;
+      const totalHadir = validAbsensi.filter(a => a.hadir).length;
       const persentase = totalAbsensi > 0 ? (totalHadir / totalAbsensi) * 100 : 0;
 
       return {
@@ -771,17 +796,39 @@ export async function getRekapitulasiBulanan(tahun: number): Promise<{
           },
         },
         select: {
-          jumlahKKHadir: true,
+          id: true,
+          tanggal: true,
+          statusKegiatan: true,
         },
       });
       
       const jumlahKegiatan = dolingData.length;
-      const totalHadir = dolingData.reduce((sum, d) => sum + d.jumlahKKHadir, 0);
-      // Bulatkan rataRataHadir ke 2 angka di belakang koma untuk presisi lebih baik
-      const rataRataHadir = jumlahKegiatan > 0 ? Math.round((totalHadir / jumlahKegiatan) * 100) / 100 : 0;
+      
+      // Hitung rata-rata kehadiran berdasarkan data absensi yang sebenarnya
+      let totalHadir = 0;
+      let kegiatanDenganAbsensi = 0;
+      
+      for (const doling of dolingData) {
+        // Hanya hitung kegiatan yang sudah berlalu
+        if (doling.tanggal <= new Date()) {
+          // Ambil data absensi untuk setiap doling
+          const absensiCount = await prisma.absensiDoling.count({
+            where: {
+              doaLingkunganId: doling.id,
+              hadir: true,
+            },
+          });
+          
+          totalHadir += absensiCount;
+          kegiatanDenganAbsensi++;
+        }
+      }
+      
+      const rataRataHadir = kegiatanDenganAbsensi > 0 ? 
+        Math.round((totalHadir / kegiatanDenganAbsensi) * 100) / 100 : 0;
       
       hasil.push({
-        bulan: `${namaBulan[bulan]} ${tahun}`, // Tambahkan tahun ke nama bulan
+        bulan: `${namaBulan[bulan]} ${tahun}`,
         jumlahKegiatan,
         rataRataHadir,
       });
