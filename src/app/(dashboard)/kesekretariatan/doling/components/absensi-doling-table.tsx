@@ -157,8 +157,8 @@ export function AbsensiDolingTable({ absensi, onEdit, onDelete, onAdd, jadwalDol
                       <TableCell className="sticky right-0 bg-white shadow-[-8px_0_10px_-6px_rgba(0,0,0,0.1)] z-10">
                         <div className="flex items-center gap-1">
                           <Button variant="ghost" size="sm" onClick={() => onEdit(item)}>
-                            <EditIcon className="h-4 w-4 mr-1" />
-                            Edit
+                            <EditIcon className="h-4 w-4 md:mr-1" />
+                            <span className="hidden md:inline">Edit</span>
                           </Button>
                           {onDelete && (
                             <Button variant="ghost" size="sm" className="text-red-500" 
@@ -168,8 +168,8 @@ export function AbsensiDolingTable({ absensi, onEdit, onDelete, onAdd, jadwalDol
                                 }
                               }}
                             >
-                              <Trash2Icon className="h-4 w-4 mr-1" />
-                              Hapus
+                              <Trash2Icon className="h-4 w-4 md:mr-1" />
+                              <span className="hidden md:inline">Hapus</span>
                             </Button>
                           )}
                         </div>
