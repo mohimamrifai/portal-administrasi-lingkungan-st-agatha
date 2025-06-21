@@ -493,8 +493,83 @@ export async function getFamilyMembers(familyId: string): Promise<{id: string, n
 }
 
 /**
- * Menambahkan data tanggungan sesuai dengan jumlah yang tercatat di keluarga
- * Digunakan untuk memperbaiki ketidakkonsistenan antara jumlah tanggungan dan data tanggungan yang ada
+ * Sinkronisasi data tanggungan (tanpa revalidatePath untuk digunakan dalam rendering)
+ */
+async function syncFamilyDependentsInternal(familyId: string): Promise<{success: boolean, message: string}> {
+  try {
+    // Ambil data keluarga
+    const keluarga = await prisma.keluargaUmat.findUnique({
+      where: { id: familyId },
+    });
+
+    if (!keluarga) {
+      return { success: false, message: 'Keluarga tidak ditemukan' };
+    }
+
+    // Ambil semua tanggungan yang ada
+    const existingTanggungan = await prisma.tanggungan.findMany({
+      where: { keluargaId: familyId },
+    });
+
+    const existingAnak = existingTanggungan.filter(t => t.jenisTanggungan === 'ANAK').length;
+    const existingKerabat = existingTanggungan.filter(t => t.jenisTanggungan === 'KERABAT').length;
+
+    const missingAnak = keluarga.jumlahAnakTertanggung - existingAnak;
+    const missingKerabat = keluarga.jumlahKerabatTertanggung - existingKerabat;
+
+    // Jika tidak ada yang perlu ditambahkan
+    if (missingAnak <= 0 && missingKerabat <= 0) {
+      return { 
+        success: true, 
+        message: 'Data tanggungan sudah sinkron dengan jumlah yang tercatat' 
+      };
+    }
+
+    // Tambahkan anak yang hilang
+    for (let i = 0; i < missingAnak; i++) {
+      await prisma.tanggungan.create({
+        data: {
+          nama: `Anak ${i+1} dari ${keluarga.namaKepalaKeluarga}`,
+          jenisTanggungan: 'ANAK',
+          tanggalLahir: new Date(), // Default tanggal hari ini
+          pendidikanTerakhir: 'Belum diisi',
+          agama: 'KATOLIK', // Default
+          statusPernikahan: 'TIDAK_MENIKAH',
+          keluargaId: familyId
+        }
+      });
+    }
+
+    // Tambahkan kerabat yang hilang
+    for (let i = 0; i < missingKerabat; i++) {
+      await prisma.tanggungan.create({
+        data: {
+          nama: `Kerabat ${i+1} dari ${keluarga.namaKepalaKeluarga}`,
+          jenisTanggungan: 'KERABAT',
+          tanggalLahir: new Date(), // Default tanggal hari ini
+          pendidikanTerakhir: 'Belum diisi',
+          agama: 'KATOLIK', // Default
+          statusPernikahan: 'TIDAK_MENIKAH',
+          keluargaId: familyId
+        }
+      });
+    }
+
+    return { 
+      success: true, 
+      message: `Berhasil menambahkan ${missingAnak} anak dan ${missingKerabat} kerabat yang hilang` 
+    };
+  } catch (error) {
+    console.error("Error syncing family dependents:", error);
+    return { 
+      success: false, 
+      message: "Gagal menyinkronkan data tanggungan" 
+    };
+  }
+}
+
+/**
+ * Sinkronisasi data tanggungan (dengan revalidatePath untuk server actions)
  */
 export async function syncFamilyDependents(familyId: string): Promise<{success: boolean, message: string}> {
   try {
@@ -645,7 +720,7 @@ export async function getAllFamilyHeadsWithDetails(): Promise<FamilyHeadWithDeta
       // Jika ada tanggungan yang belum tercatat, lakukan sinkronisasi
       if (missingAnak > 0 || missingKerabat > 0) {
         try {
-          await syncFamilyDependents(keluarga.id);
+          await syncFamilyDependentsInternal(keluarga.id);
           // Ambil data terbaru setelah sinkronisasi
           const updatedKeluarga = await prisma.keluargaUmat.findUnique({
             where: { id: keluarga.id },
