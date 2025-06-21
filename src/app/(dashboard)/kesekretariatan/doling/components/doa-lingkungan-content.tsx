@@ -155,6 +155,26 @@ export function DoaLingkunganContent({
         }
     }, [selectedDolingId, selectedTahun]);
 
+    // Fungsi untuk memperbarui data riwayat dan rekapitulasi saja
+    const refreshRiwayatData = useCallback(async () => {
+        try {
+            const currentYear = selectedTahun === "all" ? new Date().getFullYear() : parseInt(selectedTahun);
+            
+            // Ambil data riwayat dan rekapitulasi terbaru
+            const [riwayatData, rekapitulasi] = await Promise.all([
+                getRiwayatKehadiran(),
+                getRekapitulasiBulanan(currentYear)
+            ]);
+            
+            // Update state riwayat dan rekapitulasi
+            setRiwayatState(riwayatData);
+            setRekapitulasiState(rekapitulasi);
+        } catch (error) {
+            console.error("Error refreshing riwayat data:", error);
+            toast.error("Gagal memperbarui data riwayat");
+        }
+    }, [selectedTahun]);
+
     // Initial data fetching
     useEffect(() => {
         if (!initialDoling.length || !initialRiwayat.length || !initialRekapitulasi.length || !initialKeluarga.length) {
@@ -235,6 +255,22 @@ export function DoaLingkunganContent({
         }
     }, [activeTab, jadwalState, selectedDolingId]);
 
+    // Fetch data riwayat saat tab riwayat aktif
+    useEffect(() => {
+        if (activeTab === "riwayat-doling") {
+            // Muat data riwayat terbaru saat tab riwayat ditampilkan
+            refreshRiwayatData();
+        }
+    }, [activeTab, refreshRiwayatData]);
+
+    // Refresh data riwayat ketika tahun berubah
+    useEffect(() => {
+        // Hanya refresh jika tab riwayat sedang aktif untuk menghindari call yang tidak perlu
+        if (activeTab === "riwayat-doling") {
+            refreshRiwayatData();
+        }
+    }, [selectedTahun, activeTab, refreshRiwayatData]);
+
     // Event handlers - Jadwal Doling ------------------------------------------
 
     const handleAddJadwal = () => {
@@ -251,7 +287,10 @@ export function DoaLingkunganContent({
         try {
             await deleteDoling(id);
             toast.success("Jadwal berhasil dihapus");
-            fetchData(); // Refresh data
+            
+            // Refresh semua data termasuk riwayat karena jadwal mempengaruhi rekapitulasi
+            await fetchData();
+            await refreshRiwayatData();
         } catch (error) {
             console.error("Error deleting jadwal:", error);
             toast.error("Gagal menghapus jadwal");
@@ -325,7 +364,10 @@ export function DoaLingkunganContent({
                 toast.success("Jadwal baru berhasil ditambahkan");
             }
             setJadwalFormOpen(false);
-            fetchData(); // Refresh data
+            
+            // Refresh semua data termasuk riwayat karena jadwal baru mempengaruhi rekapitulasi
+            await fetchData();
+            await refreshRiwayatData();
         } catch (error) {
             console.error("Error submitting jadwal:", error);
             toast.error("Gagal menyimpan jadwal");
@@ -348,7 +390,10 @@ export function DoaLingkunganContent({
         try {
             await deleteDoling(id);
             toast.success("Detail doling berhasil dihapus");
-            fetchData(); // Refresh data
+            
+            // Refresh semua data termasuk riwayat karena hapus detil mempengaruhi rekapitulasi
+            await fetchData();
+            await refreshRiwayatData();
         } catch (error) {
             console.error("Error deleting detail:", error);
             toast.error("Gagal menghapus detail");
@@ -367,7 +412,10 @@ export function DoaLingkunganContent({
             // Update status menjadi selesai hanya jika sudah diapprove
             await updateDolingDetail(id, { statusKegiatan: StatusKegiatan.SELESAI });
             toast.success("Status doling berhasil diubah menjadi selesai");
-            fetchData(); // Refresh data
+            
+            // Refresh semua data termasuk riwayat karena status kegiatan mempengaruhi rekapitulasi
+            await fetchData();
+            await refreshRiwayatData();
         } catch (error) {
             console.error("Error approving detail:", error);
             toast.error("Gagal mengubah status doling");
@@ -386,7 +434,10 @@ export function DoaLingkunganContent({
             await updateDolingDetail(id, updateData);
             toast.success("Detail doling berhasil diperbarui");
             setDetilFormOpen(false);
-            fetchData(); // Refresh data
+            
+            // Refresh semua data termasuk riwayat karena detil mempengaruhi data kehadiran
+            await fetchData();
+            await refreshRiwayatData();
         } catch (error) {
             console.error("Error submitting detail:", error);
             toast.error("Gagal menyimpan detail");
@@ -441,6 +492,9 @@ export function DoaLingkunganContent({
                 setAbsensiState(absensiData);
             }
             
+            // Refresh data riwayat karena absensi mempengaruhi statistik kehadiran
+            await refreshRiwayatData();
+            
             toast.success("Absensi berhasil dihapus");
         } catch (error) {
             console.error("Error deleting absensi:", error);
@@ -466,6 +520,9 @@ export function DoaLingkunganContent({
             // Ambil data absensi terbaru
             const absensiData = await getAbsensiByDolingId(values.doaLingkunganId);
             setAbsensiState(absensiData);
+            
+            // Refresh data riwayat karena absensi baru mempengaruhi statistik kehadiran
+            await refreshRiwayatData();
             
             // Jika tab saat ini bukan tab absensi, pindah ke tab absensi
             if (activeTab !== "absensi-doling") {
