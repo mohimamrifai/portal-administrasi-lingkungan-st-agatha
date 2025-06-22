@@ -27,7 +27,7 @@ export function PeriodFilter({ period, onPeriodChange }: PeriodFilterProps) {
           <SelectValue placeholder="Pilih Bulan" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="0">Semua Data</SelectItem>
+          <SelectItem value="0">Semua Bulan</SelectItem>
           {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
             <SelectItem key={month} value={month.toString()}>
               {new Date(2000, month - 1).toLocaleString('id-ID', { month: 'long' })}
@@ -39,7 +39,6 @@ export function PeriodFilter({ period, onPeriodChange }: PeriodFilterProps) {
       <Select
         value={period.tahun.toString()}
         onValueChange={(value) => onPeriodChange({ ...period, tahun: parseInt(value) })}
-        disabled={period.bulan === 0}
       >
         <SelectTrigger className="w-full sm:w-[120px] md:w-[180px]">
           <SelectValue placeholder="Pilih Tahun" />
