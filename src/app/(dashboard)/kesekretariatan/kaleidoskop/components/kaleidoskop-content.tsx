@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { PeriodeSelector } from "./periode-selector";
-import { filterDataByPeriode } from "../utils/data-utils";
 import { getKaleidoskopData, getStatistikPerJenisIbadat, getRingkasanKegiatan } from "../actions";
 import { JenisIbadat, SubIbadat } from "@prisma/client";
 import { ChartBarIcon, Calendar, Users2, Filter } from "lucide-react";
@@ -32,13 +31,9 @@ export function KaleidoskopContent({
 }: KaleidoskopContentProps) {
   // State untuk filter periode
   const currentDate = new Date();
-  const defaultStartDate = periodRange?.startDate || new Date(currentDate.getFullYear(), 0, 1);
-  const defaultEndDate = periodRange?.endDate || currentDate;
 
-  const [bulanAwal, setBulanAwal] = useState(defaultStartDate.getMonth().toString());
-  const [tahunAwal, setTahunAwal] = useState(defaultStartDate.getFullYear().toString());
-  const [bulanAkhir, setBulanAkhir] = useState(defaultEndDate.getMonth().toString());
-  const [tahunAkhir, setTahunAkhir] = useState(defaultEndDate.getFullYear().toString());
+  const [bulan, setBulan] = useState("all");
+  const [tahun, setTahun] = useState("all");
   
   // State untuk menampilkan filter
   const [showFilter, setShowFilter] = useState(false);
@@ -54,9 +49,14 @@ export function KaleidoskopContent({
     try {
       setIsLoading(true);
       
-      // Konversi periode ke format Date
-      const startDate = new Date(parseInt(tahunAwal), parseInt(bulanAwal), 1);
-      const endDate = new Date(parseInt(tahunAkhir), parseInt(bulanAkhir) + 1, 0);
+      let startDate: Date | undefined;
+      let endDate: Date | undefined;
+      
+      // Jika filter dipilih, konversi ke Date
+      if (bulan !== "all" && tahun !== "all") {
+        startDate = new Date(parseInt(tahun), parseInt(bulan), 1);
+        endDate = new Date(parseInt(tahun), parseInt(bulan) + 1, 0);
+      }
       
       // Panggil server actions
       const [activities, statistik, ringkasan] = await Promise.all([
@@ -73,16 +73,13 @@ export function KaleidoskopContent({
     } finally {
       setIsLoading(false);
     }
-  }, [bulanAwal, tahunAwal, bulanAkhir, tahunAkhir]);
+  }, [bulan, tahun]);
   
   // Memuat data ketika komponen dimount
   useEffect(() => {
     if (initialActivityData.length > 0 && initialSummaryData) {
       // Gunakan data awal dan dapatkan statistiknya
-      const startDate = new Date(parseInt(tahunAwal), parseInt(bulanAwal), 1);
-      const endDate = new Date(parseInt(tahunAkhir), parseInt(bulanAkhir) + 1, 0);
-      
-      getStatistikPerJenisIbadat(startDate, endDate)
+      getStatistikPerJenisIbadat()
         .then(statistik => {
           setStatistikData(statistik);
         })
@@ -93,7 +90,7 @@ export function KaleidoskopContent({
       // Jika tidak ada data awal, lakukan fetch lengkap
       loadData();
     }
-  }, [loadData, initialActivityData, initialSummaryData, bulanAwal, bulanAkhir, tahunAwal, tahunAkhir]);
+  }, [loadData, initialActivityData, initialSummaryData]);
   
   // Handler untuk tombol "Filter Sekarang"
   const handleFilter = useCallback(() => {
@@ -103,21 +100,17 @@ export function KaleidoskopContent({
 
   // Membuat label periode
   const getPeriodeLabel = () => {
+    if (bulan === "all" || tahun === "all") {
+      return "Semua Data";
+    }
+    
     const months = [
       "Januari", "Februari", "Maret", "April", "Mei", "Juni",
       "Juli", "Agustus", "September", "Oktober", "November", "Desember"
     ];
     
-    const bulanAwalText = months[parseInt(bulanAwal)];
-    const bulanAkhirText = months[parseInt(bulanAkhir)];
-    
-    if (tahunAwal === tahunAkhir && bulanAwal === bulanAkhir) {
-      return `${bulanAwalText} ${tahunAwal}`;
-    } else if (tahunAwal === tahunAkhir) {
-      return `${bulanAwalText} - ${bulanAkhirText} ${tahunAwal}`;
-    } else {
-      return `${bulanAwalText} ${tahunAwal} - ${bulanAkhirText} ${tahunAkhir}`;
-    }
+    const bulanText = months[parseInt(bulan)];
+    return `${bulanText} ${tahun}`;
   };
   
   // Mendapatkan warna berdasarkan jenisIbadat
@@ -222,14 +215,10 @@ export function KaleidoskopContent({
             </button>
           </div>
           <PeriodeSelector
-            bulanAwal={bulanAwal}
-            setBulanAwal={setBulanAwal}
-            tahunAwal={tahunAwal}
-            setTahunAwal={setTahunAwal}
-            bulanAkhir={bulanAkhir}
-            setBulanAkhir={setBulanAkhir}
-            tahunAkhir={tahunAkhir}
-            setTahunAkhir={setTahunAkhir}
+            bulan={bulan}
+            setBulan={setBulan}
+            tahun={tahun}
+            setTahun={setTahun}
             onFilter={handleFilter}
           />
         </div>

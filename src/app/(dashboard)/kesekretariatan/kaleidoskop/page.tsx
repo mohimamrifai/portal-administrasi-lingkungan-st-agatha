@@ -15,13 +15,10 @@ function LoadingSkeleton() {
 }
 
 export default async function KaleidoskopPage() {
-  // Tentukan rentang waktu (defaultnya tahun berjalan)
-  const endDate = new Date();
-  const startDate = new Date(endDate.getFullYear(), 0, 1); // 1 Januari tahun berjalan
-
-  // Mengambil data dari server actions
-  const activityData = await getKaleidoskopData(startDate, endDate);
-  const summaryData = await getRingkasanKegiatan(startDate, endDate);
+  // Default menampilkan semua data (tanpa filter tanggal)
+  // Mengambil data dari server actions tanpa parameter tanggal
+  const activityData = await getKaleidoskopData();
+  const summaryData = await getRingkasanKegiatan();
   
   return (
     <div className="p-2 px-4">
@@ -29,10 +26,6 @@ export default async function KaleidoskopPage() {
         <KaleidoskopContent 
           activityData={activityData}
           summaryData={summaryData}
-          periodRange={{
-            startDate,
-            endDate
-          }}
         />
       </Suspense>
     </div>
