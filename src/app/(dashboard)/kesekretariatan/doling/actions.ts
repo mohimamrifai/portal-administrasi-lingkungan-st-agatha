@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { JenisIbadat, SubIbadat, StatusApproval, StatusKegiatan } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { format } from "date-fns";
+import { createJakartaMonthRange, nowInJakarta, createJakartaYearRange } from "@/lib/timezone";
 
 // Tipe data yang digunakan UI
 export interface DolingData {
@@ -745,9 +746,10 @@ export async function getRiwayatKehadiran(): Promise<{
 
     // Calculate attendance statistics - hanya hitung dari kegiatan yang sudah selesai
     return keluarga.map(k => {
-      // Filter absensi hanya dari kegiatan yang sudah selesai atau setidaknya sudah terjadi
+      // Filter absensi hanya dari kegiatan yang sudah berlalu (gunakan timezone Jakarta)
+      const currentTime = nowInJakarta();
       const validAbsensi = k.absensiDoling.filter(a => 
-        a.doaLingkungan.tanggal <= new Date() // Hanya kegiatan yang sudah berlalu
+        a.doaLingkungan.tanggal <= currentTime // Hanya kegiatan yang sudah berlalu
       );
       
       const totalAbsensi = validAbsensi.length;
@@ -784,8 +786,8 @@ export async function getRekapitulasiBulanan(tahun: number): Promise<{
     
     // Loop through months
     for (let bulan = 0; bulan < 12; bulan++) {
-      const startDate = new Date(tahun, bulan, 1);
-      const endDate = new Date(tahun, bulan + 1, 0);
+      // Gunakan timezone Jakarta untuk konsistensi
+      const { startDate, endDate } = createJakartaMonthRange(tahun, bulan);
       
       // Get doling data for this month
       const dolingData = await prisma.doaLingkungan.findMany({
@@ -809,8 +811,9 @@ export async function getRekapitulasiBulanan(tahun: number): Promise<{
       let kegiatanDenganAbsensi = 0;
       
       for (const doling of dolingData) {
-        // Hanya hitung kegiatan yang sudah berlalu
-        if (doling.tanggal <= new Date()) {
+        // Hanya hitung kegiatan yang sudah berlalu (gunakan timezone Jakarta)
+        const currentTime = nowInJakarta();
+        if (doling.tanggal <= currentTime) {
           // Ambil data absensi untuk setiap doling
           const absensiCount = await prisma.absensiDoling.count({
             where: {
@@ -850,10 +853,9 @@ export async function getKaleidoskopData(): Promise<{
   totalKKAktif: number;
 }> {
   try {
-    // Get total kegiatan this year
+    // Get total kegiatan this year menggunakan timezone Jakarta
     const currentYear = new Date().getFullYear();
-    const startDate = new Date(currentYear, 0, 1);
-    const endDate = new Date(currentYear, 11, 31);
+    const { startDate, endDate } = createJakartaYearRange(currentYear);
     
     const kegiatanCount = await prisma.doaLingkungan.count({
       where: {
