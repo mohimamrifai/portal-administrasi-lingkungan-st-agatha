@@ -9,29 +9,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Calendar, ChevronRight } from "lucide-react";
+import { Calendar } from "lucide-react";
 
 interface PeriodeSelectorProps {
-  bulanAwal: string;
-  setBulanAwal: (value: string) => void;
-  tahunAwal: string;
-  setTahunAwal: (value: string) => void;
-  bulanAkhir: string;
-  setBulanAkhir: (value: string) => void;
-  tahunAkhir: string;
-  setTahunAkhir: (value: string) => void;
+  bulan: string;
+  setBulan: (value: string) => void;
+  tahun: string;
+  setTahun: (value: string) => void;
   onFilter: () => void;
 }
 
 export function PeriodeSelector({
-  bulanAwal,
-  setBulanAwal,
-  tahunAwal,
-  setTahunAwal,
-  bulanAkhir,
-  setBulanAkhir,
-  tahunAkhir,
-  setTahunAkhir,
+  bulan,
+  setBulan,
+  tahun,
+  setTahun,
   onFilter,
 }: PeriodeSelectorProps) {
   const namaBulan = [
@@ -56,68 +48,40 @@ export function PeriodeSelector({
   return (
     <div className="grid gap-4 mb-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Filter Awal */}
+        {/* Filter Bulan */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Periode Awal</label>
-          <div className="flex gap-2">
-            <Select value={bulanAwal} onValueChange={setBulanAwal}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Pilih Bulan" />
-              </SelectTrigger>
-              <SelectContent>
-                {namaBulan.map((bulan, index) => (
-                  <SelectItem key={index} value={index.toString()}>
-                    {bulan}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={tahunAwal} onValueChange={setTahunAwal}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Pilih Tahun" />
-              </SelectTrigger>
-              <SelectContent>
-                {years.map((year) => (
-                  <SelectItem key={year} value={year}>
-                    {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <label className="text-sm font-medium">Bulan</label>
+          <Select value={bulan} onValueChange={setBulan}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Pilih Bulan" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Bulan</SelectItem>
+              {namaBulan.map((namabulan, index) => (
+                <SelectItem key={index} value={index.toString()}>
+                  {namabulan}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        {/* Filter Akhir */}
+        {/* Filter Tahun */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Periode Akhir</label>
-          <div className="flex gap-2">
-            <Select value={bulanAkhir} onValueChange={setBulanAkhir}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Pilih Bulan" />
-              </SelectTrigger>
-              <SelectContent>
-                {namaBulan.map((bulan, index) => (
-                  <SelectItem key={index} value={index.toString()}>
-                    {bulan}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={tahunAkhir} onValueChange={setTahunAkhir}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Pilih Tahun" />
-              </SelectTrigger>
-              <SelectContent>
-                {years.map((year) => (
-                  <SelectItem key={year} value={year}>
-                    {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <label className="text-sm font-medium">Tahun</label>
+          <Select value={tahun} onValueChange={setTahun}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Pilih Tahun" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Tahun</SelectItem>
+              {years.map((year) => (
+                <SelectItem key={year} value={year}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

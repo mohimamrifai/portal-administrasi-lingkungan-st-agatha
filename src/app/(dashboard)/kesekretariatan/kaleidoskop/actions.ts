@@ -36,20 +36,29 @@ export interface RingkasanKegiatan {
 }
 
 /**
- * Mendapatkan semua data aktivitas untuk periode tertentu
+ * Mendapatkan semua data aktivitas untuk periode tertentu atau semua data
  */
 export async function getKaleidoskopData(
-  startDate: Date,
-  endDate: Date
+  startDate?: Date,
+  endDate?: Date
 ): Promise<KaleidoskopActivityData[]> {
   try {
+    const whereCondition: any = {};
+    
+    // Jika ada parameter tanggal, gunakan filter
+    if (startDate && endDate) {
+      // Pastikan endDate mencakup seluruh hari terakhir
+      const adjustedEndDate = new Date(endDate);
+      adjustedEndDate.setHours(23, 59, 59, 999);
+      
+      whereCondition.tanggal = {
+        gte: startDate,
+        lte: adjustedEndDate,
+      };
+    }
+
     const activities = await prisma.doaLingkungan.findMany({
-      where: {
-        tanggal: {
-          gte: startDate,
-          lte: endDate,
-        },
-      },
+      where: whereCondition,
       include: {
         tuanRumah: true,
       },
@@ -79,18 +88,27 @@ export async function getKaleidoskopData(
  * Mendapatkan statistik per jenis ibadat
  */
 export async function getStatistikPerJenisIbadat(
-  startDate: Date,
-  endDate: Date
+  startDate?: Date,
+  endDate?: Date
 ): Promise<StatistikPerJenisIbadat[]> {
   try {
+    const whereCondition: any = {};
+    
+    // Jika ada parameter tanggal, gunakan filter
+    if (startDate && endDate) {
+      // Pastikan endDate mencakup seluruh hari terakhir
+      const adjustedEndDate = new Date(endDate);
+      adjustedEndDate.setHours(23, 59, 59, 999);
+      
+      whereCondition.tanggal = {
+        gte: startDate,
+        lte: adjustedEndDate,
+      };
+    }
+
     // Ambil data DoaLingkungan
     const activities = await prisma.doaLingkungan.findMany({
-      where: {
-        tanggal: {
-          gte: startDate,
-          lte: endDate,
-        },
-      },
+      where: whereCondition,
       select: {
         jenisIbadat: true,
         subIbadat: true,
@@ -189,18 +207,27 @@ export async function getStatistikPerJenisIbadat(
  * Mendapatkan ringkasan kegiatan
  */
 export async function getRingkasanKegiatan(
-  startDate: Date,
-  endDate: Date
+  startDate?: Date,
+  endDate?: Date
 ): Promise<RingkasanKegiatan> {
   try {
+    const whereCondition: any = {};
+    
+    // Jika ada parameter tanggal, gunakan filter
+    if (startDate && endDate) {
+      // Pastikan endDate mencakup seluruh hari terakhir
+      const adjustedEndDate = new Date(endDate);
+      adjustedEndDate.setHours(23, 59, 59, 999);
+      
+      whereCondition.tanggal = {
+        gte: startDate,
+        lte: adjustedEndDate,
+      };
+    }
+
     // Get all activities in period
     const activities = await prisma.doaLingkungan.findMany({
-      where: {
-        tanggal: {
-          gte: startDate,
-          lte: endDate,
-        },
-      },
+      where: whereCondition,
     });
 
     if (activities.length === 0) {
