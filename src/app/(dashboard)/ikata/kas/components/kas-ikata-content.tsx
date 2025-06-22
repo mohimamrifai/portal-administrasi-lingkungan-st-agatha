@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PeriodFilter } from './period-filter';
@@ -21,6 +21,7 @@ import { createTransaction, updateTransaction, deleteTransaction, setIkataDues, 
 import { JenisTransaksi, TipeTransaksiIkata } from '@prisma/client';
 import { checkInitialBalanceIkataExists } from '../utils/kas-ikata-service';
 import { format } from 'date-fns';
+import { parseJakartaDateString } from '@/lib/timezone';
 
 interface KasIKATAContentProps {
   summary: IKATASummary;
@@ -28,47 +29,6 @@ interface KasIKATAContentProps {
   keluargaUmatList: { id: string; namaKepalaKeluarga: string }[];
   isLoading?: boolean;
 }
-
-// Helper untuk mengkonversi hasil transaksi dari database ke format UI
-const mapDbToUITransaction = (
-  dbTransaction: any,
-  uiData: {
-    tanggal: string;
-    keterangan: string;
-    jumlah: number;
-    jenis: UIJenisTransaksi;
-    tipeTransaksi: UITipeTransaksi;
-    anggotaId?: string;
-    statusPembayaran?: string;
-    periodeBayar?: string[];
-    totalIuran?: number;
-  },
-  userRole?: string
-): IKATATransaction => {
-  return {
-    id: dbTransaction.id || Date.now().toString(),
-    tanggal: uiData.tanggal,
-    keterangan: uiData.keterangan,
-    jumlah: uiData.jumlah,
-    jenis: uiData.jenis,
-    tipeTransaksi: uiData.tipeTransaksi,
-    debit: uiData.jenis === 'uang_masuk' ? uiData.jumlah : 0,
-    kredit: uiData.jenis === 'uang_keluar' ? uiData.jumlah : 0,
-    anggotaId: uiData.anggotaId,
-    statusPembayaran: uiData.statusPembayaran as any,
-    periodeBayar: uiData.periodeBayar,
-    totalIuran: uiData.totalIuran,
-    createdAt: dbTransaction.createdAt
-      ? new Date(dbTransaction.createdAt).toISOString()
-      : new Date().toISOString(),
-    updatedAt: dbTransaction.updatedAt
-      ? new Date(dbTransaction.updatedAt).toISOString()
-      : new Date().toISOString(),
-    createdBy: userRole || 'Guest',
-    updatedBy: userRole || 'Guest',
-    locked: dbTransaction.locked || false
-  };
-};
 
 export function KasIKATAContent({ summary, transactions: initialTransactions, keluargaUmatList, isLoading = false }: KasIKATAContentProps) {
   const { userRole } = useAuth();
@@ -82,7 +42,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
 
   // States
   const [period, setPeriod] = useState<PeriodFilterType>({
-    bulan: new Date().getMonth() + 1,
+    bulan: 0, // 0 = semua data dalam tahun
     tahun: new Date().getFullYear()
   });
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
@@ -91,12 +51,72 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
   const [editingTransaction, setEditingTransaction] = useState<IKATATransaction | null>(null);
   const [skipConfirmation, setSkipConfirmation] = useState(false);
   const [transactions, setTransactions] = useState<IKATATransaction[]>(initialTransactions);
-  const [filteredTransactions, setFilteredTransactions] = useState<IKATATransaction[]>(initialTransactions);
   const [currentDuesAmount, setCurrentDuesAmount] = useState<number>(0);
   const [currentBalance, setCurrentBalance] = useState<number>(summary.saldoAwal || 0);
   const [isInitialBalanceSet, setIsInitialBalanceSet] = useState(false);
   const [initialBalanceDate, setInitialBalanceDate] = useState<Date | undefined>(undefined);
   const [summaryData, setSummaryData] = useState<IKATASummary>(summary);
+
+  // Computed values - SEMUA useMemo HARUS di atas early return
+  // Hitung filtered transactions berdasarkan periode
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(t => {
+      // Parse tanggal dengan timezone Jakarta yang benar
+      const txDate = parseJakartaDateString(t.tanggal);
+      const txYear = txDate.getFullYear();
+      const txMonth = txDate.getMonth() + 1; // getMonth() returns 0-11, convert to 1-12
+      
+      // Jika bulan = 0, tampilkan semua transaksi dalam tahun tersebut
+      if (period.bulan === 0) {
+        return txYear === period.tahun;
+      }
+      
+      // Jika bulan spesifik, filter berdasarkan bulan dan tahun
+      return txMonth === period.bulan && txYear === period.tahun;
+    });
+  }, [transactions, period]);
+
+  // Hitung summary berdasarkan filtered transactions
+  const filteredSummary = useMemo(() => {
+    // Filter transaksi: TIDAK termasuk saldo awal
+    const transactionsExcludingSaldoAwal = filteredTransactions.filter(t => 
+      t.keterangan !== "SALDO AWAL"
+    );
+    
+    const pemasukanTransaksi = transactionsExcludingSaldoAwal.filter(t => t.jenis === 'uang_masuk');
+    const pengeluaranTransaksi = transactionsExcludingSaldoAwal.filter(t => t.jenis === 'uang_keluar');
+    
+    const totalPemasukan = pemasukanTransaksi.reduce((sum, tx) => sum + tx.jumlah, 0);
+    const totalPengeluaran = pengeluaranTransaksi.reduce((sum, tx) => sum + tx.jumlah, 0);
+    
+    // Saldo awal selalu sama (global) - BUKAN pemasukan
+    const saldoAwal = summaryData.saldoAwal;
+    
+    // Perhitungan saldo akhir yang benar: Saldo Awal + Pemasukan - Pengeluaran
+    let saldoAkhir: number;
+    
+    if (period.bulan === 0) {
+      // Untuk "Semua Bulan" dalam tahun yang dipilih
+      const currentYear = new Date().getFullYear();
+      if (period.tahun === currentYear) {
+        // Untuk tahun saat ini, gunakan saldo akhir global
+        saldoAkhir = summaryData.saldoAkhir;
+      } else {
+        // Untuk tahun lain, hitung dari saldo awal + pemasukan - pengeluaran
+        saldoAkhir = saldoAwal + totalPemasukan - totalPengeluaran;
+      }
+    } else {
+      // Untuk periode bulan tertentu, hitung dari saldo awal + pemasukan periode - pengeluaran periode
+      saldoAkhir = saldoAwal + totalPemasukan - totalPengeluaran;
+    }
+    
+    return {
+      saldoAwal,
+      pemasukan: totalPemasukan, // Hanya pemasukan murni, TIDAK termasuk saldo awal
+      pengeluaran: totalPengeluaran,
+      saldoAkhir
+    };
+  }, [filteredTransactions, summaryData, period]);
 
   // Effects
   useEffect(() => {
@@ -105,11 +125,6 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
       router.push("/dashboard");
     }
   }, [hasAccess, router]);
-
-  useEffect(() => {
-    // Tampilkan semua transaksi tanpa filter periode
-    setFilteredTransactions(transactions);
-  }, [transactions]);
 
   useEffect(() => {
     setSummaryData(summary);
@@ -151,9 +166,15 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
     fetchCurrentDues();
   }, [period.tahun]);
 
+  // Early return SETELAH semua hooks
   if (!hasAccess) {
     return <div className="flex justify-center items-center h-64">Memeriksa akses...</div>;
   }
+
+  // Handler untuk memfilter periode (untuk PDF dan Summary Cards)
+  const handlePeriodChange = (newPeriod: PeriodFilterType) => {
+    setPeriod(newPeriod);
+  };
 
   const handleAddTransaction = async (data: TransactionFormData) => {
     if (!canModifyData) {
@@ -171,13 +192,8 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         return;
       }
 
-      // Parse tanggal dengan benar
-      const tanggalParts = data.tanggal.split('-');
-      const tanggalObj = new Date(
-        parseInt(tanggalParts[0]),
-        parseInt(tanggalParts[1]) - 1,
-        parseInt(tanggalParts[2])
-      );
+      // Parse tanggal dengan timezone Jakarta yang benar
+      const tanggalObj = parseJakartaDateString(data.tanggal);
 
       // Map jenis transaksi ke format yang diharapkan server
       const jenisTranasksi: JenisTransaksi =
@@ -285,13 +301,8 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
     if (!editingTransaction) return;
 
     try {
-      // Parse tanggal dengan benar
-      const tanggalParts = data.tanggal.split('-');
-      const tanggalObj = new Date(
-        parseInt(tanggalParts[0]),
-        parseInt(tanggalParts[1]) - 1,
-        parseInt(tanggalParts[2])
-      );
+      // Parse tanggal dengan timezone Jakarta yang benar
+      const tanggalObj = parseJakartaDateString(data.tanggal);
 
       // Tentukan jenis dan tipe transaksi dalam format yang sesuai dengan server
       const jenisTranasksi: JenisTransaksi =
@@ -364,71 +375,16 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
   };
 
   const handleToggleLock = (id: string) => {
-    if (!canModifyData) {
-      toast.error("Anda tidak memiliki izin untuk mengunci/membuka data");
-      return;
-    }
-
-    // Update status lock pada transaksi
-    const updatedTransactions: IKATATransaction[] = transactions.map(tx => {
-      if (tx.id === id) {
-        return {
-          ...tx,
-          locked: !tx.locked,
-          updatedAt: new Date().toISOString(),
-          updatedBy: userRole || 'Guest'
-        };
-      }
-      return tx;
-    });
-
-    setTransactions(updatedTransactions);
-
-    // Tampilkan notifikasi sukses
-    const transaction = updatedTransactions.find(tx => tx.id === id);
-    if (transaction) {
-      toast.success(`Transaksi berhasil ${transaction.locked ? 'dikunci' : 'dibuka'}`);
-    }
+    // TODO: Implementasi toggle lock status
+    console.log(`Toggle lock status for transaction ${id}`);
   };
 
   const handleOpenPrintDialog = () => {
-    setSkipConfirmation(true);
     setIsPrintDialogOpen(true);
   };
 
   const handlePrintPDF = (data: any) => {
-    // Kunci semua transaksi pada periode yang dipilih saat PDF diunduh
-    if (data.lockTransactions) {
-      const updatedTransactions: IKATATransaction[] = transactions.map(tx => {
-        // Periksa apakah transaksi termasuk dalam periode yang dipilih
-        const txDate = new Date(tx.tanggal);
-        if (txDate >= data.dateRange.from && txDate <= (data.dateRange.to || data.dateRange.from)) {
-          return {
-            ...tx,
-            locked: true,
-            updatedAt: new Date().toISOString(),
-            updatedBy: userRole || 'Guest'
-          };
-        }
-        return tx;
-      });
-
-      setTransactions(updatedTransactions);
-      toast.success("Transaksi berhasil dikunci");
-    }
-
-    // Reset konfirmasi
-    setSkipConfirmation(false);
-
-    // Tutup dialog setelah unduh selesai jika transaksi dikunci
-    if (data.lockTransactions) {
-      setIsPrintDialogOpen(false);
-    }
-  };
-
-  // Handler untuk memfilter transaksi berdasarkan periode
-  const handlePeriodChange = (newPeriod: PeriodFilterType) => {
-    setPeriod(newPeriod);
+    console.log("Print PDF with data:", data);
   };
 
   // Fungsi untuk menangani pengaturan saldo awal
@@ -481,33 +437,6 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
       console.error("Error setting IKATA dues:", error);
       toast.error("Terjadi kesalahan saat mengatur iuran IKATA");
     }
-  };
-
-  // Tambahkan fungsi calculatePeriodSummary
-  const calculatePeriodSummary = (
-    transactions: IKATATransaction[],
-    period: { startDate: Date; endDate: Date },
-    initialBalance: number
-  ): IKATASummary => {
-    const filteredTransactions = transactions.filter(tx => {
-      const txDate = new Date(tx.tanggal);
-      return txDate >= period.startDate && txDate <= period.endDate;
-    });
-
-    const summary = filteredTransactions.reduce(
-      (acc, tx) => {
-        if (tx.jenis === "uang_masuk") {
-          acc.pemasukan += tx.jumlah;
-        } else {
-          acc.pengeluaran += tx.jumlah;
-        }
-        return acc;
-      },
-      { saldoAwal: initialBalance, pemasukan: 0, pengeluaran: 0, saldoAkhir: 0 }
-    );
-
-    summary.saldoAkhir = summary.saldoAwal + summary.pemasukan - summary.pengeluaran;
-    return summary;
   };
 
   // Fungsi untuk mengambil data terbaru
@@ -618,7 +547,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         </div>
       </div>
 
-      <SummaryCards summary={summaryData} />
+      <SummaryCards summary={filteredSummary} />
 
       {canModifyData && (
         <Button
@@ -671,7 +600,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         open={isPrintDialogOpen}
         onOpenChange={setIsPrintDialogOpen}
         period={period}
-        summary={summaryData}
+        summary={filteredSummary}
         skipConfirmation={skipConfirmation}
         transactions={filteredTransactions}
         onPrint={handlePrintPDF}

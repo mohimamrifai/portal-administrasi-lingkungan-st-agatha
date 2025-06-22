@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
+import { parseJakartaDateString } from '@/lib/timezone';
 
 interface SaldoAwalFormDialogProps {
   onSubmit: (data: SaldoAwalFormData) => void;
@@ -32,7 +33,13 @@ export function SaldoAwalFormDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ saldoAwal, tanggal });
+    
+    // Konversi tanggal menggunakan utility timezone Jakarta
+    // untuk memastikan tanggal yang dipilih tidak bergeser
+    const tanggalString = format(tanggal, 'yyyy-MM-dd');
+    const jakartaDate = parseJakartaDateString(tanggalString);
+    
+    onSubmit({ saldoAwal, tanggal: jakartaDate });
     setOpen(false);
   };
 

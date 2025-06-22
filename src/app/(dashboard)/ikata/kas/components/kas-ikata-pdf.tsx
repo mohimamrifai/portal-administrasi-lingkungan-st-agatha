@@ -5,6 +5,7 @@ import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { IKATASummary, IKATATransaction } from '../types';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { parseJakartaDateString } from '@/lib/timezone';
 
 // Styles for PDF component
 const styles = StyleSheet.create({
@@ -195,15 +196,24 @@ interface KasIKATAPDFProps {
 export const KasIKATAPDF = ({ period, summary, transactions = [] }: KasIKATAPDFProps) => {
   // Format bulan dalam bahasa Indonesia
   const bulanText = useMemo(() => {
+    if (period.bulan === 0) {
+      return 'Semua Bulan';
+    }
     return format(new Date(period.tahun, period.bulan - 1, 1), 'MMMM', { locale: id });
   }, [period]);
 
-  // Format tanggal awal dan akhir bulan
+  // Format tanggal awal dan akhir periode
   const tanggalAwal = useMemo(() => {
+    if (period.bulan === 0) {
+      return format(new Date(period.tahun, 0, 1), 'd MMMM yyyy', { locale: id });
+    }
     return format(new Date(period.tahun, period.bulan - 1, 1), 'd MMMM yyyy', { locale: id });
   }, [period]);
 
   const tanggalAkhir = useMemo(() => {
+    if (period.bulan === 0) {
+      return format(new Date(period.tahun, 11, 31), 'd MMMM yyyy', { locale: id });
+    }
     const lastDay = new Date(period.tahun, period.bulan, 0).getDate();
     return format(new Date(period.tahun, period.bulan - 1, lastDay), 'd MMMM yyyy', { locale: id });
   }, [period]);
@@ -238,18 +248,26 @@ export const KasIKATAPDF = ({ period, summary, transactions = [] }: KasIKATAPDFP
   // Filter transaksi untuk bulan dan tahun yang dipilih
   const filteredTransactions = useMemo(() => {
     const filtered = transactions.filter(t => {
-      // Format tanggal transaksi: '2024-04-01' (tahun-bulan-hari)
-      const dateParts = t.tanggal.split('-');
-      const txYear = parseInt(dateParts[0], 10);
-      const txMonth = parseInt(dateParts[1], 10); // Bulan dalam format 1-12
+      // Parse tanggal dengan timezone Jakarta yang benar
+      const txDate = parseJakartaDateString(t.tanggal);
+      const txYear = txDate.getFullYear();
+      const txMonth = txDate.getMonth() + 1; // getMonth() returns 0-11, convert to 1-12
       
-      // Bandingkan dengan period (bulan juga dalam format 1-12)
-      const result = txMonth === period.bulan && txYear === period.tahun;
-      return result;
+      // Jika bulan = 0, tampilkan semua transaksi dalam tahun tersebut
+      if (period.bulan === 0) {
+        return txYear === period.tahun;
+      }
+      
+      // Jika bulan spesifik, filter berdasarkan bulan dan tahun
+      return txMonth === period.bulan && txYear === period.tahun;
     });
     
     // Sortir berdasarkan tanggal
-    return filtered.sort((a, b) => new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime());
+    return filtered.sort((a, b) => {
+      const dateA = parseJakartaDateString(a.tanggal);
+      const dateB = parseJakartaDateString(b.tanggal);
+      return dateA.getTime() - dateB.getTime();
+    });
   }, [transactions, period]);
   
   // Kelompokkan transaksi berdasarkan jenis
@@ -282,16 +300,36 @@ export const KasIKATAPDF = ({ period, summary, transactions = [] }: KasIKATAPDFP
     }));
   };
   
-  // Hitung total untuk pemasukan dan pengeluaran
+  // Hitung total untuk pemasukan dan pengeluaran dari filtered transactions
   const totalPemasukan = pemasukanTransaksi.reduce((sum, tx) => sum + tx.jumlah, 0);
   const totalPengeluaran = pengeluaranTransaksi.reduce((sum, tx) => sum + tx.jumlah, 0);
+  
+  // Hitung summary berdasarkan periode yang dipilih
+  const periodSummary = useMemo(() => {
+    const saldoAwal = summary.saldoAwal;
+    const pemasukan = totalPemasukan;
+    const pengeluaran = totalPengeluaran;
+    
+    // Untuk "Semua Bulan", gunakan saldo akhir global
+    // Untuk periode tertentu, hitung saldo akhir berdasarkan filtered data
+    const saldoAkhir = period.bulan === 0 
+      ? summary.saldoAkhir 
+      : saldoAwal + pemasukan - pengeluaran;
+    
+    return {
+      saldoAwal,
+      pemasukan,
+      pengeluaran,
+      saldoAkhir
+    };
+  }, [summary, totalPemasukan, totalPengeluaran, period.bulan]);
   
   const pemasukanGroups = useMemo(() => groupByTipeTransaksi(pemasukanTransaksi), [pemasukanTransaksi]);
   const pengeluaranGroups = useMemo(() => groupByTipeTransaksi(pengeluaranTransaksi), [pengeluaranTransaksi]);
 
-  // Format tanggal untuk PDF
+  // Format tanggal untuk PDF dengan timezone Jakarta yang benar
   const formatTanggalPDF = (tanggal: string) => {
-    const date = new Date(tanggal);
+    const date = parseJakartaDateString(tanggal);
     return format(date, 'dd/MM/yyyy');
   };
 
@@ -352,20 +390,30 @@ export const KasIKATAPDF = ({ period, summary, transactions = [] }: KasIKATAPDFP
 
         <View style={styles.summary}>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Saldo, Awal 1 {bulanText} {period.tahun}</Text>
-            <Text style={styles.summaryValue}>Rp. {formatCurrency(summary.saldoAwal)}</Text>
+            <Text style={styles.summaryLabel}>
+              {period.bulan === 0 
+                ? `Saldo, Awal 1 Januari ${period.tahun}` 
+                : `Saldo, Awal 1 ${bulanText} ${period.tahun}`
+              }
+            </Text>
+            <Text style={styles.summaryValue}>Rp. {formatCurrency(periodSummary.saldoAwal)}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Total Pemasukan</Text>
-            <Text style={styles.summaryValue}>Rp. {formatCurrency(summary.pemasukan)}</Text>
+            <Text style={styles.summaryValue}>Rp. {formatCurrency(periodSummary.pemasukan)}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Total Pengeluaran</Text>
-            <Text style={styles.summaryValue}>Rp. {formatCurrency(summary.pengeluaran)}</Text>
+            <Text style={styles.summaryValue}>Rp. {formatCurrency(periodSummary.pengeluaran)}</Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabelBold}>Saldo Akhir, {new Date(period.tahun, period.bulan, 0).getDate()} {bulanText} {period.tahun}</Text>
-            <Text style={styles.summaryValueBold}>Rp. {formatCurrency(summary.saldoAkhir)}</Text>
+            <Text style={styles.summaryLabelBold}>
+              {period.bulan === 0 
+                ? `Saldo Akhir, 31 Desember ${period.tahun}` 
+                : `Saldo Akhir, ${new Date(period.tahun, period.bulan, 0).getDate()} ${bulanText} ${period.tahun}`
+              }
+            </Text>
+            <Text style={styles.summaryValueBold}>Rp. {formatCurrency(periodSummary.saldoAkhir)}</Text>
           </View>
         </View>
 

@@ -43,6 +43,7 @@ import {
   CommandItem,
 } from "@/components/ui/command"
 import { useRouter } from 'next/navigation';
+import { parseJakartaDateString } from '@/lib/timezone';
 
 // Periode bulan untuk pembayaran
 const getPeriodeBulanOptions = () => {
@@ -177,12 +178,8 @@ export function TransactionFormDialog({
     if (open) {
       if (editTransaction) {
         // Isi form dengan data transaksi yang akan diedit
-        const tanggalParts = editTransaction.tanggal.split('-');
-        const tanggalObj = new Date(
-          parseInt(tanggalParts[0]),
-          parseInt(tanggalParts[1]) - 1,
-          parseInt(tanggalParts[2])
-        );
+        // Gunakan parseJakartaDateString untuk memastikan tanggal tidak bergeser
+        const tanggalObj = parseJakartaDateString(editTransaction.tanggal);
 
         // Set nilai form
         form.reset({
@@ -338,7 +335,7 @@ export function TransactionFormDialog({
   const handleSubmit = async (values: TransactionFormValues) => {
     try {
 
-      // Format tanggal ke string YYYY-MM-DD
+      // Format tanggal ke string YYYY-MM-DD dengan timezone Jakarta yang benar
       const tanggalString = format(values.tanggal, 'yyyy-MM-dd');
 
       // Siapkan keterangan berdasarkan tipe transaksi
@@ -436,7 +433,7 @@ export function TransactionFormDialog({
                     }
                   }
 
-                  // Parse tanggal dengan benar
+                  // Parse tanggal dengan timezone Jakarta yang benar
                   const tanggalString = format(values.tanggal, 'yyyy-MM-dd');
 
                   // Persiapkan data untuk dikirim
