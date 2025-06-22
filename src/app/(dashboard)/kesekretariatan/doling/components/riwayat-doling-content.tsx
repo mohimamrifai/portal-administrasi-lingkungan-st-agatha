@@ -221,7 +221,7 @@ export function RiwayatDolingContent({
         <div className="bg-white p-3 border rounded-md shadow-md">
           <p className="font-medium">{label} {payload[0].payload.tahun}</p>
           <p className="text-sm text-gray-500">Jumlah Kegiatan: {payload[0].payload.jumlahKegiatan}x</p>
-          <p className="text-sm text-gray-500">Rata-rata Hadir: {payload[0].payload.rataRataHadir}</p>
+          <p className="text-sm text-gray-500">Rata-Rata Hadir (KK): {payload[0].payload.rataRataHadir}</p>
           <p className="text-sm text-gray-500">Persentase: {payload[0].payload.persentase}%</p>
         </div>
       );
@@ -470,7 +470,7 @@ export function RiwayatDolingContent({
                 <TableRow>
                   <TableHead>Bulan</TableHead>
                   <TableHead className="text-center">Jumlah Kegiatan</TableHead>
-                  <TableHead className="text-center">Rata-rata Hadir</TableHead>
+                  <TableHead className="text-center">Rata-Rata Hadir (KK)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
