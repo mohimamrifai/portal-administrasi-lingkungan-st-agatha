@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { PeriodeSelector } from "./periode-selector";
 import { getKaleidoskopData, getStatistikPerJenisIbadat, getRingkasanKegiatan } from "../actions";
+import { getMonthRange } from "../utils/data-utils";
 import { JenisIbadat, SubIbadat } from "@prisma/client";
 import { ChartBarIcon, Calendar, Users2, Filter } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -52,10 +53,11 @@ export function KaleidoskopContent({
       let startDate: Date | undefined;
       let endDate: Date | undefined;
       
-      // Jika filter dipilih, konversi ke Date
+      // Jika filter dipilih, konversi ke Date menggunakan utility functions
       if (bulan !== "all" && tahun !== "all") {
-        startDate = new Date(parseInt(tahun), parseInt(bulan), 1);
-        endDate = new Date(parseInt(tahun), parseInt(bulan) + 1, 0);
+        const monthRange = getMonthRange(parseInt(tahun), parseInt(bulan));
+        startDate = monthRange.startDate;
+        endDate = monthRange.endDate;
       }
       
       // Panggil server actions
@@ -69,7 +71,7 @@ export function KaleidoskopContent({
       setStatistikData(statistik);
       setRingkasanData(ringkasan);
     } catch (error) {
-      console.error("Error loading kaleidoskop data:", error);
+      // Error akan di-handle secara silent
     } finally {
       setIsLoading(false);
     }
@@ -84,7 +86,7 @@ export function KaleidoskopContent({
           setStatistikData(statistik);
         })
         .catch(error => {
-          console.error("Error fetching statistik:", error);
+          // Error akan di-handle secara silent
         });
     } else {
       // Jika tidak ada data awal, lakukan fetch lengkap

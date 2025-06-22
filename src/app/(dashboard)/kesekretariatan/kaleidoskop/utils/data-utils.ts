@@ -2,6 +2,36 @@ import { KaleidoskopActivityData } from "../actions";
 import { JenisIbadat, SubIbadat } from "@prisma/client";
 
 /**
+ * Mendapatkan tanggal awal bulan (hari 1 pukul 00:00:00.000)
+ */
+export function getStartOfMonth(year: number, month: number): Date {
+  return new Date(year, month, 1, 0, 0, 0, 0);
+}
+
+/**
+ * Mendapatkan tanggal akhir bulan (hari terakhir pukul 23:59:59.999)
+ * Menangani dengan benar tanggal peralihan bulan (31 Jan, 28/29 Feb, 31 Mar, 30 Apr, dst)
+ */
+export function getEndOfMonth(year: number, month: number): Date {
+  // new Date(year, month + 1, 0) menghasilkan hari terakhir bulan yang benar
+  // Ini otomatis menangani perbedaan jumlah hari per bulan dan tahun kabisat
+  const lastDay = new Date(year, month + 1, 0);
+  // Set waktu ke akhir hari
+  lastDay.setHours(23, 59, 59, 999);
+  return lastDay;
+}
+
+/**
+ * Mendapatkan periode bulan dalam format Date range
+ */
+export function getMonthRange(year: number, month: number): { startDate: Date; endDate: Date } {
+  return {
+    startDate: getStartOfMonth(year, month),
+    endDate: getEndOfMonth(year, month)
+  };
+}
+
+/**
  * Memfilter data kaleidoskop berdasarkan rentang periode
  */
 export function filterDataByPeriode(
@@ -17,9 +47,9 @@ export function filterDataByPeriode(
   const endMonth = parseInt(bulanAkhir);
   const endYear = parseInt(tahunAkhir);
 
-  // Buat tanggal awal dan akhir
-  const startDate = new Date(startYear, startMonth, 1);
-  const endDate = new Date(endYear, endMonth + 1, 0); // Hari terakhir bulan
+  // Buat tanggal awal dan akhir menggunakan utility functions
+  const startDate = getStartOfMonth(startYear, startMonth);
+  const endDate = getEndOfMonth(endYear, endMonth);
 
   // Filter data berdasarkan tanggal
   return data.filter(item => {
