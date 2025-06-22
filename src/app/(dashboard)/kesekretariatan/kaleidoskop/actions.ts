@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { JenisIbadat, SubIbadat } from "@prisma/client";
+import { getMonthRange } from "./utils/data-utils";
 
 export interface KaleidoskopActivityData {
   id: string;
@@ -47,13 +48,11 @@ export async function getKaleidoskopData(
     
     // Jika ada parameter tanggal, gunakan filter
     if (startDate && endDate) {
-      // Pastikan endDate mencakup seluruh hari terakhir
-      const adjustedEndDate = new Date(endDate);
-      adjustedEndDate.setHours(23, 59, 59, 999);
-      
+      // Gunakan endDate langsung tanpa adjustment manual
+      // Asumsi endDate sudah berupa tanggal akhir bulan yang benar
       whereCondition.tanggal = {
         gte: startDate,
-        lte: adjustedEndDate,
+        lte: endDate,
       };
     }
 
@@ -79,7 +78,6 @@ export async function getKaleidoskopData(
       totalPeserta: calculateTotalPeserta(activity),
     }));
   } catch (error) {
-    console.error("Error getting kaleidoskop data:", error);
     throw new Error("Gagal mengambil data kaleidoskop");
   }
 }
@@ -96,13 +94,11 @@ export async function getStatistikPerJenisIbadat(
     
     // Jika ada parameter tanggal, gunakan filter
     if (startDate && endDate) {
-      // Pastikan endDate mencakup seluruh hari terakhir
-      const adjustedEndDate = new Date(endDate);
-      adjustedEndDate.setHours(23, 59, 59, 999);
-      
+      // Gunakan endDate langsung tanpa adjustment manual
+      // Asumsi endDate sudah berupa tanggal akhir bulan yang benar
       whereCondition.tanggal = {
         gte: startDate,
-        lte: adjustedEndDate,
+        lte: endDate,
       };
     }
 
@@ -198,7 +194,6 @@ export async function getStatistikPerJenisIbadat(
     // Sort berdasarkan jumlah (terbanyak dulu)
     return result.sort((a, b) => b.jumlah - a.jumlah);
   } catch (error) {
-    console.error("Error getting statistik per jenis ibadat:", error);
     throw new Error("Gagal mengambil statistik per jenis ibadat");
   }
 }
@@ -215,13 +210,11 @@ export async function getRingkasanKegiatan(
     
     // Jika ada parameter tanggal, gunakan filter
     if (startDate && endDate) {
-      // Pastikan endDate mencakup seluruh hari terakhir
-      const adjustedEndDate = new Date(endDate);
-      adjustedEndDate.setHours(23, 59, 59, 999);
-      
+      // Gunakan endDate langsung tanpa adjustment manual
+      // Asumsi endDate sudah berupa tanggal akhir bulan yang benar
       whereCondition.tanggal = {
         gte: startDate,
-        lte: adjustedEndDate,
+        lte: endDate,
       };
     }
 
@@ -293,7 +286,6 @@ export async function getRingkasanKegiatan(
       totalPeserta,
     };
   } catch (error) {
-    console.error("Error getting ringkasan kegiatan:", error);
     throw new Error("Gagal mengambil ringkasan kegiatan");
   }
 }
@@ -313,8 +305,8 @@ export async function getKehadiranPerBulan(
     const hasil = [];
     
     for (let bulan = 0; bulan < 12; bulan++) {
-      const startDate = new Date(tahun, bulan, 1);
-      const endDate = new Date(tahun, bulan + 1, 0);
+      // Gunakan utility function untuk mendapatkan range bulan yang konsisten
+      const { startDate, endDate } = getMonthRange(tahun, bulan);
       
       const jumlahKehadiran = await prisma.absensiDoling.count({
         where: {
@@ -336,7 +328,6 @@ export async function getKehadiranPerBulan(
     
     return hasil;
   } catch (error) {
-    console.error("Error getting kehadiran per bulan:", error);
     throw new Error("Gagal mengambil data kehadiran per bulan");
   }
 }
