@@ -57,6 +57,110 @@ export async function getAllKasIkataTransactions() {
   }
 }
 
+// Fungsi untuk menghitung saldo awal berdasarkan saldo akhir bulan sebelumnya
+async function calculateCorrectSaldoAwal(bulan: number, tahun: number): Promise<number> {
+  try {
+    // Jika bulan adalah Januari, ada dua kemungkinan:
+    // 1. Januari tahun pertama (tahun setting saldo awal) - ambil saldo awal yang di-set
+    // 2. Januari tahun selanjutnya - saldo akhir Desember tahun sebelumnya
+    if (bulan === 1) {
+      // Cek apakah ini adalah tahun pertama dengan saldo awal yang di-set
+      const saldoAwalTransaction = await prisma.kasIkata.findFirst({
+        where: {
+          tipeTransaksi: TipeTransaksiIkata.LAIN_LAIN,
+          keterangan: "SALDO AWAL"
+        },
+        orderBy: {
+          updatedAt: 'desc'
+        }
+      });
+      
+      if (saldoAwalTransaction) {
+        const tahunSaldoAwal = saldoAwalTransaction.tanggal.getFullYear();
+        
+        // Jika ini adalah tahun yang sama dengan setting saldo awal, gunakan saldo awal
+        if (tahun === tahunSaldoAwal) {
+          return saldoAwalTransaction.debit;
+        }
+        
+        // Jika ini adalah tahun setelah setting saldo awal, hitung dari saldo akhir Desember tahun sebelumnya
+        if (tahun > tahunSaldoAwal) {
+          return await calculateSaldoAkhirBulan(12, tahun - 1);
+        }
+      }
+      
+      // Jika tidak ada saldo awal di-set atau tahun sebelum setting saldo awal
+      return 0;
+    }
+
+    // Untuk bulan lainnya (Februari - Desember), hitung saldo akhir bulan sebelumnya
+    const bulanSebelumnya = bulan - 1;
+    return await calculateSaldoAkhirBulan(bulanSebelumnya, tahun);
+  } catch (error) {
+    console.error("Error calculating correct saldo awal:", error);
+    return 0;
+  }
+}
+
+// Fungsi untuk menghitung saldo akhir suatu bulan
+async function calculateSaldoAkhirBulan(bulan: number, tahun: number): Promise<number> {
+  try {
+    // Hitung saldo awal hingga akhir bulan yang diminta secara iteratif
+    // untuk menghindari recursion yang terlalu dalam
+    
+    // Dapatkan saldo awal tahun (Januari)
+    const saldoAwalTahun = await calculateCorrectSaldoAwal(1, tahun);
+    
+    let saldoBerjalan = saldoAwalTahun;
+    
+    // Iterasi dari Januari sampai bulan yang diminta
+    for (let currentBulan = 1; currentBulan <= bulan; currentBulan++) {
+      // Filter berdasarkan bulan dan tahun
+      const dateStart = new Date(tahun, currentBulan - 1, 1);
+      const dateEnd = new Date(tahun, currentBulan, 0, 23, 59, 59);
+
+      // Query untuk transaksi pada bulan yang dipilih (kecuali saldo awal)
+      const transactions = await prisma.kasIkata.findMany({
+        where: {
+          tanggal: {
+            gte: dateStart,
+            lte: dateEnd,
+          },
+          keterangan: {
+            not: "SALDO AWAL"
+          }
+        },
+        select: {
+          jenisTranasksi: true,
+          debit: true,
+          kredit: true
+        }
+      });
+      
+      // Hitung pemasukan dan pengeluaran bulan ini
+      const pemasukanTxs = transactions.filter(tx => tx.jenisTranasksi === "UANG_MASUK");
+      const pengeluaranTxs = transactions.filter(tx => tx.jenisTranasksi === "UANG_KELUAR");
+      
+      const pemasukan = pemasukanTxs.reduce((sum, tx) => sum + tx.debit, 0);
+      const pengeluaran = pengeluaranTxs.reduce((sum, tx) => sum + tx.kredit, 0);
+      
+      // Update saldo berjalan
+      if (currentBulan === 1) {
+        // Untuk Januari, saldo awal sudah termasuk
+        saldoBerjalan = saldoAwalTahun + pemasukan - pengeluaran;
+      } else {
+        // Untuk bulan selanjutnya, saldo awal adalah saldo akhir bulan sebelumnya
+        saldoBerjalan = saldoBerjalan + pemasukan - pengeluaran;
+      }
+    }
+    
+    return saldoBerjalan;
+  } catch (error) {
+    console.error("Error calculating saldo akhir bulan:", error);
+    return 0;
+  }
+}
+
 // Fungsi untuk mendapatkan ringkasan Kas IKATA
 export async function getKasIkataSummary(bulan?: number, tahun?: number) {
   try {
@@ -73,18 +177,8 @@ export async function getKasIkataSummary(bulan?: number, tahun?: number) {
     const dateStart = new Date(year, month - 1, 1);
     const dateEnd = new Date(year, month, 0, 23, 59, 59);
 
-    // Dapatkan saldo awal dari transaksi SALDO AWAL
-    const saldoAwalTransaction = await prisma.kasIkata.findFirst({
-      where: {
-        tipeTransaksi: TipeTransaksiIkata.LAIN_LAIN,
-        keterangan: "SALDO AWAL"
-      },
-      orderBy: {
-        updatedAt: 'desc'
-      }
-    });
-    
-    const saldoAwal = saldoAwalTransaction ? saldoAwalTransaction.debit : 0;
+    // Dapatkan saldo awal yang benar (berdasarkan saldo akhir bulan sebelumnya)
+    const saldoAwal = await calculateCorrectSaldoAwal(month, year);
     
     // Query untuk transaksi pada bulan yang dipilih
     const transactionQuery = {
@@ -830,5 +924,71 @@ export async function validateIkataTransactionPrerequisites(): Promise<{ valid: 
       valid: false,
       error: 'Terjadi kesalahan saat validasi prasyarat transaksi IKATA.'
     };
+  }
+}
+
+// Fungsi untuk mendapatkan summary berdasarkan periode dengan saldo awal yang benar
+export async function getKasIkataSummaryByPeriod(bulan: number, tahun: number) {
+  try {
+    // Jika bulan = 0, hitung untuk seluruh tahun
+    if (bulan === 0) {
+      return await getKasIkataSummaryForYear(tahun);
+    }
+    
+    // Untuk bulan spesifik, gunakan fungsi yang sudah diperbaiki
+    return await getKasIkataSummary(bulan, tahun);
+  } catch (error) {
+    console.error("Error getting summary by period:", error);
+    throw new Error("Gagal menghitung ringkasan kas IKATA berdasarkan periode");
+  }
+}
+
+// Fungsi untuk mendapatkan summary untuk seluruh tahun
+async function getKasIkataSummaryForYear(tahun: number) {
+  try {
+    // Saldo awal tahun adalah saldo awal Januari
+    const saldoAwalTahun = await calculateCorrectSaldoAwal(1, tahun);
+    
+    // Filter berdasarkan tahun
+    const dateStart = new Date(tahun, 0, 1); // 1 Januari
+    const dateEnd = new Date(tahun, 11, 31, 23, 59, 59); // 31 Desember
+
+    // Query untuk transaksi pada tahun yang dipilih (kecuali saldo awal)
+    const transactions = await prisma.kasIkata.findMany({
+      where: {
+        tanggal: {
+          gte: dateStart,
+          lte: dateEnd,
+        },
+        keterangan: {
+          not: "SALDO AWAL"
+        }
+      },
+      select: {
+        jenisTranasksi: true,
+        debit: true,
+        kredit: true
+      }
+    });
+    
+    // Hitung pemasukan dan pengeluaran
+    const pemasukanTxs = transactions.filter(tx => tx.jenisTranasksi === "UANG_MASUK");
+    const pengeluaranTxs = transactions.filter(tx => tx.jenisTranasksi === "UANG_KELUAR");
+    
+    const pemasukan = pemasukanTxs.reduce((sum, tx) => sum + tx.debit, 0);
+    const pengeluaran = pengeluaranTxs.reduce((sum, tx) => sum + tx.kredit, 0);
+    
+    // Hitung saldo akhir
+    const saldoAkhir = saldoAwalTahun + pemasukan - pengeluaran;
+    
+    return {
+      saldoAwal: saldoAwalTahun,
+      pemasukan,
+      pengeluaran,
+      saldoAkhir
+    };
+  } catch (error) {
+    console.error("Error calculating year summary:", error);
+    throw new Error("Gagal menghitung ringkasan kas IKATA untuk tahun");
   }
 } 

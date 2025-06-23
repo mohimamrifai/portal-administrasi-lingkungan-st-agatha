@@ -16,7 +16,7 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle, Printer, Settings } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { setSaldoAwalIkata, getAllKasIkataSummary } from '../utils/kas-ikata-service';
+import { setSaldoAwalIkata, getAllKasIkataSummary, getKasIkataSummaryByPeriod } from '../utils/kas-ikata-service';
 import { createTransaction, updateTransaction, deleteTransaction, setIkataDues, getIkataSetting, getLatestTransactionData } from '../utils/actions';
 import { JenisTransaksi, TipeTransaksiIkata } from '@prisma/client';
 import { checkInitialBalanceIkataExists } from '../utils/kas-ikata-service';
@@ -56,6 +56,8 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
   const [isInitialBalanceSet, setIsInitialBalanceSet] = useState(false);
   const [initialBalanceDate, setInitialBalanceDate] = useState<Date | undefined>(undefined);
   const [summaryData, setSummaryData] = useState<IKATASummary>(summary);
+  const [periodSummary, setPeriodSummary] = useState<IKATASummary>(summary); // Summary berdasarkan periode yang dipilih
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
 
   // Computed values - SEMUA useMemo HARUS di atas early return
   // Hitung filtered transactions berdasarkan periode
@@ -75,48 +77,6 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
       return txMonth === period.bulan && txYear === period.tahun;
     });
   }, [transactions, period]);
-
-  // Hitung summary berdasarkan filtered transactions
-  const filteredSummary = useMemo(() => {
-    // Filter transaksi: TIDAK termasuk saldo awal
-    const transactionsExcludingSaldoAwal = filteredTransactions.filter(t => 
-      t.keterangan !== "SALDO AWAL"
-    );
-    
-    const pemasukanTransaksi = transactionsExcludingSaldoAwal.filter(t => t.jenis === 'uang_masuk');
-    const pengeluaranTransaksi = transactionsExcludingSaldoAwal.filter(t => t.jenis === 'uang_keluar');
-    
-    const totalPemasukan = pemasukanTransaksi.reduce((sum, tx) => sum + tx.jumlah, 0);
-    const totalPengeluaran = pengeluaranTransaksi.reduce((sum, tx) => sum + tx.jumlah, 0);
-    
-    // Saldo awal selalu sama (global) - BUKAN pemasukan
-    const saldoAwal = summaryData.saldoAwal;
-    
-    // Perhitungan saldo akhir yang benar: Saldo Awal + Pemasukan - Pengeluaran
-    let saldoAkhir: number;
-    
-    if (period.bulan === 0) {
-      // Untuk "Semua Bulan" dalam tahun yang dipilih
-      const currentYear = new Date().getFullYear();
-      if (period.tahun === currentYear) {
-        // Untuk tahun saat ini, gunakan saldo akhir global
-        saldoAkhir = summaryData.saldoAkhir;
-      } else {
-        // Untuk tahun lain, hitung dari saldo awal + pemasukan - pengeluaran
-        saldoAkhir = saldoAwal + totalPemasukan - totalPengeluaran;
-      }
-    } else {
-      // Untuk periode bulan tertentu, hitung dari saldo awal + pemasukan periode - pengeluaran periode
-      saldoAkhir = saldoAwal + totalPemasukan - totalPengeluaran;
-    }
-    
-    return {
-      saldoAwal,
-      pemasukan: totalPemasukan, // Hanya pemasukan murni, TIDAK termasuk saldo awal
-      pengeluaran: totalPengeluaran,
-      saldoAkhir
-    };
-  }, [filteredTransactions, summaryData, period]);
 
   // Effects
   useEffect(() => {
@@ -165,6 +125,24 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
     };
     fetchCurrentDues();
   }, [period.tahun]);
+
+  // Effect untuk menghitung summary berdasarkan periode yang dipilih
+  useEffect(() => {
+    const calculatePeriodSummary = async () => {
+      setIsLoadingSummary(true);
+      try {
+        const newSummary = await getKasIkataSummaryByPeriod(period.bulan, period.tahun);
+        setPeriodSummary(newSummary);
+      } catch (error) {
+        console.error("Error calculating period summary:", error);
+        toast.error("Gagal menghitung ringkasan berdasarkan periode");
+      } finally {
+        setIsLoadingSummary(false);
+      }
+    };
+
+    calculatePeriodSummary();
+  }, [period, transactions]);
 
   // Early return SETELAH semua hooks
   if (!hasAccess) {
@@ -547,7 +525,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         </div>
       </div>
 
-      <SummaryCards summary={filteredSummary} />
+      <SummaryCards summary={isLoadingSummary ? summaryData : periodSummary} />
 
       {canModifyData && (
         <Button
@@ -600,7 +578,7 @@ export function KasIKATAContent({ summary, transactions: initialTransactions, ke
         open={isPrintDialogOpen}
         onOpenChange={setIsPrintDialogOpen}
         period={period}
-        summary={filteredSummary}
+        summary={isLoadingSummary ? summaryData : periodSummary}
         skipConfirmation={skipConfirmation}
         transactions={filteredTransactions}
         onPrint={handlePrintPDF}
