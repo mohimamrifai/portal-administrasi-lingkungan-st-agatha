@@ -366,7 +366,7 @@ export function TransactionsTable({
           </Select>
           
           {/* Period Filter - Bulan */}
-          <Select
+          {/* <Select
             value={periodFilter.bulan.toString()}
             onValueChange={(value) => handlePeriodChange('bulan', parseInt(value))}
           >
@@ -380,10 +380,10 @@ export function TransactionsTable({
                 </SelectItem>
               ))}
             </SelectContent>
-          </Select>
+          </Select> */}
 
           {/* Period Filter - Tahun */}
-          <Select
+          {/* <Select
             value={periodFilter.tahun.toString()}
             onValueChange={(value) => handlePeriodChange('tahun', parseInt(value))}
             disabled={periodFilter.bulan === 0}
@@ -398,7 +398,7 @@ export function TransactionsTable({
                 </SelectItem>
               ))}
             </SelectContent>
-          </Select>
+          </Select> */}
         </div>
       </div>
       
