@@ -426,7 +426,7 @@ export const KasIKATAPDF = ({ period, summary, transactions = [] }: KasIKATAPDFP
           <View style={styles.signatureCol}>
             <Text style={styles.signatureTitle}>Disahkan Oleh,</Text>
             <View style={styles.signatureLine} />
-            <Text style={styles.signatureRole}>Ketua Lingkungan</Text>
+            <Text style={styles.signatureRole}>Wakil Ketua Lingkungan</Text>
           </View>
         </View>
       </Page>
