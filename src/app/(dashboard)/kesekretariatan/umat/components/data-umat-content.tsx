@@ -373,7 +373,7 @@ export default function DataUmatContent({ initialFamilyHeads = [] }: DataUmatCon
     return (
         <div className="space-y-6">
             {/* Monitor Cronjob - hanya untuk SUPER_USER */}
-            {/* {userRole === 'SUPER_USER' && <AutoDeleteMonitor />} */}
+            {userRole === 'SUPER_USER' && <AutoDeleteMonitor />}
 
             {!canModifyData && (
                 <Alert variant="destructive">
