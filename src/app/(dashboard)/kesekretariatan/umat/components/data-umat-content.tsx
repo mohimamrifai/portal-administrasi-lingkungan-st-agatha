@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { useState, useEffect } from "react"
 import { FamilyHeadFormDialog } from "./family-head-form-dialog"
 import { FamilyHeadsTable } from "./family-heads-table"
@@ -90,9 +89,6 @@ function AutoDeleteMonitor() {
                         </Card>
 
                         <Card>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium">Keluarga Meninggal</CardTitle>
-                            </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold text-red-600">
                                     {preview.deceasedFamilies.length}
@@ -126,7 +122,6 @@ function AutoDeleteMonitor() {
                         
                         {preview.movedFamilies.length > 0 && (
                             <div>
-                                <h5 className="text-sm font-medium text-orange-600 mb-2">Keluarga Pindah:</h5>
                                 <div className="space-y-1">
                                     {preview.movedFamilies.map((family: any) => (
                                         <div key={family.id} className="flex justify-between items-center text-sm bg-orange-50 p-2 rounded">
@@ -145,7 +140,6 @@ function AutoDeleteMonitor() {
 
                         {preview.deceasedFamilies.length > 0 && (
                             <div>
-                                <h5 className="text-sm font-medium text-red-600 mb-2">Keluarga Meninggal:</h5>
                                 <div className="space-y-1">
                                     {preview.deceasedFamilies.map((family: any) => (
                                         <div key={family.id} className="flex justify-between items-center text-sm bg-red-50 p-2 rounded">
