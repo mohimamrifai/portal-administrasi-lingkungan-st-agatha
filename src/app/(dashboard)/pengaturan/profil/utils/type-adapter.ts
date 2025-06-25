@@ -48,6 +48,7 @@ export function mapReligionToAgama(religion: Religion): Agama {
 export function mapStatusToLivingStatus(status: StatusKehidupan): LivingStatus {
   const mapping: Record<StatusKehidupan, LivingStatus> = {
     HIDUP: LivingStatus.ALIVE,
+    PINDAH: LivingStatus.ALIVE, // Status pindah dianggap masih hidup dalam UI profil
     MENINGGAL: LivingStatus.DECEASED
   }
   return mapping[status] || LivingStatus.ALIVE

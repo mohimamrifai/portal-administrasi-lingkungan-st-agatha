@@ -5,8 +5,9 @@ import { StatusKehidupan, StatusPernikahan } from "@prisma/client";
 export type FamilyHead = FamilyHeadData;
 
 export const familyHeadStatuses = [
-  { value: StatusKehidupan.HIDUP, label: "Aktif" },
-  { value: StatusKehidupan.MENINGGAL, label: "Tidak Aktif" }
+  { value: StatusKehidupan.HIDUP, label: "Hidup" },
+  { value: StatusKehidupan.PINDAH, label: "Pindah" },
+  { value: StatusKehidupan.MENINGGAL, label: "Meninggal" }
 ] as const;
 
 export const familyHeadFormSchema = z.object({
@@ -39,6 +40,42 @@ export const familyHeadFormSchema = z.object({
   }),
   tanggalKeluar: z.date().optional().nullable(),
   tanggalMeninggal: z.date().optional().nullable(),
+}).refine((data) => {
+  // Validasi: tanggalKeluar dan tanggalMeninggal tidak boleh diisi bersamaan
+  if (data.tanggalKeluar && data.tanggalMeninggal) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Tanggal keluar dan tanggal meninggal tidak boleh diisi bersamaan",
+  path: ["tanggalKeluar"],
+}).refine((data) => {
+  // Validasi: jika status PINDAH, tanggalKeluar harus diisi
+  if (data.status === StatusKehidupan.PINDAH && !data.tanggalKeluar) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Tanggal keluar wajib diisi untuk status Pindah",
+  path: ["tanggalKeluar"],
+}).refine((data) => {
+  // Validasi: jika status MENINGGAL, tanggalMeninggal harus diisi
+  if (data.status === StatusKehidupan.MENINGGAL && !data.tanggalMeninggal) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Tanggal meninggal wajib diisi untuk status Meninggal",
+  path: ["tanggalMeninggal"],
+}).refine((data) => {
+  // Validasi: jika status HIDUP, tanggalKeluar dan tanggalMeninggal harus kosong
+  if (data.status === StatusKehidupan.HIDUP && (data.tanggalKeluar || data.tanggalMeninggal)) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Status Hidup tidak boleh memiliki tanggal keluar atau meninggal",
+  path: ["status"],
 });
 
 export type FamilyHeadFormValues = z.infer<typeof familyHeadFormSchema>;

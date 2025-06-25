@@ -108,12 +108,17 @@ export function FamilyHeadFormDialog({
   // Mengawasi perubahan status
   const statusValue = form.watch("status");
   
-  // Atur tanggal meninggal jika status adalah Meninggal
+  // Atur tanggal sesuai dengan status
   useEffect(() => {
     if (statusValue === StatusKehidupan.MENINGGAL && !form.getValues("tanggalMeninggal")) {
       form.setValue("tanggalMeninggal", new Date());
+      form.setValue("tanggalKeluar", null);
+    } else if (statusValue === StatusKehidupan.PINDAH && !form.getValues("tanggalKeluar")) {
+      form.setValue("tanggalKeluar", new Date());
+      form.setValue("tanggalMeninggal", null);
     } else if (statusValue === StatusKehidupan.HIDUP) {
       form.setValue("tanggalMeninggal", null);
+      form.setValue("tanggalKeluar", null);
     }
   }, [statusValue, form]);
 
@@ -430,13 +435,13 @@ export function FamilyHeadFormDialog({
               )}
             />
             
-            {statusValue === StatusKehidupan.HIDUP && (
+            {statusValue === StatusKehidupan.PINDAH && (
               <FormField
                 control={form.control}
                 name="tanggalKeluar"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Tanggal Keluar (Opsional)</FormLabel>
+                    <FormLabel>Tanggal Pindah</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
@@ -446,7 +451,6 @@ export function FamilyHeadFormDialog({
                               "w-full pl-3 text-left font-normal",
                               !field.value && "text-muted-foreground"
                             )}
-                            onClick={(e) => e.preventDefault()}
                           >
                             {field.value ? (
                               format(field.value, "dd MMMM yyyy", { locale: id })
