@@ -73,7 +73,7 @@ function AutoDeleteMonitor() {
                     </Button>
                 </div>
 
-                {preview && (
+                {/* {preview && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <Card>
                             <CardHeader className="pb-2">
@@ -117,7 +117,7 @@ function AutoDeleteMonitor() {
                             </CardContent>
                         </Card>
                     </div>
-                )}
+                )} */}
 
                 {preview && (preview.movedFamilies.length > 0 || preview.deceasedFamilies.length > 0) && (
                     <div className="space-y-3">
