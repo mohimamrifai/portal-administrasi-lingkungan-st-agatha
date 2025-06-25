@@ -351,10 +351,14 @@ export function FamilyHeadsTable({
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
                         <ul className="list-disc pl-4">
-                          {familyHead.status === 'HIDUP' ? (
+                          {familyHead.status === StatusKehidupan.HIDUP ? (
                             <li>1 Kepala Keluarga</li>
-                          ) : (
+                          ) : familyHead.status === StatusKehidupan.MENINGGAL ? (
                             <li className="text-red-500">1 Kepala Keluarga (Meninggal)</li>
+                          ) : familyHead.status === StatusKehidupan.PINDAH ? (
+                            <li className="text-blue-500">1 Kepala Keluarga (Pindah)</li>
+                          ) : (
+                            <li>1 Kepala Keluarga</li>
                           )}
                           
                           {familyHead.pasangan && (
