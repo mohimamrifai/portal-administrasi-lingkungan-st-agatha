@@ -14,160 +14,160 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { exportFamilyHeadTemplate } from "../utils/export-template"
 import { addFamilyHead, getAllFamilyHeadsWithDetails, markFamilyAsDeceased, markFamilyAsMoved, markFamilyMemberAsDeceased, updateFamilyHead, permanentDeleteFamilyHead } from "../actions"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { CalendarDays, Users, AlertTriangle, CheckCircle, XCircle, Settings } from "lucide-react"
-import { format } from "date-fns"
-import { id } from "date-fns/locale"
-import { previewInactiveUmatData } from "../actions"
+// import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+// import { Badge } from "@/components/ui/badge"
+// import { Separator } from "@/components/ui/separator"
+// import { CalendarDays, Users, AlertTriangle, CheckCircle, XCircle, Settings } from "lucide-react"
+// import { format } from "date-fns"
+// import { id } from "date-fns/locale"
+// import { previewInactiveUmatData } from "../actions"
 
 interface DataUmatContentProps {
     initialFamilyHeads?: FamilyHeadWithDetails[];
 }
 
 // Komponen untuk monitoring cronjob penghapusan otomatis
-function AutoDeleteMonitor() {
-    const [preview, setPreview] = useState<any>(null);
-    const [isLoading, setIsLoading] = useState(false);
+// function AutoDeleteMonitor() {
+//     const [preview, setPreview] = useState<any>(null);
+//     const [isLoading, setIsLoading] = useState(false);
 
-    const loadPreview = async () => {
-        try {
-            setIsLoading(true);
-            const data = await previewInactiveUmatData();
-            setPreview(data);
-        } catch (error) {
-            toast.error("Gagal memuat preview data");
-        } finally {
-            setIsLoading(false);
-        }
-    };
+//     const loadPreview = async () => {
+//         try {
+//             setIsLoading(true);
+//             const data = await previewInactiveUmatData();
+//             setPreview(data);
+//         } catch (error) {
+//             toast.error("Gagal memuat preview data");
+//         } finally {
+//             setIsLoading(false);
+//         }
+//     };
 
-    useEffect(() => {
-        loadPreview();
-    }, []);
+//     useEffect(() => {
+//         loadPreview();
+//     }, []);
 
-    return (
-        <Card className="mb-6">
-            <CardHeader>
-                <div className="flex items-center gap-2">
-                    <Settings className="h-5 w-5" />
-                    <CardTitle>Monitor Cronjob Penghapusan Otomatis</CardTitle>
-                </div>
-                <CardDescription>
-                    Sistem akan menghapus otomatis data umat dengan status 'Pindah' atau 'Meninggal (Seluruh Keluarga)' 
-                    setiap tanggal 1 jam 01:00 WIB. Data yang dihapus adalah yang diperbarui pada bulan sebelumnya.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                    <Button
-                        onClick={loadPreview}
-                        disabled={isLoading}
-                        variant="outline"
-                        size="sm"
-                    >
-                        <CalendarDays className="h-4 w-4 mr-2" />
-                        {isLoading ? "Memuat..." : "Refresh Preview"}
-                    </Button>
-                </div>
+//     return (
+//         <Card className="mb-6">
+//             <CardHeader>
+//                 <div className="flex items-center gap-2">
+//                     <Settings className="h-5 w-5" />
+//                     <CardTitle>Monitor Cronjob Penghapusan Otomatis</CardTitle>
+//                 </div>
+//                 <CardDescription>
+//                     Sistem akan menghapus otomatis data umat dengan status 'Pindah' atau 'Meninggal (Seluruh Keluarga)' 
+//                     setiap tanggal 1 jam 01:00 WIB. Data yang dihapus adalah yang diperbarui pada bulan sebelumnya.
+//                 </CardDescription>
+//             </CardHeader>
+//             <CardContent className="space-y-4">
+//                 <div className="flex gap-2">
+//                     <Button
+//                         onClick={loadPreview}
+//                         disabled={isLoading}
+//                         variant="outline"
+//                         size="sm"
+//                     >
+//                         <CalendarDays className="h-4 w-4 mr-2" />
+//                         {isLoading ? "Memuat..." : "Refresh Preview"}
+//                     </Button>
+//                 </div>
 
-                {/* {preview && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium">Keluarga Pindah</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-orange-600">
-                                    {preview.movedFamilies.length}
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                    keluarga yang akan dihapus
-                                </p>
-                            </CardContent>
-                        </Card>
+//                 {/* {preview && (
+//                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+//                         <Card>
+//                             <CardHeader className="pb-2">
+//                                 <CardTitle className="text-sm font-medium">Keluarga Pindah</CardTitle>
+//                             </CardHeader>
+//                             <CardContent>
+//                                 <div className="text-2xl font-bold text-orange-600">
+//                                     {preview.movedFamilies.length}
+//                                 </div>
+//                                 <p className="text-xs text-muted-foreground">
+//                                     keluarga yang akan dihapus
+//                                 </p>
+//                             </CardContent>
+//                         </Card>
 
-                        <Card>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-red-600">
-                                    {preview.deceasedFamilies.length}
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                    keluarga yang akan dihapus
-                                </p>
-                            </CardContent>
-                        </Card>
+//                         <Card>
+//                             <CardContent>
+//                                 <div className="text-2xl font-bold text-red-600">
+//                                     {preview.deceasedFamilies.length}
+//                                 </div>
+//                                 <p className="text-xs text-muted-foreground">
+//                                     keluarga yang akan dihapus
+//                                 </p>
+//                             </CardContent>
+//                         </Card>
 
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium">Total Anggota</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-blue-600">
-                                    {preview.totalMembers}
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                    anggota yang akan dihapus
-                                </p>
-                            </CardContent>
-                        </Card>
-                    </div>
-                )} */}
+//                         <Card>
+//                             <CardHeader className="pb-2">
+//                                 <CardTitle className="text-sm font-medium">Total Anggota</CardTitle>
+//                             </CardHeader>
+//                             <CardContent>
+//                                 <div className="text-2xl font-bold text-blue-600">
+//                                     {preview.totalMembers}
+//                                 </div>
+//                                 <p className="text-xs text-muted-foreground">
+//                                     anggota yang akan dihapus
+//                                 </p>
+//                             </CardContent>
+//                         </Card>
+//                     </div>
+//                 )} */}
 
-                {preview && (preview.movedFamilies.length > 0 || preview.deceasedFamilies.length > 0) && (
-                    <div className="space-y-3">
-                        <Separator />
-                        <h4 className="font-medium">Detail Data yang Akan Dihapus:</h4>
+//                 {preview && (preview.movedFamilies.length > 0 || preview.deceasedFamilies.length > 0) && (
+//                     <div className="space-y-3">
+//                         <Separator />
+//                         <h4 className="font-medium">Detail Data yang Akan Dihapus:</h4>
                         
-                        {preview.movedFamilies.length > 0 && (
-                            <div>
-                                <div className="space-y-1">
-                                    {preview.movedFamilies.map((family: any) => (
-                                        <div key={family.id} className="flex justify-between items-center text-sm bg-orange-50 p-2 rounded">
-                                            <span>{family.namaKepalaKeluarga}</span>
-                                            <div className="flex items-center gap-2">
-                                                <Badge variant="outline">{family.jumlahAnggota} anggota</Badge>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {format(new Date(family.tanggalKeluar), "dd MMM yyyy", { locale: id })}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+//                         {preview.movedFamilies.length > 0 && (
+//                             <div>
+//                                 <div className="space-y-1">
+//                                     {preview.movedFamilies.map((family: any) => (
+//                                         <div key={family.id} className="flex justify-between items-center text-sm bg-orange-50 p-2 rounded">
+//                                             <span>{family.namaKepalaKeluarga}</span>
+//                                             <div className="flex items-center gap-2">
+//                                                 <Badge variant="outline">{family.jumlahAnggota} anggota</Badge>
+//                                                 <span className="text-xs text-muted-foreground">
+//                                                     {format(new Date(family.tanggalKeluar), "dd MMM yyyy", { locale: id })}
+//                                                 </span>
+//                                             </div>
+//                                         </div>
+//                                     ))}
+//                                 </div>
+//                             </div>
+//                         )}
 
-                        {preview.deceasedFamilies.length > 0 && (
-                            <div>
-                                <div className="space-y-1">
-                                    {preview.deceasedFamilies.map((family: any) => (
-                                        <div key={family.id} className="flex justify-between items-center text-sm bg-red-50 p-2 rounded">
-                                            <span>{family.namaKepalaKeluarga}</span>
-                                            <div className="flex items-center gap-2">
-                                                <Badge variant="outline">{family.jumlahAnggota} anggota</Badge>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {format(new Date(family.tanggalMeninggal), "dd MMM yyyy", { locale: id })}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
+//                         {preview.deceasedFamilies.length > 0 && (
+//                             <div>
+//                                 <div className="space-y-1">
+//                                     {preview.deceasedFamilies.map((family: any) => (
+//                                         <div key={family.id} className="flex justify-between items-center text-sm bg-red-50 p-2 rounded">
+//                                             <span>{family.namaKepalaKeluarga}</span>
+//                                             <div className="flex items-center gap-2">
+//                                                 <Badge variant="outline">{family.jumlahAnggota} anggota</Badge>
+//                                                 <span className="text-xs text-muted-foreground">
+//                                                     {format(new Date(family.tanggalMeninggal), "dd MMM yyyy", { locale: id })}
+//                                                 </span>
+//                                             </div>
+//                                         </div>
+//                                     ))}
+//                                 </div>
+//                             </div>
+//                         )}
+//                     </div>
+//                 )}
 
-                {preview && preview.totalFamilies === 0 && (
-                    <div className="text-center py-4 text-muted-foreground">
-                        <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p>Tidak ada data umat yang akan dihapus pada periode ini</p>
-                    </div>
-                )}
-            </CardContent>
-        </Card>
-    );
-}
+//                 {preview && preview.totalFamilies === 0 && (
+//                     <div className="text-center py-4 text-muted-foreground">
+//                         <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+//                         <p>Tidak ada data umat yang akan dihapus pada periode ini</p>
+//                     </div>
+//                 )}
+//             </CardContent>
+//         </Card>
+//     );
+// }
 
 export default function DataUmatContent({ initialFamilyHeads = [] }: DataUmatContentProps) {
     const { userRole } = useAuth()
@@ -367,7 +367,7 @@ export default function DataUmatContent({ initialFamilyHeads = [] }: DataUmatCon
     return (
         <div className="space-y-6">
             {/* Monitor Cronjob - hanya untuk SUPER_USER */}
-            {userRole === 'SUPER_USER' && <AutoDeleteMonitor />}
+            {/* {userRole === 'SUPER_USER' && <AutoDeleteMonitor />} */}
 
             {!canModifyData && (
                 <Alert variant="destructive">

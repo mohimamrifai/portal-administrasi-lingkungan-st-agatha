@@ -26,8 +26,8 @@ export function initScheduler() {
     timezone: 'Asia/Jakarta'
   });
 
-  // Jalankan penghapusan otomatis data umat setiap awal bulan (tanggal 1) jam 01:00
-  cron.schedule('0 1 1 * *', async () => {
+  // Jalankan penghapusan otomatis data umat setiap awal bulan (tanggal 1) jam 00:00
+  cron.schedule('0 0 1 * *', async () => {
     const startTime = new Date();
     
     try {
@@ -113,5 +113,5 @@ export function initScheduler() {
   console.log('📅 Schedule summary:');
   console.log('   - Auto-delete completed agendas: Every Sunday at 00:00 WIB');
   console.log('   - Send reminder notifications: Every 3 days at 00:00 WIB');
-  console.log('   - Auto-delete inactive umat data: 1st of every month at 01:00 WIB');
+  console.log('   - Auto-delete inactive umat data: 1st of every month at 00:00 WIB');
 } 
