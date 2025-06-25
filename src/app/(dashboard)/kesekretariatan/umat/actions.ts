@@ -237,7 +237,7 @@ export async function updateFamilyHead(id: string, data: FamilyHeadFormData): Pr
 
 /**
  * Menandai keluarga sebagai pindah
- * Keluarga yang pindah tidak akan lagi dihitung dalam statistik
+ * Mengubah status kepala keluarga menjadi PINDAH dan mencatat tanggal kepindahan
  */
 export async function markFamilyAsMoved(id: string): Promise<void> {
   try {
@@ -245,19 +245,24 @@ export async function markFamilyAsMoved(id: string): Promise<void> {
     
     // Ambil data keluarga terlebih dahulu
     const keluarga = await prisma.keluargaUmat.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        pasangan: true,
+        tanggungan: true
+      }
     });
     
     if (!keluarga) {
       throw new Error("Keluarga tidak ditemukan");
     }
     
-    // Update status keluarga
+    // Update status keluarga menjadi PINDAH
     await prisma.keluargaUmat.update({
       where: { id },
       data: {
+        status: StatusKehidupan.PINDAH,
         tanggalKeluar: tanggalKeluar,
-        jumlahAnggotaKeluarga: 0 // Set ke 0 karena keluarga pindah tidak dihitung lagi
+        tanggalMeninggal: null, // Pastikan tanggal meninggal kosong
       },
     });
 
@@ -270,7 +275,8 @@ export async function markFamilyAsMoved(id: string): Promise<void> {
 
 /**
  * Menandai keluarga sebagai meninggal
- * Keluarga yang semua anggotanya meninggal tidak akan lagi dihitung dalam statistik
+ * Mengubah status kepala keluarga menjadi MENINGGAL dan mencatat tanggal meninggal
+ * Juga menandai seluruh anggota keluarga (pasangan dan tanggungan) sebagai meninggal
  */
 export async function markFamilyAsDeceased(id: string): Promise<void> {
   try {
@@ -300,16 +306,27 @@ export async function markFamilyAsDeceased(id: string): Promise<void> {
       });
     }
     
-    // Tanggungan bisa dihapus atau dibiarkan, karena tidak memengaruhi statistik
-    // ketika kepala keluarga meninggal
+    // Tandai semua tanggungan (anak dan kerabat) sebagai meninggal
+    if (keluarga.tanggungan && keluarga.tanggungan.length > 0) {
+      await prisma.tanggungan.updateMany({
+        where: { 
+          keluargaId: id,
+          status: StatusKehidupan.HIDUP // Hanya update yang masih hidup
+        },
+        data: {
+          status: StatusKehidupan.MENINGGAL,
+          tanggalMeninggal: tanggalMeninggal
+        }
+      });
+    }
     
-    // Update status kepala keluarga
+    // Update status kepala keluarga menjadi MENINGGAL
     await prisma.keluargaUmat.update({
       where: { id },
       data: {
         status: StatusKehidupan.MENINGGAL,
         tanggalMeninggal: tanggalMeninggal,
-        jumlahAnggotaKeluarga: 0 // Set ke 0 karena semua anggota keluarga dianggap meninggal
+        tanggalKeluar: null, // Pastikan tanggal keluar kosong
       },
     });
 
@@ -927,9 +944,10 @@ export async function autoDeleteInactiveUmatData(): Promise<{
     let deletedMembers = 0;
     const errors: string[] = [];
     
-    // 1. Cari keluarga yang pindah pada bulan sebelumnya
+    // 1. Cari keluarga yang pindah pada bulan sebelumnya (menggunakan status PINDAH)
     const movedFamilies = await prisma.keluargaUmat.findMany({
       where: {
+        status: StatusKehidupan.PINDAH,
         tanggalKeluar: {
           gte: lastMonth,
           lte: endOfLastMonth,
@@ -1151,9 +1169,10 @@ export async function previewInactiveUmatData(): Promise<{
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
     
-    // 1. Cari keluarga yang pindah pada bulan sebelumnya
+    // 1. Cari keluarga yang pindah pada bulan sebelumnya (menggunakan status PINDAH)
     const movedFamilies = await prisma.keluargaUmat.findMany({
       where: {
+        status: StatusKehidupan.PINDAH,
         tanggalKeluar: {
           gte: lastMonth,
           lte: endOfLastMonth,
@@ -1177,6 +1196,7 @@ export async function previewInactiveUmatData(): Promise<{
       include: {
         pasangan: true,
         tanggungan: true,
+        users: true,
       },
     });
     

@@ -177,7 +177,7 @@ export function DeleteConfirmationDialog({
 
             {deleteReason === "moved" && (
               <p className="text-sm text-muted-foreground mt-2">
-                Memilih alasan "Pindah" akan mencatat tanggal kepindahan keluarga dan mengubah statusnya di sistem.
+                Memilih alasan "Pindah" akan mengubah status keluarga menjadi "Pindah" dan mencatat tanggal kepindahan.
               </p>
             )}
           </div>

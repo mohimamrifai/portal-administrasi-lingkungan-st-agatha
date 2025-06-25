@@ -89,7 +89,8 @@ export function FamilyHeadsTable({
   
   const statusOptions = [
     { value: null, label: "Semua Status", key: "all" },
-    { value: StatusKehidupan.HIDUP, label: "Aktif", key: "active" },
+    { value: StatusKehidupan.HIDUP, label: "Hidup", key: "active" },
+    { value: StatusKehidupan.PINDAH, label: "Pindah", key: "moved" },
     { value: StatusKehidupan.MENINGGAL, label: "Meninggal", key: "deceased" },
   ];
 
@@ -99,7 +100,7 @@ export function FamilyHeadsTable({
       
       let successMessage = "";
       if (reason === "moved") {
-        successMessage = "Status kepala keluarga berhasil diubah menjadi Pindah. Data akan dihapus otomatis setelah 1 tahun 1 bulan.";
+        successMessage = "Status kepala keluarga berhasil diubah menjadi Pindah.";
       } else if (reason === "deceased") {
         successMessage = "Status seluruh keluarga berhasil diubah menjadi Meninggal.";
       } else if (reason === "member_deceased") {
@@ -129,11 +130,13 @@ export function FamilyHeadsTable({
   const getStatusBadge = (status: StatusKehidupan) => {
     switch (status) {
       case StatusKehidupan.HIDUP:
-        return <Badge variant="outline" className="bg-green-100 hover:bg-green-100">Aktif</Badge>;
+        return <Badge variant="outline" className="bg-green-100 hover:bg-green-100">Hidup</Badge>;
+      case StatusKehidupan.PINDAH:
+        return <Badge variant="outline" className="bg-blue-100 hover:bg-blue-100">Pindah</Badge>;
       case StatusKehidupan.MENINGGAL:
         return <Badge variant="outline" className="bg-gray-100 hover:bg-gray-100">Meninggal</Badge>;
       default:
-        return <Badge variant="outline">Aktif</Badge>;
+        return <Badge variant="outline">Hidup</Badge>;
     }
   };
   
@@ -142,7 +145,6 @@ export function FamilyHeadsTable({
     // Search term filter
     const matchesSearch = searchTerm === "" || 
       familyHead.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      familyHead.alamat.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (familyHead.nomorTelepon && familyHead.nomorTelepon.toLowerCase().includes(searchTerm.toLowerCase()));
     
     // Status filter
@@ -294,12 +296,11 @@ export function FamilyHeadsTable({
               <TableRow>
                 <TableHead className="w-[50px] whitespace-nowrap">No</TableHead>
                 <TableHead className="whitespace-nowrap min-w-[120px]">Nama KK</TableHead>
-                <TableHead className="whitespace-nowrap min-w-[180px]">Alamat</TableHead>
                 <TableHead className="whitespace-nowrap min-w-[110px]">No. Telepon</TableHead>
                 <TableHead className="whitespace-nowrap min-w-[120px]">Tanggal Bergabung</TableHead>
                 <TableHead className="whitespace-nowrap min-w-[120px]">Jumlah Jiwa</TableHead>
                 <TableHead className="whitespace-nowrap min-w-[80px]">Status</TableHead>
-                <TableHead className="whitespace-nowrap min-w-[120px]">Tanggal Keluar</TableHead>
+                <TableHead className="whitespace-nowrap min-w-[120px]">Tgl Pindah/Meninggal</TableHead>
                 {canModifyData && <TableHead className="sticky right-0 bg-white shadow-[-4px_0_4px_rgba(0,0,0,0.05)] w-[70px]">Aksi</TableHead>}
               </TableRow>
             </TableHeader>
@@ -310,7 +311,6 @@ export function FamilyHeadsTable({
                   <TableRow key={`skeleton-${index}`}>
                     <TableCell><Skeleton className="h-4 w-6" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-48" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-20" /></TableCell>
@@ -321,7 +321,7 @@ export function FamilyHeadsTable({
                 ))
               ) : currentData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canModifyData ? 9 : 8} className="h-24 text-center">
+                  <TableCell colSpan={canModifyData ? 8 : 7} className="h-24 text-center">
                     Tidak ada data yang sesuai dengan filter
                   </TableCell>
                 </TableRow>
@@ -332,7 +332,6 @@ export function FamilyHeadsTable({
                     <TableCell className="font-medium min-w-[120px]">
                       {familyHead.nama}
                     </TableCell>
-                    <TableCell className="min-w-[180px]">{familyHead.alamat}</TableCell>
                     <TableCell className="min-w-[110px]">{familyHead.nomorTelepon || "-"}</TableCell>
                     <TableCell className="min-w-[120px]">
                       {familyHead.tanggalBergabung && !isNaN(familyHead.tanggalBergabung.getTime()) 
@@ -388,11 +387,17 @@ export function FamilyHeadsTable({
                     </TableCell>
                     <TableCell className="min-w-[80px]">{getStatusBadge(familyHead.status)}</TableCell>
                     <TableCell className="min-w-[120px]">
-                      {familyHead.tanggalKeluar && !isNaN(familyHead.tanggalKeluar.getTime()) 
-                        ? format(familyHead.tanggalKeluar, "dd MMM yyyy", {
-                            locale: id,
-                          })
-                        : "-"}
+                      {familyHead.status === StatusKehidupan.PINDAH && familyHead.tanggalKeluar && !isNaN(familyHead.tanggalKeluar.getTime()) ? (
+                        <div>
+                          <span className="text-blue-600">{format(familyHead.tanggalKeluar, "dd MMM yyyy", { locale: id })}</span>
+                          <div className="text-xs text-blue-500">Pindah</div>
+                        </div>
+                      ) : familyHead.status === StatusKehidupan.MENINGGAL && familyHead.tanggalMeninggal && !isNaN(familyHead.tanggalMeninggal.getTime()) ? (
+                        <div>
+                          <span className="text-red-600">{format(familyHead.tanggalMeninggal, "dd MMM yyyy", { locale: id })}</span>
+                          <div className="text-xs text-red-500">Meninggal</div>
+                        </div>
+                      ) : "-"}
                     </TableCell>
                     {canModifyData && (
                       <TableCell className="sticky right-0 bg-white shadow-[-4px_0_4px_rgba(0,0,0,0.05)]">
