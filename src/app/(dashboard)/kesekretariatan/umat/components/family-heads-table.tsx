@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Pencil, Trash2, Download, User, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, Search, AlertCircle } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Download, User, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, Search, AlertCircle, Trash } from "lucide-react";
 import { FamilyHeadWithDetails } from "../types";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { DeleteConfirmationDialog } from "./delete-confirmation-dialog";
+import { PermanentDeleteDialog } from "./permanent-delete-dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -45,12 +46,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { StatusKehidupan } from "@prisma/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/auth-context";
 
 interface FamilyHeadsTableProps {
   familyHeads: FamilyHeadWithDetails[];
   isLoading?: boolean;
   onEdit: (familyHead: FamilyHeadWithDetails) => void;
   onDelete: (id: string, reason: "moved" | "deceased" | "member_deceased", memberName?: string) => Promise<void>;
+  onPermanentDelete: (id: string) => Promise<void>;
   onExportTemplate: () => void;
   onImportData: () => void;
   canModifyData?: boolean;
@@ -61,13 +64,20 @@ export function FamilyHeadsTable({
   isLoading = false,
   onEdit,
   onDelete,
+  onPermanentDelete,
   onExportTemplate,
   onImportData,
   canModifyData = true,
 }: FamilyHeadsTableProps) {
+  const { userRole } = useAuth();
+  
   // Dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [permanentDeleteDialogOpen, setPermanentDeleteDialogOpen] = useState(false);
   const [selectedFamilyHead, setSelectedFamilyHead] = useState<FamilyHeadWithDetails | null>(null);
+  
+  // Check if user is SUPER_USER
+  const isSuperUser = userRole === 'SUPER_USER';
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -101,6 +111,17 @@ export function FamilyHeadsTable({
       toast.error("Terjadi kesalahan saat memperbarui status");
     } finally {
       setDeleteDialogOpen(false);
+      setSelectedFamilyHead(null);
+    }
+  };
+
+  const handlePermanentDelete = async (id: string) => {
+    try {
+      await onPermanentDelete(id);
+    } catch (error) {
+      toast.error("Terjadi kesalahan saat menghapus data secara permanen");
+    } finally {
+      setPermanentDeleteDialogOpen(false);
       setSelectedFamilyHead(null);
     }
   };
@@ -400,6 +421,21 @@ export function FamilyHeadsTable({
                               <Trash2 className="mr-2 h-4 w-4" />
                               Ubah Status
                             </DropdownMenuItem>
+                            {isSuperUser && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedFamilyHead(familyHead);
+                                    setPermanentDeleteDialogOpen(true);
+                                  }}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash className="mr-2 h-4 w-4" />
+                                  Hapus Permanen
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -488,6 +524,16 @@ export function FamilyHeadsTable({
         familyHead={selectedFamilyHead}
         onConfirm={handleDelete}
       />
+      
+      {/* Permanent Delete Confirmation Dialog - Only for SUPER_USER */}
+      {isSuperUser && (
+        <PermanentDeleteDialog
+          open={permanentDeleteDialogOpen}
+          onOpenChange={setPermanentDeleteDialogOpen}
+          familyHead={selectedFamilyHead}
+          onConfirm={handlePermanentDelete}
+        />
+      )}
     </div>
   );
 } 

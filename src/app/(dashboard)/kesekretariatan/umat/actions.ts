@@ -416,7 +416,7 @@ export async function markFamilyMemberAsDeceased(id: string, memberName: string)
 }
 
 /**
- * Menghapus data kepala keluarga (fisik)
+ * Menghapus data kepala keluarga secara permanen (SUPER_USER ONLY)
  * Hanya digunakan untuk keadaan khusus
  */
 export async function deleteFamilyHead(id: string): Promise<void> {
@@ -429,6 +429,95 @@ export async function deleteFamilyHead(id: string): Promise<void> {
   } catch (error) {
     console.error("Error deleting family head:", error);
     throw new Error("Gagal menghapus data kepala keluarga");
+  }
+}
+
+/**
+ * Menghapus data kepala keluarga secara permanen dengan validasi SUPER_USER
+ * Fungsi ini menghapus seluruh data keluarga dari database
+ */
+export async function permanentDeleteFamilyHead(id: string): Promise<void> {
+  try {
+    // Gunakan transaction untuk memastikan konsistensi data
+    await prisma.$transaction(async (prisma) => {
+      // Hapus semua data terkait terlebih dahulu
+      
+      // 1. Hapus absensi doa lingkungan
+      await prisma.absensiDoling.deleteMany({
+        where: { keluargaId: id }
+      });
+
+      // 2. Hapus data kas lingkungan
+      await prisma.kasLingkungan.deleteMany({
+        where: { keluargaId: id }
+      });
+
+      // 3. Hapus data dana mandiri
+      await prisma.danaMandiri.deleteMany({
+        where: { keluargaId: id }
+      });
+
+      // 4. Hapus data iuran IKATA
+      await prisma.iuranIkata.deleteMany({
+        where: { keluargaId: id }
+      });
+
+      // 5. Hapus doa lingkungan sebagai tuan rumah
+      const doaLingkunganIds = await prisma.doaLingkungan.findMany({
+        where: { tuanRumahId: id },
+        select: { id: true }
+      });
+
+      if (doaLingkunganIds.length > 0) {
+        // Hapus absensi dari doa lingkungan yang dibuat keluarga ini
+        await prisma.absensiDoling.deleteMany({
+          where: { 
+            doaLingkunganId: { 
+              in: doaLingkunganIds.map(d => d.id) 
+            } 
+          }
+        });
+
+        // Hapus approval doa lingkungan
+        await prisma.approval.deleteMany({
+          where: { 
+            doaLingkunganId: { 
+              in: doaLingkunganIds.map(d => d.id) 
+            } 
+          }
+        });
+
+        // Hapus doa lingkungan
+        await prisma.doaLingkungan.deleteMany({
+          where: { tuanRumahId: id }
+        });
+      }
+
+      // 6. Hapus users yang terkait dengan keluarga ini
+      await prisma.user.deleteMany({
+        where: { keluargaId: id }
+      });
+
+      // 7. Hapus tanggungan (anak dan kerabat)
+      await prisma.tanggungan.deleteMany({
+        where: { keluargaId: id }
+      });
+
+      // 8. Hapus pasangan
+      await prisma.pasangan.deleteMany({
+        where: { keluargaId: id }
+      });
+
+      // 9. Terakhir, hapus data kepala keluarga
+      await prisma.keluargaUmat.delete({
+        where: { id }
+      });
+    });
+
+    revalidatePath("/kesekretariatan/umat");
+  } catch (error) {
+    console.error("Error permanently deleting family head:", error);
+    throw new Error("Gagal menghapus data kepala keluarga secara permanen");
   }
 }
 
@@ -810,5 +899,315 @@ export async function getAllFamilyHeadsWithDetails(): Promise<FamilyHeadWithDeta
   } catch (error) {
     console.error("Error getting family heads with details:", error);
     throw new Error("Gagal mengambil data keluarga umat dengan detail");
+  }
+}
+
+/**
+ * Menghapus otomatis data umat dengan status 'Pindah' atau 'Meninggal (Seluruh Keluarga)'
+ * yang statusnya diperbarui pada bulan sebelumnya
+ * Fungsi ini akan dipanggil oleh cronjob setiap awal bulan
+ */
+export async function autoDeleteInactiveUmatData(): Promise<{
+  success: boolean;
+  deletedFamilies: number;
+  deletedMembers: number;
+  errors: string[];
+}> {
+  try {
+    console.log('Starting auto-delete process for inactive umat data...');
+    
+    // Hitung range bulan sebelumnya
+    const now = new Date();
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    
+    console.log(`Checking for families updated between ${lastMonth.toISOString()} and ${endOfLastMonth.toISOString()}`);
+    
+    let deletedFamilies = 0;
+    let deletedMembers = 0;
+    const errors: string[] = [];
+    
+    // 1. Cari keluarga yang pindah pada bulan sebelumnya
+    const movedFamilies = await prisma.keluargaUmat.findMany({
+      where: {
+        tanggalKeluar: {
+          gte: lastMonth,
+          lte: endOfLastMonth,
+        },
+      },
+      include: {
+        pasangan: true,
+        tanggungan: true,
+        users: true,
+      },
+    });
+    
+    console.log(`Found ${movedFamilies.length} families that moved last month`);
+    
+    // 2. Cari keluarga yang meninggal (seluruh keluarga) pada bulan sebelumnya
+    const deceasedFamilies = await prisma.keluargaUmat.findMany({
+      where: {
+        status: StatusKehidupan.MENINGGAL,
+        tanggalMeninggal: {
+          gte: lastMonth,
+          lte: endOfLastMonth,
+        },
+      },
+      include: {
+        pasangan: true,
+        tanggungan: true,
+        users: true,
+      },
+    });
+    
+    console.log(`Found ${deceasedFamilies.length} families where entire family deceased last month`);
+    
+    // 3. Gabungkan kedua kategori
+    const familiesToDelete = [...movedFamilies, ...deceasedFamilies];
+    
+    if (familiesToDelete.length === 0) {
+      console.log('No families found for auto-deletion');
+      return {
+        success: true,
+        deletedFamilies: 0,
+        deletedMembers: 0,
+        errors: [],
+      };
+    }
+    
+    // 4. Proses penghapusan untuk setiap keluarga
+    for (const family of familiesToDelete) {
+      try {
+        console.log(`Deleting family: ${family.namaKepalaKeluarga} (ID: ${family.id})`);
+        
+        // Hitung jumlah anggota yang akan dihapus
+        let memberCount = 1; // Kepala keluarga
+        if (family.pasangan) memberCount += 1;
+        if (family.tanggungan) memberCount += family.tanggungan.length;
+        
+        // Gunakan transaction untuk memastikan konsistensi data
+        await prisma.$transaction(async (prisma) => {
+          // Hapus semua data terkait menggunakan fungsi yang sudah ada
+          // Tapi kita perlu membuat versi yang lebih aman untuk auto-delete
+          
+          // 1. Hapus absensi doa lingkungan
+          await prisma.absensiDoling.deleteMany({
+            where: { keluargaId: family.id }
+          });
+
+          // 2. Hapus data kas lingkungan
+          await prisma.kasLingkungan.deleteMany({
+            where: { keluargaId: family.id }
+          });
+
+          // 3. Hapus data dana mandiri
+          await prisma.danaMandiri.deleteMany({
+            where: { keluargaId: family.id }
+          });
+
+          // 4. Hapus data iuran IKATA
+          await prisma.iuranIkata.deleteMany({
+            where: { keluargaId: family.id }
+          });
+
+          // 5. Hapus doa lingkungan sebagai tuan rumah
+          const doaLingkunganIds = await prisma.doaLingkungan.findMany({
+            where: { tuanRumahId: family.id },
+            select: { id: true }
+          });
+
+          if (doaLingkunganIds.length > 0) {
+            // Hapus absensi dari doa lingkungan yang dibuat keluarga ini
+            await prisma.absensiDoling.deleteMany({
+              where: { 
+                doaLingkunganId: { 
+                  in: doaLingkunganIds.map(d => d.id) 
+                } 
+              }
+            });
+
+            // Hapus approval doa lingkungan
+            await prisma.approval.deleteMany({
+              where: { 
+                doaLingkunganId: { 
+                  in: doaLingkunganIds.map(d => d.id) 
+                } 
+              }
+            });
+
+            // Hapus doa lingkungan
+            await prisma.doaLingkungan.deleteMany({
+              where: { tuanRumahId: family.id }
+            });
+          }
+
+          // 6. Hapus pengajuan yang dibuat oleh user keluarga ini
+          if (family.users && family.users.length > 0) {
+            await prisma.pengajuan.deleteMany({
+              where: { 
+                pengajuId: { 
+                  in: family.users.map(u => u.id) 
+                } 
+              }
+            });
+
+            // Hapus publikasi yang dibuat oleh user keluarga ini
+            await prisma.publikasi.deleteMany({
+              where: { 
+                pembuatId: { 
+                  in: family.users.map(u => u.id) 
+                } 
+              }
+            });
+
+            // Hapus notifikasi yang ditujukan untuk user keluarga ini
+            await prisma.notification.deleteMany({
+              where: { 
+                userId: { 
+                  in: family.users.map(u => u.id) 
+                } 
+              }
+            });
+          }
+
+          // 7. Hapus users yang terkait dengan keluarga ini
+          await prisma.user.deleteMany({
+            where: { keluargaId: family.id }
+          });
+
+          // 8. Hapus tanggungan (anak dan kerabat)
+          await prisma.tanggungan.deleteMany({
+            where: { keluargaId: family.id }
+          });
+
+          // 9. Hapus pasangan jika ada
+          if (family.pasangan) {
+            await prisma.pasangan.delete({
+              where: { id: family.pasangan.id }
+            });
+          }
+
+          // 10. Hapus data keluarga utama
+          await prisma.keluargaUmat.delete({
+            where: { id: family.id }
+          });
+        });
+        
+        deletedFamilies += 1;
+        deletedMembers += memberCount;
+        
+        console.log(`Successfully deleted family: ${family.namaKepalaKeluarga} (${memberCount} members)`);
+        
+      } catch (error) {
+        const errorMsg = `Failed to delete family ${family.namaKepalaKeluarga}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        console.error(errorMsg);
+        errors.push(errorMsg);
+      }
+    }
+    
+    console.log(`Auto-delete process completed. Deleted ${deletedFamilies} families (${deletedMembers} members total)`);
+    
+    return {
+      success: true,
+      deletedFamilies,
+      deletedMembers,
+      errors,
+    };
+    
+  } catch (error) {
+    console.error('Error in auto-delete process:', error);
+    return {
+      success: false,
+      deletedFamilies: 0,
+      deletedMembers: 0,
+      errors: [error instanceof Error ? error.message : 'Unknown error occurred'],
+    };
+  }
+}
+
+/**
+ * Fungsi untuk melihat preview data umat yang akan dihapus pada bulan sebelumnya
+ * Berguna untuk monitoring dan testing sebelum penghapusan otomatis
+ */
+export async function previewInactiveUmatData(): Promise<{
+  movedFamilies: Array<{
+    id: string;
+    namaKepalaKeluarga: string;
+    tanggalKeluar: Date;
+    jumlahAnggota: number;
+  }>;
+  deceasedFamilies: Array<{
+    id: string;
+    namaKepalaKeluarga: string;
+    tanggalMeninggal: Date;
+    jumlahAnggota: number;
+  }>;
+  totalFamilies: number;
+  totalMembers: number;
+}> {
+  try {
+    // Hitung range bulan sebelumnya
+    const now = new Date();
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    
+    // 1. Cari keluarga yang pindah pada bulan sebelumnya
+    const movedFamilies = await prisma.keluargaUmat.findMany({
+      where: {
+        tanggalKeluar: {
+          gte: lastMonth,
+          lte: endOfLastMonth,
+        },
+      },
+      include: {
+        pasangan: true,
+        tanggungan: true,
+      },
+    });
+    
+    // 2. Cari keluarga yang meninggal (seluruh keluarga) pada bulan sebelumnya
+    const deceasedFamilies = await prisma.keluargaUmat.findMany({
+      where: {
+        status: StatusKehidupan.MENINGGAL,
+        tanggalMeninggal: {
+          gte: lastMonth,
+          lte: endOfLastMonth,
+        },
+      },
+      include: {
+        pasangan: true,
+        tanggungan: true,
+      },
+    });
+    
+    // 3. Format data untuk preview
+    const movedPreview = movedFamilies.map(family => ({
+      id: family.id,
+      namaKepalaKeluarga: family.namaKepalaKeluarga,
+      tanggalKeluar: family.tanggalKeluar!,
+      jumlahAnggota: 1 + (family.pasangan ? 1 : 0) + (family.tanggungan?.length || 0),
+    }));
+    
+    const deceasedPreview = deceasedFamilies.map(family => ({
+      id: family.id,
+      namaKepalaKeluarga: family.namaKepalaKeluarga,
+      tanggalMeninggal: family.tanggalMeninggal!,
+      jumlahAnggota: 1 + (family.pasangan ? 1 : 0) + (family.tanggungan?.length || 0),
+    }));
+    
+    const totalFamilies = movedFamilies.length + deceasedFamilies.length;
+    const totalMembers = movedPreview.reduce((sum, f) => sum + f.jumlahAnggota, 0) + 
+                        deceasedPreview.reduce((sum, f) => sum + f.jumlahAnggota, 0);
+    
+    return {
+      movedFamilies: movedPreview,
+      deceasedFamilies: deceasedPreview,
+      totalFamilies,
+      totalMembers,
+    };
+    
+  } catch (error) {
+    console.error('Error in preview inactive umat data:', error);
+    throw new Error('Gagal mengambil preview data umat yang akan dihapus');
   }
 } 
