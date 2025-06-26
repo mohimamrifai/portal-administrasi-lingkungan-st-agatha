@@ -15,7 +15,7 @@ async function main() {
   await seedUsers(prisma);
   
   // Seed keluarga umat
-  await seedKeluargaUmat(prisma);
+  // await seedKeluargaUmat(prisma);
   
   // // Seed kas lingkungan
   // await seedKasLingkungan(prisma);
